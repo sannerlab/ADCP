@@ -1,0 +1,542 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Sep 23 13:29:31 2022
+v2
+@author: sshanker
+"""
+from colorama import Fore, Style
+import importlib
+is_opemm_present=1
+  
+openmm_loader = importlib.find_loader('openmm')
+
+if openmm_loader == None:
+    print(f"{Fore.RED}OpenMM not found. Re-ranking by OpenMM will not be performed.{Style.RESET_ALL}" )
+    is_opemm_present = 0
+else:
+    from openmm import *
+    from openmm.app import *
+    from openmm.unit import *
+    from pdbfixer import PDBFixer
+
+import os
+import prody
+from MolKit2 import Read
+import numpy as np
+from prody.measure.contacts import findNeighbors
+from prody import calcTransformation, writePDB, writePDBStream
+import io
+
+
+
+
+# class openmm_default_settings:
+#     def __init__(self):
+#         self.minimization_env = 'in-vacuo'
+#         self.minimization_steps = 100
+#         self.find_neighbor_cutoff = 5
+        
+    
+    
+
+def split_pdb_to_chain_A_and_Z(pdbid):
+    # it will change last chain to "Z" 
+    # after openMM minimization chain ids are changed to cotinuous letters
+    # like A,B,Z => A,B,C
+    
+    out_pdb_int = pdbid[:-4]
+    
+    mol = Read(pdbid)
+    
+    # handeling chain ids
+    chids = mol._ag.getChids()    
+    chains = list(set(chids))
+    chains.sort()
+    
+    chids = ''.join(chids)
+    chids = chids.replace(chains[-1],'Z')
+    chids = [x for x in chids]
+    mol._ag.setChids(chids)
+    
+    rec = mol._ag.select('not chid Z')
+    pep = mol._ag.select('chid Z')   
+  
+    
+    prody.writePDB(out_pdb_int+"_A.pdb", rec)
+    prody.writePDB(out_pdb_int+"_Z.pdb", pep)
+    
+
+
+def identify_interface_residues(pdb_file, needs_b=0):
+    mol_temp = Read(pdb_file)
+    
+    rec = mol_temp._ag.select('not chid Z and not hydrogen')
+    pep = mol_temp._ag.select('chid Z not hydrogen')
+    
+
+    near_n = findNeighbors(rec, 5 , pep)
+
+    interacting_chainA_res = []
+    if needs_b ==1:
+        interacting_chainB_res = []
+    for a1,a2,d in near_n:
+        # import pdb ; pdb.set_trace()
+        interacting_chainA_res.append(a1.getResindex())
+        if needs_b ==1:
+            interacting_chainB_res.append(a2.getResindex())
+        # if a1.getName() == 'CA':
+        #     print(a1.getResname())
+        
+        
+    interacting_chainA_res = list(set(interacting_chainA_res))
+    
+    interacting_chainA_res.sort()
+    # import pdb; pdb.set_trace()
+    res_list_prody=[]
+    for i in interacting_chainA_res:
+        res_list_prody.append(rec.select(' name CA and resindex %d' % i ).getResnames()[0])
+    # print("prody ignore:",res_list_prody)
+    
+    if needs_b ==1:
+        interacting_chainB_res = list(set(interacting_chainB_res))
+        interacting_chainB_res.sort()
+        pep_list_prody=[]
+        for i in interacting_chainB_res:
+            pep_list_prody.append(pep.select(' name CA and resindex %d' % i ).getResnames()[0])
+        # print("prody ignore(B):",pep_list_prody)
+        
+        return interacting_chainA_res,interacting_chainB_res
+   
+    # interacting_chainA_res=np.array(interacting_chainA_res)
+    return interacting_chainA_res
+    
+
+
+def fix_my_pdb(pdb_in,out=None):
+    if out==None:
+        pdb_out = "./fixed/" + pdb_in.split('/')[-1].split('.')[0]+'_fixed.pdb'
+    else:
+        pdb_out = out
+        
+    mol_tmp =Read(pdb_in)
+
+    rs_names = mol_tmp._ag.getResnames()
+    atom_names = mol_tmp._ag.getNames()
+    element_names = mol_tmp._ag.getElements()
+
+    for indx, (i,j) in enumerate(zip(rs_names, atom_names)):
+        if i == 'LEU':
+            if j == 'CD':
+                atom_names[indx]='CD1'
+                element_names[indx]='C'
+            elif j == 'CG':
+                element_names[indx]='C'
+                
+        elif i == 'ASN':
+            if j == '2HD':
+                atom_names[indx]='2HD2'
+                element_names[indx]='H'
+        elif i == 'ARG':
+            if j == '2HN1':
+                atom_names[indx]='2HH1'
+                element_names[indx]='H'
+        elif i == 'VAL':
+            if j == 'CD1':
+                atom_names[indx]='CG1'
+                element_names[indx]='C'
+            elif j == 'CD2':
+                atom_names[indx]='CG2'
+                element_names[indx]='C'
+       
+                
+            
+    mol_tmp._ag.setNames(atom_names)
+    mol_tmp._ag.setElements(element_names)
+    prody.writePDB(pdb_out,mol_tmp._ag)
+    
+    # import pdb; pdb.set_trace()
+
+    # for  i,j,k in zip(res_list, chain_list, res_nums):
+    #     if i == 'LEU':
+    #         print(mol._ag.select('resnum %d and chid %s' % (k, j )).getNames())
+    
+    fixer = PDBFixer(filename=pdb_out)
+    fixer.findMissingResidues()
+    fixer.findMissingAtoms()
+    fixer.findNonstandardResidues()
+        # print('Residues:', fixer.missingResidues)
+        # print('Atoms:', fixer.missingAtoms)
+        # print('Terminals:', fixer.missingTerminals)
+        # print('Non-standard:', fixer.nonstandardResidues)
+    
+    fixer.addMissingAtoms()
+    fixer.addMissingHydrogens(7.4)
+    fixer.removeHeterogens(False)
+    
+    with open( pdb_out , 'w') as outfile:
+         PDBFile.writeFile(fixer.topology, fixer.positions, file=outfile,
+    keepIds=True)
+    
+    # # second_atom_check
+    # pdb = Read(outfile)
+         
+    return pdb_out
+
+  
+def restrain_(system_, pdb, not_chain='Z', ignore_list=[]):
+    # given chain will not be restrained
+    restraint = CustomExternalForce("0.5 * k * ((x-x0)^2 + (y-y0)^2 + (z-z0)^2)")
+    
+    restraint.addGlobalParameter('k', 20000.0*kilojoules_per_mole/nanometer*nanometer)
+    
+    restraint.addPerParticleParameter('x0')
+    restraint.addPerParticleParameter('y0')
+    restraint.addPerParticleParameter('z0')
+    # print(ignore_list)
+    res_list_openmm=[]
+    for atom in pdb.topology.atoms():
+        if len(ignore_list) > 0:
+            if ignore_list.count(atom.residue.index) > 0:
+                if atom.name == 'CA':
+                    res_list_openmm.append(atom.residue.name)
+                continue
+        
+        # import pdb ; pdb.set_trace()
+        if not_chain !='Z':
+            if atom.element.name == 'hydrogen':
+                continue
+            if atom.residue.chain.id != 'Z':       
+                restraint.addParticle(atom.index, pdb.positions[atom.index])
+        else:
+            restraint.addParticle(atom.index, pdb.positions[atom.index])
+    # if chain =='A':       
+    #     print("omm ignore  :",res_list_openmm)            
+    system_.addForce(restraint)
+    
+    
+    
+def get_energy(pdbfile,mode='vacuum', verbose = 0):
+    pdb_handle = PDBFile(pdbfile)
+
+    if mode == 'implicit':
+        force_field = ForceField("amber99sb.xml",'implicit/gbn2.xml')
+        msg="Using GBSA (gbn2) environment for energy calculation"
+    
+    else:
+        force_field = ForceField("amber99sb.xml")
+        msg="Using In-Vacuo environment for energy calculation"
+    if verbose == 1:
+        print(msg)
+    system = force_field.createSystem(pdb_handle.topology, nonbondedCutoff=1*nanometer, constraints=HBonds)
+    restrain_(system, pdb_handle, 'All')
+    integrator = openmm.LangevinIntegrator(0, 0.01, 0.0)
+    simulation = Simulation(pdb_handle.topology, system, integrator)
+    simulation.context.setPositions(pdb_handle.positions)
+    simulation.minimizeEnergy(maxIterations=1)
+    state = simulation.context.getState(getEnergy=True)
+    # import pdb; pdb.set_trace()
+        
+    return state.getPotentialEnergy()._value
+
+
+def _openmm_minimize( pdb_str: str,env='implicit', verbose = 0):
+    """Minimize energy via openmm."""
+    
+    # pdb_file = io.StringIO(pdb_str)
+    
+    pdb = PDBFile(pdb_str)
+    
+    if env == 'implicit':
+        force_field = ForceField("amber99sb.xml",'implicit/gbn2.xml')
+        
+        msg = "Using GBSA (gbn2) environment for energy minimization"
+    else:
+        force_field = ForceField("amber99sb.xml")
+        msg = "Using in-vacuo environment for energy minimization"
+    
+    if verbose == 1:
+        print(msg)
+    # integrator = LangevinIntegrator(300*kelvin, 1/picosecond, 0.002*picoseconds)
+    integrator = openmm.LangevinIntegrator(0, 0.01, 0.0)
+    constraints = HBonds
+    
+    system = force_field.createSystem(  pdb.topology, nonbondedCutoff=1*nanometer, 
+                                      constraints=constraints)
+    
+    ignore_list = identify_interface_residues(pdb_str)
+    
+    
+    restrain_(system, pdb, ignore_list=ignore_list)
+
+
+    # platform = openmm.Platform.getPlatformByName("CUDA" if use_gpu else "CPU")
+    simulation = Simulation( pdb.topology, system, integrator)
+    simulation.context.setPositions(pdb.positions)
+      
+    ret = {}
+    state = simulation.context.getState(getEnergy=True, getPositions=True)
+    ret["einit"] = state.getPotentialEnergy()
+    # ret["posinit"] = state.getPositions(asNumpy=True)
+    simulation.minimizeEnergy(maxIterations=5, tolerance=0.01)
+    state = simulation.context.getState(getEnergy=True, getPositions=True)
+    ret["efinal"] = state.getPotentialEnergy()
+    # ret["pos"] = state.getPositions(asNumpy=True)
+    positions = simulation.context.getState(getPositions=True).getPositions()
+    PDBFile.writeFile(simulation.topology, positions, open(pdb_str[:-4]+"_min.pdb", 'w'))
+   
+
+    
+    
+    # ret["min_pdb"] = _get_pdb_string(simulation.topology, state.getPositions())
+    return ret,system
+
+
+
+def estimate_energies_for_pdb2(pdb_fl, env='implicit', verbose=0):
+    if verbose == 1:
+        print('working on:',pdb_fl.split("/")[-1])
+    fixed_pdb = fix_my_pdb(pdb_fl, pdb_fl[:-4] +"_fixed.pdb")
+    if verbose == 1:
+        print("minimizing ...")
+    out1=_openmm_minimize(fixed_pdb,env)
+    minimized_pdb = fixed_pdb[:-4]+"_min.pdb"
+    enzs=[]
+    split_pdb_to_chain_A_and_Z(fixed_pdb[:-4]+"_min.pdb")
+    for j in [minimized_pdb, minimized_pdb[:-4]+"_A.pdb",minimized_pdb[:-4]+"_Z.pdb" ]:
+        enzs.append(get_energy(j,env))
+
+    enzs.append(enzs[0] - enzs[1] -enzs[2])
+    enzs.append(enzs[0] - enzs[1])
+    e_str=''
+    for i in enzs:
+        e_str = e_str + "%10.2f" % i
+    if verbose == 1:
+        print(' E_Complex E_Receptr E_Peptide dE_Interc dE_ComRes')   
+        print (e_str)
+    return enzs
+
+
+
+def makeChidNonPeptide(receptor):
+    # Chid 'Z' is reserved for peptide. Will be mutated if present in receptor.
+    use_letters_for_chain = 'ABCDEFGHIJKLMNOPQRSTUVWXY'  # Z is saved for peptide
+    rec_chids_list = receptor.getChids()
+    rec_chids_str = ''.join(rec_chids_list)
+    
+    rec_chains = list(set(rec_chids_list))       
+    restore_chain_ids = [] # it can be used
+    
+    # removing letters with already present chains, 
+    # so no other chain will be renamed to already present ones.
+    for chain in rec_chains:
+        use_letters_for_chain = use_letters_for_chain.replace(chain,'')  
+        
+    
+    chain_letter_iterator = 0
+    for ids in rec_chains:
+        # chain letters should not be numeric
+        if ids.isnumeric():
+            curr_letter = use_letters_for_chain[chain_letter_iterator]
+            chain_letter_iterator += 1
+            rec_chids_str = rec_chids_str.replace(ids,curr_letter)
+            restore_chain_ids.append([ curr_letter, ids ])
+        
+        # receptor chain letters should not be 'Z' as it is asigned for peptide
+        elif ids == 'Z':
+            curr_letter = use_letters_for_chain[chain_letter_iterator]
+            chain_letter_iterator += 1
+            rec_chids_str = rec_chids_str.replace(ids,curr_letter)
+            restore_chain_ids.append([ curr_letter, ids ])
+            
+    
+    rec_chids_list = [x for x in rec_chids_str]
+    
+    receptor.setChids(rec_chids_list)
+    return restore_chain_ids
+    
+            
+    
+class ommTreatment:
+    def __init__(self,name_proj, file_name_init):
+        if is_opemm_present == 0:
+            print(f"{Fore.RED}No OpenMM minimization is performed. Install openmm or remove -min flag.{Style.RESET_ALL}")
+            return
+        print('OpenMM minimization flag detected. This step takes more time than non-min calculations.')        
+        print('This option works for -rmsd 0')
+        print('Rescoring clustered poses using OpenMM ...')
+        
+        self.minimization_env = 'in-vacuo'
+        self.minimization_steps = 100
+        self.find_neighbor_cutoff = 5
+        
+        self.omm_dir = "omm_dir"
+        self.omm_proj_dir = self.omm_dir + "/" + name_proj.split(".")[0]
+        self.file_name_init = file_name_init
+        self.pdb_and_score=[]
+        self.delete_at_end =[]
+        self.omm_ranking=[]
+        self.output_file =''
+        self.rearrangeposes = 1
+
+        
+    def __call__(self, **kw):
+        if is_opemm_present == 0:
+            return
+        # creating required directories
+        self.rearrangeposes = bool(kw['omm_rearrange'])
+        self.create_omm_dirs()
+        
+        # reading receptor file
+        if kw['rec']:
+            rec = Read(kw['rec'])
+            rec = rec._ag # receptor 
+            makeChidNonPeptide(rec) # removing numerical and 'Z' chains from receptor
+            
+        # identifying peptide clustered file and initiating output file name
+        combined_pep_file = self.file_name_init + "_" + kw['sequence'] + "_out.pdb"
+        if not os.path.isfile(combined_pep_file):
+            print('Clustered file %s does not exist. OpenMM calculation terminated.' % combined_pep_file)
+            return
+        
+        self.output_file = self.file_name_init + "_" + kw['sequence'] + "_omm_rescored_out.pdb"
+        
+        
+        # combining peptides and receptor; and scoring        
+        pep_pdb = Read( combined_pep_file )
+        num_mode_to_minimize = min(pep_pdb._ag.numCoordsets(), int(kw['minimize']))
+        
+        print("From total %d models, minimizing top %d ..." % (pep_pdb._ag.numCoordsets(), num_mode_to_minimize))
+        
+        for f in range( num_mode_to_minimize ):
+            print( "\nWorking on model %d of %d models." % (f+1, num_mode_to_minimize))
+            
+            #peptide data
+            pep_pdb._ag.setACSIndex(f)  
+            pep_pdb._ag.setChids([x for x in 'Z'*pep_pdb._ag.numAtoms()]) # setting peptide chid to 'B'
+            
+            #making complex for current peptide and receptor
+            out_complex_name = self.omm_proj_dir + "/" + self.file_name_init + "_recNpep_%d.pdb" % (f)  
+            combinedRecPep= rec + pep_pdb._ag
+            writePDB(out_complex_name, combinedRecPep.select('not hydrogen'))
+            
+            # energy calculation
+            enzs = estimate_energies_for_pdb2( out_complex_name, 'in-vacuo')
+            print ( "E_Complex = %9.2f; E_Receptor = %9.2f; E_Peptide  = %9.2f" % (enzs[0],enzs[1],enzs[2]))
+            print ("dE_Interaction = %9.2f; dE_Complex-Receptor = %9.2f" % (enzs[3], enzs[4]))
+            
+            # save required details
+            self.make_post_calculation_file_lists(out_complex_name, enzs)
+        
+        self.calculate_reranking_index()    
+        self.print_reranked_models()
+        self.read_pdb_files_and_combine_using_given_index()
+        self.clean_temp_files()
+        
+    def make_post_calculation_file_lists(self, flnm, enzs):
+        # for deleting at end
+        self.delete_at_end.append(flnm)
+        self.delete_at_end.append(flnm[:-4] + "_fixed.pdb")
+        self.delete_at_end.append(flnm[:-4] + "_fixed_min_A.pdb")
+        self.delete_at_end.append(flnm[:-4] + "_fixed_min_B.pdb")
+        
+        # for combining for final output
+        self.pdb_and_score.append([flnm[:-4]+"_fixed_min.pdb", enzs])
+        
+        
+        
+    def calculate_reranking_index(self):  
+        if self.rearrangeposes == True:
+            print (f"{Fore.GREEN}Rearranging output poses for OpenMM energy{Style.RESET_ALL}")
+            metric_comp_minus_rec = []  
+            for i in self.pdb_and_score:
+                metric_comp_minus_rec.append(i[1][-1])  
+            self.omm_ranking = np.argsort(metric_comp_minus_rec)
+        else:
+            print (f"{Fore.GREEN}Not rearranging output poses for OpenMM energy{Style.RESET_ALL}")
+            self.omm_ranking = range(len(self.pdb_and_score))
+                
+    def create_omm_dirs(self):        
+        if not os.path.exists(self.omm_dir):
+            os.mkdir(self.omm_dir)
+            
+        if not os.path.exists(self.omm_proj_dir):
+            os.mkdir(self.omm_proj_dir)
+            
+    def print_reranked_models(self):      
+        print("Re-ranking by OpenMM E_complex - E_receptor:")
+        print ("-----+----------------------------------------------+---------+")
+        print ("rank omm | rank by AD score |  E_Comp |")
+        print ("         |                  |  -E_Rec |")
+        print ("---------+------------------+---------+")
+        
+        for i, rank_v in enumerate(self.omm_ranking):
+            print(" %8d %18d %8.1f" % (i+1, rank_v+1, self.pdb_and_score[rank_v][1][-1]))
+            
+    def clean_temp_files(self):
+        for i in self.delete_at_end:
+            if os.path.isfile(i):
+                os.remove(i)
+        
+    def read_pdb_files_and_combine_using_given_index(self):
+        out_file = open(self.output_file,"w+")
+      
+        for i, rank in enumerate(self.omm_ranking):
+            
+            # file name and omm scores
+            flnm = self.pdb_and_score[rank][0]
+            scores = self.pdb_and_score[rank][1]
+            score_string_to_write1 = "E_Complex = %9.2f; E_Receptor = %9.2f; E_Peptide  = %9.2f\n" % (scores[0],scores[1],scores[2])
+            score_string_to_write2 = "dE_Interaction = %9.2f; dE_Complex-Receptor = %9.2f\n" % (scores[3], scores[4])
+            
+                        
+            out_file.write("MODEL     %4d\n"%(i+1,))
+            out_file.write("USER: OpenMM RESCORED SOLUTION %d\n"%(i+1,))            
+            out_file.write("USER: " + score_string_to_write1)
+            out_file.write("USER: " + score_string_to_write2)
+            
+            flnm_data = Read(flnm)
+            
+            writePDBStream(out_file, flnm_data._ag)
+                       
+            out_file.write("ENDMDL\n")
+            
+        out_file.close()
+        
+            
+        
+        
+            
+            
+# In the next version, this class will be used, by either using tempfile for 
+# temprory file writing or, streamIO for keeping temp data in memory.
+        
+# class buffer_file_methods:
+#     def __init__(self):
+#         self.name = 'buffer_file_methods'
+        
+#     def writePDB_prody_to_buffer( self, atoms, csets=None, autoext=True, **kwargs):
+#         """Write *atoms* in PDB format to a file with name *filename* and return
+#         *filename*.  If *filename* ends with :file:`.gz`, a compressed file will
+#         be written."""
+#         output_buffer = io.StringIO()
+#         writePDBStream(output_buffer, atoms, csets, **kwargs)
+#         return output_buffer
+                
+#     def Read_buffer(self, buffer_name):
+            
+            
+            
+
+
+
+
+
+
+
+
+
+
+
+
+

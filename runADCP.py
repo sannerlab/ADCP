@@ -30,7 +30,8 @@
 
 import os, sys, numpy, platform, datetime, tempfile, shutil, random, tarfile, pickle
 from glob import glob
-from openMMmethods import ommTreatment
+from utils import flag_validator, add_open_mm_flags
+
 
 class runADCP:
 
@@ -98,6 +99,8 @@ class runADCP:
         #
         # run ADFR GAs using the list of command line arguments from the sysargv list
         # 
+        if flag_validator(**kw) == 0: # to check different flag requirements (currently added openMM)
+            return
         import subprocess, datetime
         dataDict = {}
         
@@ -410,12 +413,10 @@ class runADCP:
         runner = clusterADCP()
         runner(**kw)        
         if kw['minimize']:
-            print(kw)
+            from openMMmethods import ommTreatment            
             runner_omm = ommTreatment(targetFile,jobName)
             runner_omm(**kw)
-        
-        
-        
+
         self.myexit()
 
 
@@ -472,19 +473,14 @@ if __name__=='__main__':
     parser.add_argument("-ref", "--ref",dest="ref", help='reference peptide structure for calculating rmsd and fnc')
     parser.add_argument("-m", "--nmodes", type=int, default=100,
                        dest="nmodes", help='maximum number of reported docked poses')
-    parser.add_argument("-nmin", "--omm_nmin", type=int, default=0,
-                       dest="minimize", help='Maximum number of poses for openmm minimization and energy calculations. Default is 0')
-    
-    parser.add_argument("-ra", "--omm_rearrange", type=int, default=1,
-                       dest="omm_rearrange", help='Option for rearranging rescored poses. Default is true.')
-    
-    
+
+    # openMM flag support
+    parser = add_open_mm_flags(parser)
     
     if len(sys.argv)==1:
         parser.print_help()
         
     else:    
         kw = vars(parser.parse_args())
-        print(kw)
         runner = runADCP()        
         runner(**kw)

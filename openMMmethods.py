@@ -6,19 +6,19 @@ v2
 @author: sshanker
 """
 from colorama import Fore, Style
-import importlib
-is_opemm_present=1
+# import importlib
+# is_opemm_present=1
   
-openmm_loader = importlib.find_loader('openmm')
+# openmm_loader = importlib.find_loader('openmm')
 
-if openmm_loader == None:
-    print(f"{Fore.RED}OpenMM not found. Re-ranking by OpenMM will not be performed.{Style.RESET_ALL}" )
-    is_opemm_present = 0
-else:
-    from openmm import *
-    from openmm.app import *
-    from openmm.unit import *
-    from pdbfixer import PDBFixer
+# if openmm_loader == None:
+#     print(f"{Fore.RED}OpenMM not found. Re-ranking by OpenMM will not be performed.{Style.RESET_ALL}" )
+#     is_opemm_present = 0
+# else:
+from openmm import *
+from openmm.app import *
+from openmm.unit import *
+from pdbfixer import PDBFixer
 
 import os
 import prody
@@ -27,6 +27,19 @@ import numpy as np
 from prody.measure.contacts import findNeighbors
 from prody import calcTransformation, writePDB, writePDBStream
 import io
+
+
+# Steps:
+#   1: Identify receptor(s) and peptide chains.
+#   2: Identify interface residues and,
+#      Minimize peptide+ interacting receptor residues.
+#      Estimate E_complex.
+#   3: Split complex into receptor(s) and peptide and
+#      Estimate single point energy values for receptor(s) and petide, i.e.
+#      E_receptor and E_peptide
+#   4: Calculate different E metrics. and sort best to worst. Combine respective
+#      models in a single output file.
+
 
 
 
@@ -40,31 +53,30 @@ import io
     
     
 
-def split_pdb_to_chain_A_and_Z(pdbid):
-    # it will change last chain to "Z" 
-    # after openMM minimization chain ids are changed to cotinuous letters
+def split_pdb_to_chain_A_and_Z(pdbfile):
+    # it will change last chain (peptide) to "Z" 
+    # after openMM minimization chain ids are changed to consecutive letters
     # like A,B,Z => A,B,C
     
-    out_pdb_int = pdbid[:-4]
-    
-    mol = Read(pdbid)
+    out_pdb_intial = pdbfile[:-4]    
+    mol_object = Read(pdbfile)
     
     # handeling chain ids
-    chids = mol._ag.getChids()    
+    chids = mol_object._ag.getChids()    
     chains = list(set(chids))
     chains.sort()
     
     chids = ''.join(chids)
     chids = chids.replace(chains[-1],'Z')
     chids = [x for x in chids]
-    mol._ag.setChids(chids)
+    mol_object._ag.setChids(chids)
     
-    rec = mol._ag.select('not chid Z')
-    pep = mol._ag.select('chid Z')   
+    rec = mol_object._ag.select('not chid Z')
+    pep = mol_object._ag.select('chid Z')   
   
     
-    prody.writePDB(out_pdb_int+"_A.pdb", rec)
-    prody.writePDB(out_pdb_int+"_Z.pdb", pep)
+    prody.writePDB(out_pdb_intial+"_A.pdb", rec)
+    prody.writePDB(out_pdb_intial+"_Z.pdb", pep)
     
 
 
@@ -240,11 +252,11 @@ def get_energy(pdbfile,mode='vacuum', verbose = 0):
     return state.getPotentialEnergy()._value
 
 
-def _openmm_minimize( pdb_str: str,env='implicit', verbose = 0):
+def openmm_minimize( pdb_str: str, env='implicit', verbose = 1, max_itr=5):
     """Minimize energy via openmm."""
     
     # pdb_file = io.StringIO(pdb_str)
-    
+    print('max itr is %d and env is %s' % (max_itr,env))
     pdb = PDBFile(pdb_str)
     
     if env == 'implicit':
@@ -264,11 +276,9 @@ def _openmm_minimize( pdb_str: str,env='implicit', verbose = 0):
     system = force_field.createSystem(  pdb.topology, nonbondedCutoff=1*nanometer, 
                                       constraints=constraints)
     
-    ignore_list = identify_interface_residues(pdb_str)
-    
+    ignore_list = identify_interface_residues(pdb_str)    
     
     restrain_(system, pdb, ignore_list=ignore_list)
-
 
     # platform = openmm.Platform.getPlatformByName("CUDA" if use_gpu else "CPU")
     simulation = Simulation( pdb.topology, system, integrator)
@@ -278,7 +288,7 @@ def _openmm_minimize( pdb_str: str,env='implicit', verbose = 0):
     state = simulation.context.getState(getEnergy=True, getPositions=True)
     ret["einit"] = state.getPotentialEnergy()
     # ret["posinit"] = state.getPositions(asNumpy=True)
-    simulation.minimizeEnergy(maxIterations=5, tolerance=0.01)
+    simulation.minimizeEnergy(maxIterations=max_itr, tolerance=0.01)
     state = simulation.context.getState(getEnergy=True, getPositions=True)
     ret["efinal"] = state.getPotentialEnergy()
     # ret["pos"] = state.getPositions(asNumpy=True)
@@ -293,28 +303,28 @@ def _openmm_minimize( pdb_str: str,env='implicit', verbose = 0):
 
 
 
-def estimate_energies_for_pdb2(pdb_fl, env='implicit', verbose=0):
-    if verbose == 1:
-        print('working on:',pdb_fl.split("/")[-1])
-    fixed_pdb = fix_my_pdb(pdb_fl, pdb_fl[:-4] +"_fixed.pdb")
-    if verbose == 1:
-        print("minimizing ...")
-    out1=_openmm_minimize(fixed_pdb,env)
-    minimized_pdb = fixed_pdb[:-4]+"_min.pdb"
-    enzs=[]
-    split_pdb_to_chain_A_and_Z(fixed_pdb[:-4]+"_min.pdb")
-    for j in [minimized_pdb, minimized_pdb[:-4]+"_A.pdb",minimized_pdb[:-4]+"_Z.pdb" ]:
-        enzs.append(get_energy(j,env))
+# def estimate_energies_for_pdb2(pdb_fl, env='implicit', verbose=0):
+#     if verbose == 1:
+#         print('working on:',pdb_fl.split("/")[-1])
+#     fixed_pdb = fix_my_pdb(pdb_fl, pdb_fl[:-4] +"_fixed.pdb")
+#     if verbose == 1:
+#         print("minimizing ...")
+#     out1=_openmm_minimize(fixed_pdb,env)
+#     minimized_pdb = fixed_pdb[:-4]+"_min.pdb"
+#     enzs=[]
+#     split_pdb_to_chain_A_and_Z(fixed_pdb[:-4]+"_min.pdb")
+#     for j in [minimized_pdb, minimized_pdb[:-4]+"_A.pdb",minimized_pdb[:-4]+"_Z.pdb" ]:
+#         enzs.append(get_energy(j,env))
 
-    enzs.append(enzs[0] - enzs[1] -enzs[2])
-    enzs.append(enzs[0] - enzs[1])
-    e_str=''
-    for i in enzs:
-        e_str = e_str + "%10.2f" % i
-    if verbose == 1:
-        print(' E_Complex E_Receptr E_Peptide dE_Interc dE_ComRes')   
-        print (e_str)
-    return enzs
+#     enzs.append(enzs[0] - enzs[1] -enzs[2])
+#     enzs.append(enzs[0] - enzs[1])
+#     e_str=''
+#     for i in enzs:
+#         e_str = e_str + "%10.2f" % i
+#     if verbose == 1:
+#         print(' E_Complex E_Receptr E_Peptide dE_Interc dE_ComRes')   
+#         print (e_str)
+#     return enzs
 
 
 
@@ -359,9 +369,7 @@ def makeChidNonPeptide(receptor):
     
 class ommTreatment:
     def __init__(self,name_proj, file_name_init):
-        if is_opemm_present == 0:
-            print(f"{Fore.RED}No OpenMM minimization is performed. Install openmm or remove -min flag.{Style.RESET_ALL}")
-            return
+
         print('OpenMM minimization flag detected. This step takes more time than non-min calculations.')        
         print('This option works for -rmsd 0')
         print('Rescoring clustered poses using OpenMM ...')
@@ -378,13 +386,15 @@ class ommTreatment:
         self.omm_ranking=[]
         self.output_file =''
         self.rearrangeposes = 1
+        self.combined_pep_file =''
 
         
     def __call__(self, **kw):
-        if is_opemm_present == 0:
-            return
-        # creating required directories
-        self.rearrangeposes = bool(kw['omm_rearrange'])
+       
+        # reading all flags
+        self.read_settings_from_flags(kw)
+        
+        # creating required directories        
         self.create_omm_dirs()
         
         # reading receptor file
@@ -394,16 +404,13 @@ class ommTreatment:
             makeChidNonPeptide(rec) # removing numerical and 'Z' chains from receptor
             
         # identifying peptide clustered file and initiating output file name
-        combined_pep_file = self.file_name_init + "_" + kw['sequence'] + "_out.pdb"
-        if not os.path.isfile(combined_pep_file):
-            print('Clustered file %s does not exist. OpenMM calculation terminated.' % combined_pep_file)
+        
+        if not os.path.isfile(self.combined_pep_file):
+            print('Clustered file %s does not exist. OpenMM calculation terminated.' % self.combined_pep_file)
             return
         
-        self.output_file = self.file_name_init + "_" + kw['sequence'] + "_omm_rescored_out.pdb"
-        
-        
         # combining peptides and receptor; and scoring        
-        pep_pdb = Read( combined_pep_file )
+        pep_pdb = Read( self.combined_pep_file )
         num_mode_to_minimize = min(pep_pdb._ag.numCoordsets(), int(kw['minimize']))
         
         print("From total %d models, minimizing top %d ..." % (pep_pdb._ag.numCoordsets(), num_mode_to_minimize))
@@ -421,7 +428,7 @@ class ommTreatment:
             writePDB(out_complex_name, combinedRecPep.select('not hydrogen'))
             
             # energy calculation
-            enzs = estimate_energies_for_pdb2( out_complex_name, 'in-vacuo')
+            enzs = self.estimate_energies_for_pdb( out_complex_name)
             print ( "E_Complex = %9.2f; E_Receptor = %9.2f; E_Peptide  = %9.2f" % (enzs[0],enzs[1],enzs[2]))
             print ("dE_Interaction = %9.2f; dE_Complex-Receptor = %9.2f" % (enzs[3], enzs[4]))
             
@@ -443,6 +450,13 @@ class ommTreatment:
         # for combining for final output
         self.pdb_and_score.append([flnm[:-4]+"_fixed_min.pdb", enzs])
         
+        
+    def read_settings_from_flags(self,kw):
+        self.rearrangeposes = int(kw['omm_rearrange'])
+        self.combined_pep_file = self.file_name_init + "_" + kw['sequence'] + "_out.pdb"
+        self.output_file = self.file_name_init + "_" + kw['sequence'] + "_omm_rescored_out.pdb"
+        self.minimization_env = 'in-vacuo'  if int(kw['omm_environment']) == 0 else 'implicit'
+        self.minimization_steps = kw['omm_max_itr']
         
         
     def calculate_reranking_index(self):  
@@ -503,7 +517,29 @@ class ommTreatment:
             
         out_file.close()
         
-            
+    def estimate_energies_for_pdb(self,pdb_fl, verbose=0):
+        env=self.minimization_env
+        if verbose == 1:
+            print('working on:',pdb_fl.split("/")[-1])
+        fixed_pdb = fix_my_pdb(pdb_fl, pdb_fl[:-4] +"_fixed.pdb")
+        if verbose == 1:
+            print("minimizing ...")
+        out1= openmm_minimize(fixed_pdb,env, max_itr=self.minimization_steps)
+        minimized_pdb = fixed_pdb[:-4]+"_min.pdb"
+        enzs=[]
+        split_pdb_to_chain_A_and_Z(fixed_pdb[:-4]+"_min.pdb")
+        for j in [minimized_pdb, minimized_pdb[:-4]+"_A.pdb",minimized_pdb[:-4]+"_Z.pdb" ]:
+            enzs.append(get_energy(j,env))
+
+        enzs.append(enzs[0] - enzs[1] -enzs[2])
+        enzs.append(enzs[0] - enzs[1])
+        e_str=''
+        for i in enzs:
+            e_str = e_str + "%10.2f" % i
+        if verbose == 1:
+            print(' E_Complex E_Receptr E_Peptide dE_Interc dE_ComRes')   
+            print (e_str)
+        return enzs
         
         
             

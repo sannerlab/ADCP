@@ -161,26 +161,18 @@ def fix_my_pdb(pdb_in,out=None):
                 atom_names[indx]='CG2'
                 element_names[indx]='C'
        
-                
-            
     mol_tmp._ag.setNames(atom_names)
     mol_tmp._ag.setElements(element_names)
     prody.writePDB(pdb_out,mol_tmp._ag)
-    
-    # import pdb; pdb.set_trace()
-
-    # for  i,j,k in zip(res_list, chain_list, res_nums):
-    #     if i == 'LEU':
-    #         print(mol._ag.select('resnum %d and chid %s' % (k, j )).getNames())
     
     fixer = PDBFixer(filename=pdb_out)
     fixer.findMissingResidues()
     fixer.findMissingAtoms()
     fixer.findNonstandardResidues()
-        # print('Residues:', fixer.missingResidues)
-        # print('Atoms:', fixer.missingAtoms)
-        # print('Terminals:', fixer.missingTerminals)
-        # print('Non-standard:', fixer.nonstandardResidues)
+    # print('Residues:', fixer.missingResidues)
+    # print('Atoms:', fixer.missingAtoms)
+    # print('Terminals:', fixer.missingTerminals)
+    # print('Non-standard:', fixer.nonstandardResidues)
     
     fixer.addMissingAtoms()
     fixer.addMissingHydrogens(7.4)
@@ -189,22 +181,18 @@ def fix_my_pdb(pdb_in,out=None):
     with open( pdb_out , 'w') as outfile:
          PDBFile.writeFile(fixer.topology, fixer.positions, file=outfile,
     keepIds=True)
-    
-    # # second_atom_check
-    # pdb = Read(outfile)
-         
+
     return pdb_out
 
   
 def restrain_(system_, pdb, not_chain='Z', ignore_list=[]):
     # given chain will not be restrained
-    restraint = CustomExternalForce("0.5 * k * ((x-x0)^2 + (y-y0)^2 + (z-z0)^2)")
-    
-    restraint.addGlobalParameter('k', 20000.0*kilojoules_per_mole/nanometer*nanometer)
-    
+    restraint = CustomExternalForce("0.5 * k * ((x-x0)^2 + (y-y0)^2 + (z-z0)^2)")    
+    restraint.addGlobalParameter('k', 20000.0*kilojoules_per_mole/nanometer*nanometer)    
     restraint.addPerParticleParameter('x0')
     restraint.addPerParticleParameter('y0')
     restraint.addPerParticleParameter('z0')
+    
     # print(ignore_list)
     res_list_openmm=[]
     for atom in pdb.topology.atoms():
@@ -233,11 +221,11 @@ def get_energy(pdbfile,mode='vacuum', verbose = 0):
 
     if mode == 'implicit':
         force_field = ForceField("amber99sb.xml",'implicit/gbn2.xml')
-        msg="Using GBSA (gbn2) environment for energy calculation"
-    
+        msg="Using GBSA (gbn2) environment for energy calculation"    
     else:
         force_field = ForceField("amber99sb.xml")
         msg="Using In-Vacuo environment for energy calculation"
+        
     if verbose == 1:
         print(msg)
     system = force_field.createSystem(pdb_handle.topology, nonbondedCutoff=1*nanometer, constraints=HBonds)
@@ -252,11 +240,8 @@ def get_energy(pdbfile,mode='vacuum', verbose = 0):
     return state.getPotentialEnergy()._value
 
 
-def openmm_minimize( pdb_str: str, env='implicit', verbose = 1, max_itr=5):
+def openmm_minimize( pdb_str: str, env='implicit', verbose = 0, max_itr=5):
     """Minimize energy via openmm."""
-    
-    # pdb_file = io.StringIO(pdb_str)
-    print('max itr is %d and env is %s' % (max_itr,env))
     pdb = PDBFile(pdb_str)
     
     if env == 'implicit':
@@ -268,6 +253,7 @@ def openmm_minimize( pdb_str: str, env='implicit', verbose = 1, max_itr=5):
         msg = "Using in-vacuo environment for energy minimization"
     
     if verbose == 1:
+        print('max itr is %d and env is %s' % (max_itr,env))
         print(msg)
     # integrator = LangevinIntegrator(300*kelvin, 1/picosecond, 0.002*picoseconds)
     integrator = openmm.LangevinIntegrator(0, 0.01, 0.0)
@@ -276,8 +262,7 @@ def openmm_minimize( pdb_str: str, env='implicit', verbose = 1, max_itr=5):
     system = force_field.createSystem(  pdb.topology, nonbondedCutoff=1*nanometer, 
                                       constraints=constraints)
     
-    ignore_list = identify_interface_residues(pdb_str)    
-    
+    ignore_list = identify_interface_residues(pdb_str)        
     restrain_(system, pdb, ignore_list=ignore_list)
 
     # platform = openmm.Platform.getPlatformByName("CUDA" if use_gpu else "CPU")
@@ -294,38 +279,9 @@ def openmm_minimize( pdb_str: str, env='implicit', verbose = 1, max_itr=5):
     # ret["pos"] = state.getPositions(asNumpy=True)
     positions = simulation.context.getState(getPositions=True).getPositions()
     PDBFile.writeFile(simulation.topology, positions, open(pdb_str[:-4]+"_min.pdb", 'w'))
-   
 
-    
-    
     # ret["min_pdb"] = _get_pdb_string(simulation.topology, state.getPositions())
     return ret,system
-
-
-
-# def estimate_energies_for_pdb2(pdb_fl, env='implicit', verbose=0):
-#     if verbose == 1:
-#         print('working on:',pdb_fl.split("/")[-1])
-#     fixed_pdb = fix_my_pdb(pdb_fl, pdb_fl[:-4] +"_fixed.pdb")
-#     if verbose == 1:
-#         print("minimizing ...")
-#     out1=_openmm_minimize(fixed_pdb,env)
-#     minimized_pdb = fixed_pdb[:-4]+"_min.pdb"
-#     enzs=[]
-#     split_pdb_to_chain_A_and_Z(fixed_pdb[:-4]+"_min.pdb")
-#     for j in [minimized_pdb, minimized_pdb[:-4]+"_A.pdb",minimized_pdb[:-4]+"_Z.pdb" ]:
-#         enzs.append(get_energy(j,env))
-
-#     enzs.append(enzs[0] - enzs[1] -enzs[2])
-#     enzs.append(enzs[0] - enzs[1])
-#     e_str=''
-#     for i in enzs:
-#         e_str = e_str + "%10.2f" % i
-#     if verbose == 1:
-#         print(' E_Complex E_Receptr E_Peptide dE_Interc dE_ComRes')   
-#         print (e_str)
-#     return enzs
-
 
 
 def makeChidNonPeptide(receptor):
@@ -365,14 +321,14 @@ def makeChidNonPeptide(receptor):
     receptor.setChids(rec_chids_list)
     return restore_chain_ids
     
-            
-    
+        
+   
 class ommTreatment:
     def __init__(self,name_proj, file_name_init):
 
-        print('OpenMM minimization flag detected. This step takes more time than non-min calculations.')        
+        print(f'{Fore.GREEN}OpenMM minimization flag detected. This step takes more time than non-min calculations.')        
         print('This option works for -rmsd 0')
-        print('Rescoring clustered poses using OpenMM ...')
+        print(f'Rescoring clustered poses using OpenMM ...{Style.RESET_ALL}')
         
         self.minimization_env = 'in-vacuo'
         self.minimization_steps = 100
@@ -413,7 +369,8 @@ class ommTreatment:
         pep_pdb = Read( self.combined_pep_file )
         num_mode_to_minimize = min(pep_pdb._ag.numCoordsets(), int(kw['minimize']))
         
-        print("From total %d models, minimizing top %d ..." % (pep_pdb._ag.numCoordsets(), num_mode_to_minimize))
+        print(f"{Fore.GREEN}From total %d models, minimizing top %d ...{Style.RESET_ALL}" %
+              (pep_pdb._ag.numCoordsets(), num_mode_to_minimize))
         
         for f in range( num_mode_to_minimize ):
             print( "\nWorking on model %d of %d models." % (f+1, num_mode_to_minimize))
@@ -447,7 +404,7 @@ class ommTreatment:
         self.delete_at_end.append(flnm[:-4] + "_fixed_min_A.pdb")
         self.delete_at_end.append(flnm[:-4] + "_fixed_min_B.pdb")
         
-        # for combining for final output
+        # combining for final output
         self.pdb_and_score.append([flnm[:-4]+"_fixed_min.pdb", enzs])
         
         
@@ -457,6 +414,8 @@ class ommTreatment:
         self.output_file = self.file_name_init + "_" + kw['sequence'] + "_omm_rescored_out.pdb"
         self.minimization_env = 'in-vacuo'  if int(kw['omm_environment']) == 0 else 'implicit'
         self.minimization_steps = kw['omm_max_itr']
+        print(f'{Fore.GREEN}OpenMM minimization environment is %s and max_itr = %d.{Style.RESET_ALL}'
+              % (self.minimization_env, self.minimization_steps))
         
         
     def calculate_reranking_index(self):  
@@ -501,18 +460,15 @@ class ommTreatment:
             flnm = self.pdb_and_score[rank][0]
             scores = self.pdb_and_score[rank][1]
             score_string_to_write1 = "E_Complex = %9.2f; E_Receptor = %9.2f; E_Peptide  = %9.2f\n" % (scores[0],scores[1],scores[2])
-            score_string_to_write2 = "dE_Interaction = %9.2f; dE_Complex-Receptor = %9.2f\n" % (scores[3], scores[4])
-            
+            score_string_to_write2 = "dE_Interaction = %9.2f; dE_Complex-Receptor = %9.2f\n" % (scores[3], scores[4])           
                         
             out_file.write("MODEL     %4d\n"%(i+1,))
             out_file.write("USER: OpenMM RESCORED SOLUTION %d\n"%(i+1,))            
             out_file.write("USER: " + score_string_to_write1)
             out_file.write("USER: " + score_string_to_write2)
             
-            flnm_data = Read(flnm)
-            
-            writePDBStream(out_file, flnm_data._ag)
-                       
+            flnm_data = Read(flnm)            
+            writePDBStream(out_file, flnm_data._ag)                       
             out_file.write("ENDMDL\n")
             
         out_file.close()

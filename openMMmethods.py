@@ -5,46 +5,37 @@ Created on Fri Sep 23 13:29:31 2022
 v2
 @author: sshanker
 """
+import os
+import numpy as np
 from colorama import Fore, Style
-# import importlib
-# is_opemm_present=1
-  
-# openmm_loader = importlib.find_loader('openmm')
 
-# if openmm_loader == None:
-#     print(f"{Fore.RED}OpenMM not found. Re-ranking by OpenMM will not be performed.{Style.RESET_ALL}" )
-#     is_opemm_present = 0
-# else:
+import prody
+from prody.measure.contacts import findNeighbors
+from prody import writePDB, writePDBStream
+from MolKit2 import Read
+
 from openmm import *
 from openmm.app import *
 from openmm.unit import *
 from pdbfixer import PDBFixer
 
-import os
-import prody
-from MolKit2 import Read
-import numpy as np
-from prody.measure.contacts import findNeighbors
-from prody import calcTransformation, writePDB, writePDBStream
-import io
-
-
-# Steps:
-#   1: Identify receptor(s) and peptide chains.
-#   2: Identify interface residues and,
-#      Minimize peptide+ interacting receptor residues.
-#      Estimate E_complex.
-#   3: Split complex into receptor(s) and peptide and
-#      Estimate single point energy values for receptor(s) and petide, i.e.
-#      E_receptor and E_peptide
-#   4: Calculate different E metrics. and sort best to worst. Combine respective
-#      models in a single output file.
-
- 
+'''
+Steps:
+  1: Identify receptor(s) and peptide chains.
+  2: Identify interface residues and,
+      Minimize peptide+ interacting receptor residues.
+      Estimate E_complex.
+  3: Split complex into receptor(s) and peptide and
+      Estimate single point energy values for receptor(s) and petide, i.e.
+      E_receptor and E_peptide
+  4: Calculate different E metrics. and sort best to worst. Combine respective
+      models in a single output file.
+'''
+      
 
 def split_pdb_to_chain_A_and_Z(pdbfile):
-    # it will change last chain (peptide) to "Z" 
-    # after openMM minimization chain ids are changed to consecutive letters
+    # It changes last chain (peptide) to "Z" 
+    # After openMM minimization chain ids are changed to consecutive letters.
     # like A,B,Z => A,B,C
     
     out_pdb_intial = pdbfile[:-4]    
@@ -61,37 +52,28 @@ def split_pdb_to_chain_A_and_Z(pdbfile):
     mol_object._ag.setChids(chids)
     
     rec = mol_object._ag.select('not chid Z')
-    pep = mol_object._ag.select('chid Z')   
-  
+    pep = mol_object._ag.select('chid Z')  
     
     prody.writePDB(out_pdb_intial+"_A.pdb", rec)
     prody.writePDB(out_pdb_intial+"_Z.pdb", pep)
+  
     
-
-
 def identify_interface_residues(pdb_file, needs_b=0):
-    mol_temp = Read(pdb_file)
-    
+    mol_temp = Read(pdb_file)    
     rec = mol_temp._ag.select('not chid Z and not hydrogen')
-    pep = mol_temp._ag.select('chid Z not hydrogen')
-    
+    pep = mol_temp._ag.select('chid Z not hydrogen')    
 
     near_n = findNeighbors(rec, 5 , pep)
-
     interacting_chainA_res = []
     if needs_b ==1:
-        interacting_chainB_res = []
+        interacting_chainZ_res = []
     for a1,a2,d in near_n:
         # import pdb ; pdb.set_trace()
         interacting_chainA_res.append(a1.getResindex())
         if needs_b ==1:
-            interacting_chainB_res.append(a2.getResindex())
-        # if a1.getName() == 'CA':
-        #     print(a1.getResname())
-        
-        
-    interacting_chainA_res = list(set(interacting_chainA_res))
+            interacting_chainZ_res.append(a2.getResindex())
     
+    interacting_chainA_res = list(set(interacting_chainA_res))    
     interacting_chainA_res.sort()
     # import pdb; pdb.set_trace()
     res_list_prody=[]
@@ -100,18 +82,16 @@ def identify_interface_residues(pdb_file, needs_b=0):
     # print("prody ignore:",res_list_prody)
     
     if needs_b ==1:
-        interacting_chainB_res = list(set(interacting_chainB_res))
-        interacting_chainB_res.sort()
+        interacting_chainZ_res = list(set(interacting_chainZ_res))
+        interacting_chainZ_res.sort()
         pep_list_prody=[]
-        for i in interacting_chainB_res:
+        for i in interacting_chainZ_res:
             pep_list_prody.append(pep.select(' name CA and resindex %d' % i ).getResnames()[0])
         # print("prody ignore(B):",pep_list_prody)
-        
-        return interacting_chainA_res,interacting_chainB_res
+        return interacting_chainA_res,interacting_chainZ_res
    
     # interacting_chainA_res=np.array(interacting_chainA_res)
     return interacting_chainA_res
-    
 
 
 def fix_my_pdb(pdb_in,out=None, NonstandardResidueTreatment=0): 
@@ -126,21 +106,18 @@ def fix_my_pdb(pdb_in,out=None, NonstandardResidueTreatment=0):
     else:
         pdb_out = out
 
-
     # Cleaning in Prody >>>        
     mol_tmp =Read(pdb_in)
     res_names = mol_tmp._ag.getResnames()
     atom_names = mol_tmp._ag.getNames()
     element_names = mol_tmp._ag.getElements()
-
     for indx, (i,j) in enumerate(zip(res_names, atom_names)):
         if i == 'LEU':
             if j == 'CD':
                 atom_names[indx]='CD1'
                 element_names[indx]='C'
             elif j == 'CG':
-                element_names[indx]='C'
-                
+                element_names[indx]='C'                
         elif i == 'ASN':
             if j == '2HD':
                 atom_names[indx]='2HD2'
@@ -162,8 +139,7 @@ def fix_my_pdb(pdb_in,out=None, NonstandardResidueTreatment=0):
     prody.writePDB(pdb_out,mol_tmp._ag)
     # Cleaning in Prody done <<<<<
     
-    # Cleaning in PDBFixer >>>>
-      
+    # Cleaning in PDBFixer >>>>      
     fixer = PDBFixer(filename=pdb_out)
     if ((NonstandardResidueTreatment == 1) or (NonstandardResidueTreatment == 3)) :
         fixer.findNonstandardResidues()
@@ -179,7 +155,6 @@ def fix_my_pdb(pdb_in,out=None, NonstandardResidueTreatment=0):
     with open( pdb_out , 'w') as outfile:
          PDBFile.writeFile(fixer.topology, fixer.positions, file=outfile,
     keepIds=True)
-
     return pdb_out
 
   
@@ -198,8 +173,7 @@ def restrain_(system_, pdb, not_chain='Z', ignore_list=[]):
             if ignore_list.count(atom.residue.index) > 0:
                 if atom.name == 'CA':
                     res_list_openmm.append(atom.residue.name)
-                continue
-        
+                continue        
         # import pdb ; pdb.set_trace()
         if not_chain !='Z':
             if atom.element.name == 'hydrogen':
@@ -212,11 +186,10 @@ def restrain_(system_, pdb, not_chain='Z', ignore_list=[]):
     #     print("omm ignore  :",res_list_openmm)            
     system_.addForce(restraint)
     
-    
-    
+
 def get_energy(pdbfile,mode='vacuum', verbose = 0):
     pdb_handle = PDBFile(pdbfile)
-
+    
     if mode == 'implicit':
         force_field = ForceField("amber99sb.xml",'implicit/gbn2.xml')
         msg="Using GBSA (gbn2) environment for energy calculation"    
@@ -233,8 +206,7 @@ def get_energy(pdbfile,mode='vacuum', verbose = 0):
     simulation.context.setPositions(pdb_handle.positions)
     simulation.minimizeEnergy(maxIterations=1)
     state = simulation.context.getState(getEnergy=True)
-    # import pdb; pdb.set_trace()
-        
+    # import pdb; pdb.set_trace()        
     return state.getPotentialEnergy()._value
 
 
@@ -243,8 +215,7 @@ def openmm_minimize( pdb_str: str, env='implicit', verbose = 0, max_itr=5):
     pdb = PDBFile(pdb_str)
     
     if env == 'implicit':
-        force_field = ForceField("amber99sb.xml",'implicit/gbn2.xml')
-        
+        force_field = ForceField("amber99sb.xml",'implicit/gbn2.xml')        
         msg = "Using GBSA (gbn2) environment for energy minimization"
     else:
         force_field = ForceField("amber99sb.xml")
@@ -255,31 +226,27 @@ def openmm_minimize( pdb_str: str, env='implicit', verbose = 0, max_itr=5):
         print(msg)
     # integrator = LangevinIntegrator(300*kelvin, 1/picosecond, 0.002*picoseconds)
     integrator = openmm.LangevinIntegrator(0, 0.01, 0.0)
-    constraints = HBonds
-    
+    constraints = HBonds    
     system = force_field.createSystem(  pdb.topology, nonbondedCutoff=1*nanometer, 
-                                      constraints=constraints)
-    
+                                      constraints=constraints)    
     ignore_list = identify_interface_residues(pdb_str)        
     restrain_(system, pdb, ignore_list=ignore_list)
-
+    
     # platform = openmm.Platform.getPlatformByName("CUDA" if use_gpu else "CPU")
     simulation = Simulation( pdb.topology, system, integrator)
-    simulation.context.setPositions(pdb.positions)
-      
-    ret = {}
+    simulation.context.setPositions(pdb.positions)      
+    return_energy = {}
     state = simulation.context.getState(getEnergy=True, getPositions=True)
-    ret["einit"] = state.getPotentialEnergy()
+    return_energy["einit"] = state.getPotentialEnergy()
     # ret["posinit"] = state.getPositions(asNumpy=True)
     simulation.minimizeEnergy(maxIterations=max_itr, tolerance=0.01)
     state = simulation.context.getState(getEnergy=True, getPositions=True)
-    ret["efinal"] = state.getPotentialEnergy()
+    return_energy["efinal"] = state.getPotentialEnergy()
     # ret["pos"] = state.getPositions(asNumpy=True)
     positions = simulation.context.getState(getPositions=True).getPositions()
     PDBFile.writeFile(simulation.topology, positions, open(pdb_str[:-4]+"_min.pdb", 'w'))
-
     # ret["min_pdb"] = _get_pdb_string(simulation.topology, state.getPositions())
-    return ret,system
+    return return_energy,system
 
 
 def makeChidNonPeptide(receptor):
@@ -296,7 +263,6 @@ def makeChidNonPeptide(receptor):
     for chain in rec_chains:
         use_letters_for_chain = use_letters_for_chain.replace(chain,'')  
         
-    
     chain_letter_iterator = 0
     for ids in rec_chains:
         # chain letters should not be numeric
@@ -312,24 +278,18 @@ def makeChidNonPeptide(receptor):
             chain_letter_iterator += 1
             rec_chids_str = rec_chids_str.replace(ids,curr_letter)
             restore_chain_ids.append([ curr_letter, ids ])
-            
-    
     rec_chids_list = [x for x in rec_chids_str]
-    
     receptor.setChids(rec_chids_list)
     return restore_chain_ids
     
-        
-   
+
 class ommTreatment:
     def __init__(self,name_proj, file_name_init, rec_data=None):
-
         print(f'{Fore.GREEN}Rescoring clustered poses using OpenMM ...{Style.RESET_ALL}')
         #omm defaults
         self.minimization_env = 'in-vacuo'
         self.minimization_steps = 100
-        self.find_neighbor_cutoff = 5
-        
+        self.find_neighbor_cutoff = 5        
         #other settings
         self.omm_dir = "omm_dir"
         self.omm_proj_dir = self.omm_dir + "/" + name_proj.split(".")[0]
@@ -344,13 +304,12 @@ class ommTreatment:
         self.rec_data = rec_data
         self.CLEAN_AT_END = 1 # for debugging only
      
-    def __call__(self, **kw):
-       
+    def __call__(self, **kw):       
         # reading all flags
-        self.read_settings_from_flags(kw)
+        self.read_settings_from_flags(kw)     
         
         # creating required directories        
-        self.create_omm_dirs()
+        self.create_omm_dirs()    
         
         # reading receptor file
         if self.rec_data == None:
@@ -360,7 +319,7 @@ class ommTreatment:
                 rec = self.rec_data[0]
         rec = rec._ag # receptor        
         makeChidNonPeptide(rec) # removing numerical and 'Z' chains from receptor
-
+        
         # identifying peptide clustered file and initiating output file name        
         if not os.path.isfile(self.combined_pep_file):
             print(f"{Fore.RED}Clustered file %s does not exist. OpenMM calculation terminated.{Style.RESET_ALL}" % self.combined_pep_file)
@@ -390,8 +349,7 @@ class ommTreatment:
             print ("dE_Interaction = %9.2f; dE_Complex-Receptor = %9.2f" % (enzs[3], enzs[4]))
             
             # save required details
-            self.make_post_calculation_file_lists(out_complex_name, enzs)
-        
+            self.make_post_calculation_file_lists(out_complex_name, enzs)        
         self.calculate_reranking_index()    
         self.print_reranked_models()
         self.read_pdb_files_and_combine_using_given_index()
@@ -408,7 +366,6 @@ class ommTreatment:
         # combining for final output
         self.pdb_and_score.append([flnm[:-4]+"_fixed_min.pdb", enzs])
         
-        
     def read_settings_from_flags(self,kw):
         self.rearrangeposes = int(kw['omm_rearrange'])
         self.combined_pep_file = self.file_name_init + "_" + kw['sequence'] + "_out.pdb"
@@ -418,7 +375,6 @@ class ommTreatment:
         self.NonstandardResidueTreatment = int(kw['omm_nst'])
         print(f'{Fore.GREEN}OpenMM minimization settings: Environment="%s"; Max_itr=%d.{Style.RESET_ALL}'
               % (self.minimization_env, self.minimization_steps))
-        
         
     def calculate_reranking_index(self):  
         metric_comp_minus_rec = []  
@@ -432,11 +388,9 @@ class ommTreatment:
             print (f"{Fore.GREEN}\nNOT REARRANGING output poses using OpenMM energy{Style.RESET_ALL}")
             self.omm_rearrange_index  = range(len(self.pdb_and_score))
             
-                
     def create_omm_dirs(self):        
         if not os.path.exists(self.omm_dir):
-            os.mkdir(self.omm_dir)
-            
+            os.mkdir(self.omm_dir)            
         if not os.path.exists(self.omm_proj_dir):
             os.mkdir(self.omm_proj_dir)
             
@@ -445,8 +399,7 @@ class ommTreatment:
         print ("---------+------------------+---------+")
         print ("rank omm | rank by AD score |  E_Comp |")
         print ("         |                  |  -E_Rec |")
-        print ("---------+------------------+---------+")
-        
+        print ("---------+------------------+---------+")        
         for i, rank_v in enumerate(self.omm_ranking):
             print(" %8d %18d %8.1f" % (i+1, rank_v+1, self.pdb_and_score[rank_v][1][-1]))
             
@@ -458,8 +411,7 @@ class ommTreatment:
             os.rmdir(self.omm_proj_dir)
         
     def read_pdb_files_and_combine_using_given_index(self):
-        out_file = open(self.output_file,"w+")
-        
+        out_file = open(self.output_file,"w+")        
         omm_rank_sorted =self.omm_ranking
         if (self.omm_ranking == self.omm_rearrange_index).all():
             omm_rank_sorted = range(len(self.omm_ranking))
@@ -494,7 +446,6 @@ class ommTreatment:
         split_pdb_to_chain_A_and_Z(fixed_pdb[:-4]+"_min.pdb")
         for j in [minimized_pdb, minimized_pdb[:-4]+"_A.pdb",minimized_pdb[:-4]+"_Z.pdb" ]:
             enzs.append(get_energy(j,env))
-
         enzs.append(enzs[0] - enzs[1] -enzs[2])
         enzs.append(enzs[0] - enzs[1])
         e_str=''
@@ -504,10 +455,7 @@ class ommTreatment:
             print(' E_Complex E_Receptr E_Peptide dE_Interc dE_ComRes')   
             print (e_str)
         return enzs
-        
-        
-            
-            
+          
 # In the next version, this class will be used, by either using tempfile for 
 # temprory file writing or, streamIO for keeping temp data in memory.
         
@@ -524,19 +472,4 @@ class ommTreatment:
 #         return output_buffer
                 
 #     def Read_buffer(self, buffer_name):
-            
-            
-            
-
-
-
-
-
-
-
-
-
-
-
-
-
+     

@@ -28,9 +28,11 @@
 #
 #SOLVE ##DICT PROBLEM
 
-import os, sys, numpy, platform, datetime, tempfile, shutil, random, tarfile, pickle
-from glob import glob
-from utils import flag_validator, add_open_mm_flags
+import os, sys, numpy, shutil, random
+from utils import flag_validator, add_open_mm_flags, residue_support_validator #OMM new line
+#import os, sys, numpy, platform, datetime, tempfile, shutil, random, tarfile, pickle
+# from glob import glob
+
 
 
 class runADCP:
@@ -99,8 +101,9 @@ class runADCP:
         #
         # run ADFR GAs using the list of command line arguments from the sysargv list
         # 
-        if flag_validator(**kw) == 0: # to check different flag requirements (currently added openMM)
-            return
+        # to check different flag requirements (currently added openMM)
+        if flag_validator(kw) == 0: #OMM new line
+            return                  #OMM new line
         import subprocess, datetime
         dataDict = {}
         
@@ -116,11 +119,11 @@ class runADCP:
 
         if rncpu is None:
             ncores = self.ncpu
-            self.myprint( 'Detected %d cores, using %d cores'%(self.ncpu, ncores))
+            self.myprint( 'Detected %d cores, using %d cores.'%(self.ncpu, ncores))
         else:
-            assert rncpu > 0, "ERROR: maxCores a positive number, got %d"%rncpu
+            assert rncpu > 0, "ERROR: maxCores a positive number, got %d."%rncpu
             ncores = min(self.ncpu, rncpu)
-            self.myprint( 'Detected %d cores, request %d cores, using %d cores'%(self.ncpu, rncpu, ncores))
+            self.myprint( 'Detected %d cores, request %d cores, using %d cores.'%(self.ncpu, rncpu, ncores))
 
         if kw['nbRuns'] is not None:
             self.nbRuns = nbRuns = kw.pop('nbRuns')
@@ -136,7 +139,7 @@ class runADCP:
         # check ramaprob.data file
         foundData = False
         if os.path.isfile("ramaprob.data"):
-            print ("using ramaprob.data in current folder")
+            print ("Using ramaprob.data in current folder")
             foundData = True
         else:
             from mglutil.util.packageFilePath import findFilePath
@@ -178,6 +181,13 @@ class runADCP:
             fff.write('%s\n'%len(ttt))
             numpy.savetxt(fff,ttt,fmt='%7.3f')
             fff.close()
+            
+            # to check openmm supports for the residues in the receptor file
+            kw['rec'] = 'rigidReceptor.pdbqt'     #OMM new line
+            if not residue_support_validator(kw): #OMM new line
+                self.myexit()                     #OMM new line
+                return                            #OMM new line
+                
         else:
             for element in ['C','A','SA','N','NA','OA','HD','d','e']:
                 if not os.path.isfile("rigidReceptor.%s.map"%element):
@@ -197,6 +207,7 @@ class runADCP:
                 else:
                     print ("Warning: overwriting output file %s_%d.pdb"%(jobName,i+1))
 
+        
         self.dryRun = kw.pop('dryRun')
 
         # build cmdline args for adcp binary
@@ -411,11 +422,12 @@ class runADCP:
 
         from clusterADCP import clusterADCP
         runner = clusterADCP()
-        runner(**kw)        
-        if kw['minimize']:
-            from openMMmethods import ommTreatment            
-            runner_omm = ommTreatment(targetFile,jobName)
-            runner_omm(**kw)
+        runner(**kw)
+        
+        if kw['minimize']:                                #OMM new line
+            from openMMmethods import ommTreatment        #OMM new line       
+            runner_omm = ommTreatment(targetFile,jobName) #OMM new line
+            runner_omm(**kw)                              #OMM new line
 
         self.myexit()
 
@@ -475,7 +487,7 @@ if __name__=='__main__':
                        dest="nmodes", help='maximum number of reported docked poses')
 
     # openMM flag support
-    parser = add_open_mm_flags(parser)
+    parser = add_open_mm_flags(parser) #OMM new line
     
     if len(sys.argv)==1:
         parser.print_help()

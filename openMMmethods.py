@@ -40,18 +40,7 @@ import io
 #   4: Calculate different E metrics. and sort best to worst. Combine respective
 #      models in a single output file.
 
-
-
-
-
-# class openmm_default_settings:
-#     def __init__(self):
-#         self.minimization_env = 'in-vacuo'
-#         self.minimization_steps = 100
-#         self.find_neighbor_cutoff = 5
-        
-    
-    
+ 
 
 def split_pdb_to_chain_A_and_Z(pdbfile):
     # it will change last chain (peptide) to "Z" 
@@ -125,19 +114,26 @@ def identify_interface_residues(pdb_file, needs_b=0):
     
 
 
-def fix_my_pdb(pdb_in,out=None):
+def fix_my_pdb(pdb_in,out=None, NonstandardResidueTreatment=0): 
+    ''' Options for NonstandardResidueTreatment:
+      0: do nothing; 
+      1: try to swap with similar; 
+      2: remove the residue; 
+      3: if cannot swap, remove the residue'''
+      
     if out==None:
         pdb_out = "./fixed/" + pdb_in.split('/')[-1].split('.')[0]+'_fixed.pdb'
     else:
         pdb_out = out
-        
-    mol_tmp =Read(pdb_in)
 
-    rs_names = mol_tmp._ag.getResnames()
+
+    # Cleaning in Prody >>>        
+    mol_tmp =Read(pdb_in)
+    res_names = mol_tmp._ag.getResnames()
     atom_names = mol_tmp._ag.getNames()
     element_names = mol_tmp._ag.getElements()
 
-    for indx, (i,j) in enumerate(zip(rs_names, atom_names)):
+    for indx, (i,j) in enumerate(zip(res_names, atom_names)):
         if i == 'LEU':
             if j == 'CD':
                 atom_names[indx]='CD1'
@@ -164,20 +160,22 @@ def fix_my_pdb(pdb_in,out=None):
     mol_tmp._ag.setNames(atom_names)
     mol_tmp._ag.setElements(element_names)
     prody.writePDB(pdb_out,mol_tmp._ag)
+    # Cleaning in Prody done <<<<<
     
+    # Cleaning in PDBFixer >>>>
+      
     fixer = PDBFixer(filename=pdb_out)
+    if ((NonstandardResidueTreatment == 1) or (NonstandardResidueTreatment == 3)) :
+        fixer.findNonstandardResidues()
+        fixer.replaceNonstandardResidues()
     fixer.findMissingResidues()
-    fixer.findMissingAtoms()
-    fixer.findNonstandardResidues()
-    # print('Residues:', fixer.missingResidues)
-    # print('Atoms:', fixer.missingAtoms)
-    # print('Terminals:', fixer.missingTerminals)
-    # print('Non-standard:', fixer.nonstandardResidues)
-    
+    fixer.findMissingAtoms()    
     fixer.addMissingAtoms()
     fixer.addMissingHydrogens(7.4)
-    fixer.removeHeterogens(False)
-    
+    if ((NonstandardResidueTreatment == 2) or (NonstandardResidueTreatment == 3)) :
+        fixer.removeHeterogens(keepWater=False)
+    # print(fixer.topology.residues())
+    # import pdb; pdb.set_trace()
     with open( pdb_out , 'w') as outfile:
          PDBFile.writeFile(fixer.topology, fixer.positions, file=outfile,
     keepIds=True)
@@ -324,27 +322,28 @@ def makeChidNonPeptide(receptor):
         
    
 class ommTreatment:
-    def __init__(self,name_proj, file_name_init):
+    def __init__(self,name_proj, file_name_init, rec_data=None):
 
-        print(f'{Fore.GREEN}OpenMM minimization flag detected. This step takes more time than non-min calculations.')        
-        print('This option works for -rmsd 0')
-        print(f'Rescoring clustered poses using OpenMM ...{Style.RESET_ALL}')
-        
+        print(f'{Fore.GREEN}Rescoring clustered poses using OpenMM ...{Style.RESET_ALL}')
+        #omm defaults
         self.minimization_env = 'in-vacuo'
         self.minimization_steps = 100
         self.find_neighbor_cutoff = 5
         
+        #other settings
         self.omm_dir = "omm_dir"
         self.omm_proj_dir = self.omm_dir + "/" + name_proj.split(".")[0]
         self.file_name_init = file_name_init
         self.pdb_and_score=[]
         self.delete_at_end =[]
         self.omm_ranking=[]
+        self.omm_rearrange_index = []
         self.output_file =''
         self.rearrangeposes = 1
         self.combined_pep_file =''
-
-        
+        self.rec_data = rec_data
+        self.CLEAN_AT_END = 1 # for debugging only
+     
     def __call__(self, **kw):
        
         # reading all flags
@@ -354,26 +353,27 @@ class ommTreatment:
         self.create_omm_dirs()
         
         # reading receptor file
-        if kw['rec']:
-            rec = Read(kw['rec'])
-            rec = rec._ag # receptor 
-            makeChidNonPeptide(rec) # removing numerical and 'Z' chains from receptor
-            
-        # identifying peptide clustered file and initiating output file name
-        
+        if self.rec_data == None:
+            if kw['rec']:
+                rec = Read(kw['rec'])                         
+        else:
+                rec = self.rec_data[0]
+        rec = rec._ag # receptor        
+        makeChidNonPeptide(rec) # removing numerical and 'Z' chains from receptor
+
+        # identifying peptide clustered file and initiating output file name        
         if not os.path.isfile(self.combined_pep_file):
-            print('Clustered file %s does not exist. OpenMM calculation terminated.' % self.combined_pep_file)
+            print(f"{Fore.RED}Clustered file %s does not exist. OpenMM calculation terminated.{Style.RESET_ALL}" % self.combined_pep_file)
             return
         
         # combining peptides and receptor; and scoring        
         pep_pdb = Read( self.combined_pep_file )
-        num_mode_to_minimize = min(pep_pdb._ag.numCoordsets(), int(kw['minimize']))
-        
+        num_mode_to_minimize = min(pep_pdb._ag.numCoordsets(), int(kw['minimize']))        
         print(f"{Fore.GREEN}From total %d models, minimizing top %d ...{Style.RESET_ALL}" %
               (pep_pdb._ag.numCoordsets(), num_mode_to_minimize))
         
         for f in range( num_mode_to_minimize ):
-            print( "\nWorking on model %d of %d models." % (f+1, num_mode_to_minimize))
+            print( f"{Fore.GREEN}\nWorking on model %d of %d models.{Style.RESET_ALL}" % (f+1, num_mode_to_minimize))
             
             #peptide data
             pep_pdb._ag.setACSIndex(f)  
@@ -395,15 +395,16 @@ class ommTreatment:
         self.calculate_reranking_index()    
         self.print_reranked_models()
         self.read_pdb_files_and_combine_using_given_index()
-        self.clean_temp_files()
+        if self.CLEAN_AT_END == 1:
+            self.clean_temp_files()
         
     def make_post_calculation_file_lists(self, flnm, enzs):
         # for deleting at end
         self.delete_at_end.append(flnm)
         self.delete_at_end.append(flnm[:-4] + "_fixed.pdb")
         self.delete_at_end.append(flnm[:-4] + "_fixed_min_A.pdb")
-        self.delete_at_end.append(flnm[:-4] + "_fixed_min_B.pdb")
-        
+        self.delete_at_end.append(flnm[:-4] + "_fixed_min_Z.pdb")
+        self.delete_at_end.append(flnm[:-4] + "_fixed_min.pdb")
         # combining for final output
         self.pdb_and_score.append([flnm[:-4]+"_fixed_min.pdb", enzs])
         
@@ -414,20 +415,23 @@ class ommTreatment:
         self.output_file = self.file_name_init + "_" + kw['sequence'] + "_omm_rescored_out.pdb"
         self.minimization_env = 'in-vacuo'  if int(kw['omm_environment']) == 0 else 'implicit'
         self.minimization_steps = kw['omm_max_itr']
-        print(f'{Fore.GREEN}OpenMM minimization environment is %s and max_itr = %d.{Style.RESET_ALL}'
+        self.NonstandardResidueTreatment = int(kw['omm_nst'])
+        print(f'{Fore.GREEN}OpenMM minimization settings: Environment="%s"; Max_itr=%d.{Style.RESET_ALL}'
               % (self.minimization_env, self.minimization_steps))
         
         
     def calculate_reranking_index(self):  
+        metric_comp_minus_rec = []  
+        for i in self.pdb_and_score:
+            metric_comp_minus_rec.append(i[1][-1])  
+        self.omm_ranking = np.argsort(metric_comp_minus_rec)
         if self.rearrangeposes == True:
-            print (f"{Fore.GREEN}Rearranging output poses for OpenMM energy{Style.RESET_ALL}")
-            metric_comp_minus_rec = []  
-            for i in self.pdb_and_score:
-                metric_comp_minus_rec.append(i[1][-1])  
-            self.omm_ranking = np.argsort(metric_comp_minus_rec)
+            print (f"{Fore.GREEN}\nREARRANGING output poses using OpenMM energy{Style.RESET_ALL}")          
+            self.omm_rearrange_index = self.omm_ranking
         else:
-            print (f"{Fore.GREEN}Not rearranging output poses for OpenMM energy{Style.RESET_ALL}")
-            self.omm_ranking = range(len(self.pdb_and_score))
+            print (f"{Fore.GREEN}\nNOT REARRANGING output poses using OpenMM energy{Style.RESET_ALL}")
+            self.omm_rearrange_index  = range(len(self.pdb_and_score))
+            
                 
     def create_omm_dirs(self):        
         if not os.path.exists(self.omm_dir):
@@ -437,8 +441,8 @@ class ommTreatment:
             os.mkdir(self.omm_proj_dir)
             
     def print_reranked_models(self):      
-        print("Re-ranking by OpenMM E_complex - E_receptor:")
-        print ("-----+----------------------------------------------+---------+")
+        print(f"{Fore.GREEN}Re-ranking by OpenMM{Style.RESET_ALL} (E_complex - E_receptor):")
+        print ("---------+------------------+---------+")
         print ("rank omm | rank by AD score |  E_Comp |")
         print ("         |                  |  -E_Rec |")
         print ("---------+------------------+---------+")
@@ -447,37 +451,41 @@ class ommTreatment:
             print(" %8d %18d %8.1f" % (i+1, rank_v+1, self.pdb_and_score[rank_v][1][-1]))
             
     def clean_temp_files(self):
-        for i in self.delete_at_end:
-            if os.path.isfile(i):
-                os.remove(i)
+        for fl in self.delete_at_end:
+            if os.path.isfile(fl):
+                os.remove(fl)
+        if os.path.isdir(self.omm_proj_dir):
+            os.rmdir(self.omm_proj_dir)
         
     def read_pdb_files_and_combine_using_given_index(self):
         out_file = open(self.output_file,"w+")
-      
-        for i, rank in enumerate(self.omm_ranking):
-            
+        
+        omm_rank_sorted =self.omm_ranking
+        if (self.omm_ranking == self.omm_rearrange_index).all():
+            omm_rank_sorted = range(len(self.omm_ranking))
+        
+        for model_num, rank in enumerate(self.omm_rearrange_index):
             # file name and omm scores
             flnm = self.pdb_and_score[rank][0]
             scores = self.pdb_and_score[rank][1]
             score_string_to_write1 = "E_Complex = %9.2f; E_Receptor = %9.2f; E_Peptide  = %9.2f\n" % (scores[0],scores[1],scores[2])
             score_string_to_write2 = "dE_Interaction = %9.2f; dE_Complex-Receptor = %9.2f\n" % (scores[3], scores[4])           
                         
-            out_file.write("MODEL     %4d\n"%(i+1,))
-            out_file.write("USER: OpenMM RESCORED SOLUTION %d\n"%(i+1,))            
+            out_file.write("MODEL     %4d\n" % ( model_num+1 ))
+            out_file.write("USER: OpenMM RESCORED SOLUTION %d\n" % (omm_rank_sorted[model_num]+1))            
             out_file.write("USER: " + score_string_to_write1)
             out_file.write("USER: " + score_string_to_write2)
             
             flnm_data = Read(flnm)            
             writePDBStream(out_file, flnm_data._ag)                       
             out_file.write("ENDMDL\n")
-            
         out_file.close()
         
     def estimate_energies_for_pdb(self,pdb_fl, verbose=0):
         env=self.minimization_env
         if verbose == 1:
             print('working on:',pdb_fl.split("/")[-1])
-        fixed_pdb = fix_my_pdb(pdb_fl, pdb_fl[:-4] +"_fixed.pdb")
+        fixed_pdb = fix_my_pdb(pdb_fl, pdb_fl[:-4] +"_fixed.pdb",NonstandardResidueTreatment=self.NonstandardResidueTreatment)
         if verbose == 1:
             print("minimizing ...")
         out1= openmm_minimize(fixed_pdb,env, max_itr=self.minimization_steps)

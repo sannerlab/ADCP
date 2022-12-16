@@ -146,7 +146,7 @@ class runADCP:
             dataFile = findFilePath("ramaprob.data", "ADCP")
             if dataFile:
                 cwd = os.getcwd()
-                print ("copying the ramaprob.data file from %s to %s"%(dataFile, cwd))
+                print ("Copying the ramaprob.data file from %s to %s"%(dataFile, cwd))
                 shutil.copy(dataFile, cwd)
                 foundData = True
         ## elif os.path.isfile("%s/ramaprob.data"%self._ADFRpath):

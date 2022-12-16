@@ -332,7 +332,7 @@ class ommTreatment:
               (pep_pdb._ag.numCoordsets(), num_mode_to_minimize))
         
         for f in range( num_mode_to_minimize ):
-            print( f"{Fore.GREEN}\nWorking on model %d of %d models.{Style.RESET_ALL}" % (f+1, num_mode_to_minimize))
+            print( f"{Fore.GREEN}\nWorking on #%d of %d models.{Style.RESET_ALL}" % (f+1, num_mode_to_minimize))
             
             #peptide data
             pep_pdb._ag.setACSIndex(f)  
@@ -436,11 +436,11 @@ class ommTreatment:
     def estimate_energies_for_pdb(self,pdb_fl, verbose=0):
         env=self.minimization_env
         if verbose == 1:
-            print('working on:',pdb_fl.split("/")[-1])
+            print('Working on:',pdb_fl.split("/")[-1])
         fixed_pdb = fix_my_pdb(pdb_fl, pdb_fl[:-4] +"_fixed.pdb",NonstandardResidueTreatment=self.NonstandardResidueTreatment)
         if verbose == 1:
-            print("minimizing ...")
-        out1= openmm_minimize(fixed_pdb,env, max_itr=self.minimization_steps)
+            print("Minimizing ...")
+        _= openmm_minimize(fixed_pdb,env, max_itr=self.minimization_steps)
         minimized_pdb = fixed_pdb[:-4]+"_min.pdb"
         enzs=[]
         split_pdb_to_chain_A_and_Z(fixed_pdb[:-4]+"_min.pdb")

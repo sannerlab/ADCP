@@ -20,7 +20,7 @@ def flag_validator(kw):
 OpenMM minimization flag detected. This step takes more time than 
 non-minimization calculations.'        
 
-DECLARATION: 
+{Fore.BLUE}DECLARATION: 
 a: Support for OpenMM Minimization is still under development. 
 b: Currently, it supports docking with "-rmsd 0" flag. 
 c: Non-standard amino acids can either be replaced by similar amino
@@ -47,27 +47,40 @@ def residue_support_validator(kw):
     # print(kw)
     rec = Read(kw['rec'])
     residues_in_pdb = rec._ag.select('name CA').getResnames()
-    uniq_residues = np.unique(residues_in_pdb)
-    check_non_standard_residues = [i for i in uniq_residues if proteinResidues.count(i)<1]
+    uniq_residues = np.unique(residues_in_pdb) # for faster calculation
+    list_of_identified_non_standard_residues = [i for i in uniq_residues if proteinResidues.count(i)<1]
     
-    treatment_options = [0] # default do nothing    
-    if len(check_non_standard_residues) > 0:
-        for ns_res in check_non_standard_residues:
+    combined_treatment_options =[0]
+    treatment_options_per_nsr = [[0]]*len(list_of_identified_non_standard_residues) # default do nothing   for all residues separately 
+    if len(list_of_identified_non_standard_residues) > 0:
+        for indx, ns_res in enumerate(list_of_identified_non_standard_residues):
             print(f"{Fore.GREEN}Non standard residue %s found" % ns_res)
             if substitutable_residues.count(ns_res):
                 print (f'Residue %s can be substituted by %s.{Style.RESET_ALL}' % (ns_res, substitutions[ns_res]))
-                treatment_options = [1,2,3] # replace; delete; delete if cannot replace                
+                treatment_options_per_nsr[indx] = [1,2,3] # replace; delete; delete if cannot replace                
             else:
                 print(f'Residue %s CANNOT be substituted. Use remove option.{Style.RESET_ALL}' % ns_res)
-                treatment_options = [2,3]
-                
-    if treatment_options.count(kw['omm_nst'])> 0:
+                treatment_options_per_nsr[indx] = [2,3]
+     
+    num_replaceable = len([0 for i in treatment_options_per_nsr if i.count(1)>0])
+    
+    if  num_replaceable == len(treatment_options_per_nsr):  # when all residues are replacable
+        print(f"{Fore.GREEN}All non-standard residues are replaceable. -nst 1 (or 3) is suggested.{Style.RESET_ALL}")
+        combined_treatment_options = [1,2,3]
+    elif num_replaceable == 0:                      # when none residues are replacable
+        print(f"{Fore.GREEN}None of the non-standard residues are replaceable. -nst 2 (or 3) is suggested.{Style.RESET_ALL}")
+        combined_treatment_options = [2,3]
+    else:                                           # when some residues are replacable
+        print(f"{Fore.GREEN}Some of the non-standard residues are replaceable. -nst 3 is suggested.{Style.RESET_ALL}")
+        combined_treatment_options = [2,3]
+        
+    if combined_treatment_options.count(kw['omm_nst'])> 0:
         return 1
     else:
         print(f'{Fore.RED}Use -nst flag, available options:')
         print(replace_msg)
         print(f'Or, remove -nmin flag.{Style.RESET_ALL}')        
-    return 0
+    return 0, rec #returning receptor to speed up calculation
         
     
 def add_open_mm_flags(parser):

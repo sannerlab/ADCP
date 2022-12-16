@@ -312,8 +312,7 @@ class runADCP:
 
         # check for completion and start new runs until we are done
         while nbDone < nbRuns:
-            # check running processes
-            
+            # check running processes            
             for proc, jnum in procToRun.items():
                 # print(proc, jnum)
                 #import pdb;pdb.set_trace()
@@ -344,9 +343,9 @@ class runADCP:
                                 runEnergies[jnum] = float(ln.rstrip().split()[3])
 
                     nbDone += 1
-                    # remove process
+                    # remove process why??
                     # del procToRun[proc] ##DICT PROBLEM
-
+                    # print(procToRun)
                     self._jobStatus[jobNum-1] = 2
                     self.completedJobs += 1
                     percent = float(self.completedJobs)/self.numberOfJobs
@@ -355,6 +354,7 @@ class runADCP:
 
                     if nbStart < nbRuns:
                         # start new one
+                        print(procToRun)
                         jobNum += 1
                         if seed == -1:
                             argv[-4] = str(random.randint(1,999999))
@@ -391,7 +391,7 @@ class runADCP:
                                                    stderr=outfile, #subprocess.PIPE, 
                                                    bufsize = 1, shell=self.shell, cwd=os.getcwd())
                         # print(process)
-                        # procToRun[process] = jobNum-1 ##DICT PROBLEM
+                        procToRun[process] = jobNum-1 
                         outfiles[jobNum] = outfile
                         nbStart += 1
             

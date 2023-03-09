@@ -2,14 +2,28 @@
 # -*- coding: utf-8 -*-
 """
 Created on Mon Dec 12 14:44:26 2022
-
 @author: sshanker
+
+This is a collection of functions to identify OpenMM support.
+It is made as a separate file from openmmmethods.py to quick check requirements
+without loading the main functions for openMM support.
+
+* Checks availibility of openMM
+* Identifies non-standand aa and suggests (finds) ways to treat them
+* Parser flags for openMM parameters. 
+
 """
 
 import importlib
 from colorama import Fore, Style
 
-replace_msg = '0:do nothing; 1:replace; 2:delete; 3:delete if cannot replace; Default 0.'
+replace_msg = ('this flag is used to specify the handling of non-standard \
+amino acids when minimization is requested. When omitted, it defaults to \
+"no-action" and the software will stop if non standard amino acids are \
+found in the receptor and minimization is required. Alternative options \
+could be: "replace" to replace non standard amino acid with similar standard AAs, \
+"delete" to remove non standard amino acid if found, or "replace_delete" \
+to replace if replaceable or delete')
 
 def flag_validator(kw):
     procede_after_after_flag_check = 1 # dfault to run the code    
@@ -50,30 +64,30 @@ def residue_support_validator(kw):
     uniq_residues = np.unique(residues_in_pdb) # for faster calculation
     list_of_identified_non_standard_residues = [i for i in uniq_residues if proteinResidues.count(i)<1]
     
-    combined_treatment_options =[0]
-    treatment_options_per_nsr = [[0]]*len(list_of_identified_non_standard_residues) # default do nothing   for all residues separately 
+    combined_treatment_options =['no-action']
+    treatment_options_per_nsr = [['no-action']]*len(list_of_identified_non_standard_residues) # default do nothing   for all residues separately 
     if len(list_of_identified_non_standard_residues) > 0:
         for indx, ns_res in enumerate(list_of_identified_non_standard_residues):
             print(f"{Fore.GREEN}Non standard residue %s found" % ns_res)
             if substitutable_residues.count(ns_res):
                 print (f'Residue %s can be substituted by %s.{Style.RESET_ALL}' % (ns_res, substitutions[ns_res]))
-                treatment_options_per_nsr[indx] = [1,2,3] # replace; delete; delete if cannot replace                
+                treatment_options_per_nsr[indx] = ['replace','delete','replace_delete'] # replace; delete; delete if cannot replace                
             else:
                 print(f'Residue %s CANNOT be substituted. Use remove option.{Style.RESET_ALL}' % ns_res)
-                treatment_options_per_nsr[indx] = [2,3]
+                treatment_options_per_nsr[indx] = ['delete','replace_delete']
      
-    num_replaceable = len([0 for i in treatment_options_per_nsr if i.count(1)>0])
+    num_replaceable = len([0 for i in treatment_options_per_nsr if i.count('replace')>0])
     
     if  num_replaceable == len(treatment_options_per_nsr):  # when all residues are replacable
-        print(f"{Fore.GREEN}All non-standard residues are replaceable. -nst 1 (or 3) is suggested.{Style.RESET_ALL}")
-        combined_treatment_options = [1,2,3]
+        print(f'{Fore.GREEN}All non-standard residues are replaceable. -nst "replace" (or "replace_delete") is suggested.{Style.RESET_ALL}')
+        combined_treatment_options = ['replace','delete','replace_delete']
     elif num_replaceable == 0:                      # when none residues are replacable
-        print(f"{Fore.GREEN}None of the non-standard residues are replaceable. -nst 2 (or 3) is suggested.{Style.RESET_ALL}")
-        combined_treatment_options = [2,3]
+        print(f'{Fore.GREEN}None of the non-standard residues are replaceable. -nst "delete" (or "replace_delete")  is suggested.{Style.RESET_ALL}')
+        combined_treatment_options = ['delete','replace_delete']
     else:                                           # when some residues are replacable
-        print(f"{Fore.GREEN}Some of the non-standard residues are replaceable. -nst 3 is suggested.{Style.RESET_ALL}")
-        combined_treatment_options = [2,3]
-        
+        print(f'{Fore.GREEN}Some of the non-standard residues are replaceable. -nst "replace_delete" is suggested.{Style.RESET_ALL}')
+        combined_treatment_options = ['delete','replace_delete']
+    
     if combined_treatment_options.count(kw['omm_nst'])> 0:
         return 1
     else:
@@ -85,13 +99,22 @@ def residue_support_validator(kw):
     
 def add_open_mm_flags(parser):
     parser.add_argument("-nmin", "--omm_nmin", type=int, default=0,
-                       dest="minimize", help='Maximum number of poses for openmm minimization and energy calculations. Default is 0')    
-    parser.add_argument("-ra", "--omm_rearrange", type=int, default=1,
-                       dest="omm_rearrange", help='Option for rearranging rescored poses. Default is true.')    
+                       dest="minimize", help=( 'The -nmin option specifies the\
+                      number of top ranking docking solutions to minimize with\
+                      OpenMM after docking. If omitted this number defaults to\
+                      0 meaning no solution is minimized. When solutions are\
+                      minimized the reported solutions a ranked based on the\
+                      minimized energy and by default ordered from best to worse\
+                      based on the minimized complex energetic terms.'))    
+    parser.add_argument("-dr", "--dockingRanking", action="store_true",
+                       dest="dockingRanking", help=( 'When docking solutions are\
+                       minimized, the -dr flag is used to preserve the re-ordering\
+                       the minimized solutions based on energetic terms from the\
+                       minimized complex. Default is true.'))   
     parser.add_argument("-omm_max_itr", "-omm_max_itr", type=int, default=5,
-                       dest="omm_max_itr", help='Maximum steps for OpenMM minimization. Default is 5')    
-    parser.add_argument("-omm_env", "-omm_environment", type=int, default=0,
-                       dest="omm_environment", help='0 for vaccum; 1 for implicit. Default is 0')    
-    parser.add_argument("-nst", "-omm_non_standard_res_treatment", type=int, default=0,
-                       dest="omm_nst", help=replace_msg)    
+                       dest="omm_max_itr", help='Maximum steps for OpenMM minimization. Default is 5')   
+    parser.add_argument("-omm_env", "-omm_environment", type=str, default='vaccum',
+                       dest="omm_environment", help='options: "vacuum" or "implicit". Default is "vacuum"')       
+    parser.add_argument("-nst", "-omm_non_standard_res_treatment", type=str, default="no-action",
+                       dest="omm_nst", help=replace_msg)  
     return parser

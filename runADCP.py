@@ -184,7 +184,7 @@ class runADCP:
             
             # to check openmm supports for the residues in the receptor file
             kw['rec'] = 'rigidReceptor.pdbqt'     #OMM new line
-            if not residue_support_validator(kw): #OMM new line
+            if not residue_support_validator(kw)[0]: #OMM new line
                 self.myexit()                     #OMM new line
                 return                            #OMM new line
                 
@@ -490,7 +490,8 @@ if __name__=='__main__':
     parser = add_open_mm_flags(parser) #OMM new line
     
     if len(sys.argv)==1:
-        parser.print_help()
+        #parser.print_help()
+        print('You are running "ADCP with OpenMM support". \nRun Use "--help" to see available options.')
         
     else:    
         kw = vars(parser.parse_args())

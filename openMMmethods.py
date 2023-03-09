@@ -141,14 +141,14 @@ def fix_my_pdb(pdb_in,out=None, NonstandardResidueTreatment=0):
     
     # Cleaning in PDBFixer >>>>      
     fixer = PDBFixer(filename=pdb_out)
-    if ((NonstandardResidueTreatment == 1) or (NonstandardResidueTreatment == 3)) :
+    if ((NonstandardResidueTreatment == "replace") or (NonstandardResidueTreatment == "replace_delete" )) :
         fixer.findNonstandardResidues()
         fixer.replaceNonstandardResidues()
     fixer.findMissingResidues()
     fixer.findMissingAtoms()    
     fixer.addMissingAtoms()
     fixer.addMissingHydrogens(7.4)
-    if ((NonstandardResidueTreatment == 2) or (NonstandardResidueTreatment == 3)) :
+    if ((NonstandardResidueTreatment == "delete") or (NonstandardResidueTreatment == "replace_delete" )) :
         fixer.removeHeterogens(keepWater=False)
     # print(fixer.topology.residues())
     # import pdb; pdb.set_trace()
@@ -367,12 +367,12 @@ class ommTreatment:
         self.pdb_and_score.append([flnm[:-4]+"_fixed_min.pdb", enzs])
         
     def read_settings_from_flags(self,kw):
-        self.rearrangeposes = int(kw['omm_rearrange'])
+        self.rearrangeposes = bool(kw['dockingRanking'])
         self.combined_pep_file = self.file_name_init + "_" + kw['sequence'] + "_out.pdb"
         self.output_file = self.file_name_init + "_" + kw['sequence'] + "_omm_rescored_out.pdb"
-        self.minimization_env = 'in-vacuo'  if int(kw['omm_environment']) == 0 else 'implicit'
+        self.minimization_env = 'implicit'  if kw['omm_environment'] == 'implicit' else  'in-vacuo'
         self.minimization_steps = kw['omm_max_itr']
-        self.NonstandardResidueTreatment = int(kw['omm_nst'])
+        self.NonstandardResidueTreatment = kw['omm_nst']
         print(f'{Fore.GREEN}OpenMM minimization settings: Environment="%s"; Max_itr=%d.{Style.RESET_ALL}'
               % (self.minimization_env, self.minimization_steps))
         
@@ -446,8 +446,8 @@ class ommTreatment:
         split_pdb_to_chain_A_and_Z(fixed_pdb[:-4]+"_min.pdb")
         for j in [minimized_pdb, minimized_pdb[:-4]+"_A.pdb",minimized_pdb[:-4]+"_Z.pdb" ]:
             enzs.append(get_energy(j,env))
-        enzs.append(enzs[0] - enzs[1] -enzs[2])
-        enzs.append(enzs[0] - enzs[1])
+        enzs.append(enzs[0] - enzs[1] -enzs[2])   # interaction energy
+        enzs.append(enzs[0] - enzs[1])            # complex - protein energy
         e_str=''
         for i in enzs:
             e_str = e_str + "%10.2f" % i

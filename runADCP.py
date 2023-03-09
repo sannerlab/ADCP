@@ -184,6 +184,7 @@ class runADCP:
             
             # to check openmm supports for the residues in the receptor file
             kw['rec'] = 'rigidReceptor.pdbqt'     #OMM new line
+            print("KWWW",residue_support_validator(kw))
             if not residue_support_validator(kw)[0]: #OMM new line
                 self.myexit()                     #OMM new line
                 return                            #OMM new line

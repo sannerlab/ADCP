@@ -51,7 +51,7 @@ e: No support for external parameter input for non-standard amino
 
 def residue_support_validator(kw):    
     if not kw['minimize']:
-        return 1
+        return 1,''
     
     from pdbfixer.pdbfixer import substitutions, proteinResidues
     from MolKit2 import Read
@@ -89,7 +89,7 @@ def residue_support_validator(kw):
         combined_treatment_options = ['delete','replace_delete']
     
     if combined_treatment_options.count(kw['omm_nst'])> 0:
-        return 1
+        return 1,''
     else:
         print(f'{Fore.RED}Use -nst flag, available options:')
         print(replace_msg)
@@ -106,11 +106,11 @@ def add_open_mm_flags(parser):
                       minimized the reported solutions a ranked based on the\
                       minimized energy and by default ordered from best to worse\
                       based on the minimized complex energetic terms.'))    
-    parser.add_argument("-dr", "--dockingRanking", action="store_true",
+    parser.add_argument("-dr", "--dockingRanking", action="store_false",
                        dest="dockingRanking", help=( 'When docking solutions are\
-                       minimized, the -dr flag is used to preserve the re-ordering\
-                       the minimized solutions based on energetic terms from the\
-                       minimized complex. Default is true.'))   
+                       minimized, the -dr flag is used to prevent the re-ordering\
+                       and report the minimized solutions based on docking score\
+                       ordered from best to worse. Default is False.'))   
     parser.add_argument("-omm_max_itr", "-omm_max_itr", type=int, default=5,
                        dest="omm_max_itr", help='Maximum steps for OpenMM minimization. Default is 5')   
     parser.add_argument("-omm_env", "-omm_environment", type=str, default='vaccum',

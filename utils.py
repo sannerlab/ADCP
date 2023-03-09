@@ -50,7 +50,7 @@ e: No support for external parameter input for non-standard amino
 
 
 def residue_support_validator(kw):    
-    if not kw['minimize']:
+    if not kw['minimize']:  # no need to validate residues if no NST
         return 1,''
     
     from pdbfixer.pdbfixer import substitutions, proteinResidues
@@ -75,6 +75,8 @@ def residue_support_validator(kw):
             else:
                 print(f'Residue %s CANNOT be substituted. Use remove option.{Style.RESET_ALL}' % ns_res)
                 treatment_options_per_nsr[indx] = ['delete','replace_delete']
+    else:
+        return 1, rec # no need check further if no NST
      
     num_replaceable = len([0 for i in treatment_options_per_nsr if i.count('replace')>0])
     
@@ -87,9 +89,9 @@ def residue_support_validator(kw):
     else:                                           # when some residues are replacable
         print(f'{Fore.GREEN}Some of the non-standard residues are replaceable. -nst "replace_delete" is suggested.{Style.RESET_ALL}')
         combined_treatment_options = ['delete','replace_delete']
-    
+    print("here:", kw['omm_nst'], combined_treatment_options, )
     if combined_treatment_options.count(kw['omm_nst'])> 0:
-        return 1,''
+        return 1,'' #If possible -nst option is already provided
     else:
         print(f'{Fore.RED}Use -nst flag, available options:')
         print(replace_msg)

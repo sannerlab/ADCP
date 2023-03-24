@@ -35,7 +35,7 @@ Steps:
 
 def split_pdb_to_chain_A_and_Z(pdbfile):
     # It changes last chain (peptide) to "Z" 
-    # After openMM minimization chain ids are changed to consecutive letters.
+    # After openMM minimization chain ids are changed back to consecutive letters.
     # like A,B,Z => A,B,C
     
     out_pdb_intial = pdbfile[:-4]    
@@ -94,12 +94,34 @@ def identify_interface_residues(pdb_file, needs_b=0):
     return interacting_chainA_res
 
 
-def fix_my_pdb(pdb_in,out=None, NonstandardResidueTreatment=0): 
+def AddListForUnknownNSTsToALA(fixer):
+    '''Do not run fixer.findNonstandardResidues() 
+    after running this command. You can run 
+    fixer.findNonstandardResidues() before this.
+    
+    Also, do not use fixer.removeHeterogens() before 
+    this command otherwise, all NSTs will be deleted 
+    from the pdbdata.
+    '''
+    
+    from pdbfixer.pdbfixer import (
+        substitutions, proteinResidues,dnaResidues, rnaResidues)
+    keep = set(proteinResidues).union(dnaResidues).union(rnaResidues).union(['N','UNK','HOH'])
+    for residue in fixer.topology.residues():
+        if residue.name in keep:
+            continue
+        if not residue.name in substitutions:
+            if not hasattr(fixer, 'nonstandardResidues'):
+                fixer.nonstandardResidues =[]
+            fixer.nonstandardResidues.append([residue, 'ALA'])
+
+
+def fix_my_pdb(pdb_in,out=None, NonstandardResidueTreatment='no-action'): 
     ''' Options for NonstandardResidueTreatment:
-      0: do nothing; 
-      1: try to swap with similar; 
-      2: remove the residue; 
-      3: if cannot swap, remove the residue'''
+      no-action: do nothing; 
+      replace: try to swap NSTs with similar using pdbfixer v1.7; 
+      replace_mutate: try to swap NSTs with similar, if cannot swap mutate to ALA'''
+
       
     if out==None:
         pdb_out = "./fixed/" + pdb_in.split('/')[-1].split('.')[0]+'_fixed.pdb'
@@ -141,16 +163,17 @@ def fix_my_pdb(pdb_in,out=None, NonstandardResidueTreatment=0):
     
     # Cleaning in PDBFixer >>>>      
     fixer = PDBFixer(filename=pdb_out)
-    if ((NonstandardResidueTreatment == "replace") or (NonstandardResidueTreatment == "replace_delete" )) :
+    
+    if ((NonstandardResidueTreatment == "replace") or (NonstandardResidueTreatment == "replace_mutate" )) :
         fixer.findNonstandardResidues()
+        if NonstandardResidueTreatment == "replace_mutate":
+            AddListForUnknownNSTsToALA(fixer)
         fixer.replaceNonstandardResidues()
     fixer.findMissingResidues()
     fixer.findMissingAtoms()    
     fixer.addMissingAtoms()
     fixer.addMissingHydrogens(7.4)
-    if ((NonstandardResidueTreatment == "delete") or (NonstandardResidueTreatment == "replace_delete" )) :
-        fixer.removeHeterogens(keepWater=False)
-    # print(fixer.topology.residues())
+    
     # import pdb; pdb.set_trace()
     with open( pdb_out , 'w') as outfile:
          PDBFile.writeFile(fixer.topology, fixer.positions, file=outfile,
@@ -159,31 +182,33 @@ def fix_my_pdb(pdb_in,out=None, NonstandardResidueTreatment=0):
 
   
 def restrain_(system_, pdb, not_chain='Z', ignore_list=[]):
-    # given chain will not be restrained
+    # given chain will not be restrained;
+    # ignore_list is for atoms not to restrain: e.g. interface residues
+    # BUG resolved 3/24/2023
+    # strong restrain
     restraint = CustomExternalForce("0.5 * k * ((x-x0)^2 + (y-y0)^2 + (z-z0)^2)")    
     restraint.addGlobalParameter('k', 20000.0*kilojoules_per_mole/nanometer*nanometer)    
     restraint.addPerParticleParameter('x0')
     restraint.addPerParticleParameter('y0')
     restraint.addPerParticleParameter('z0')
-    
-    # print(ignore_list)
-    res_list_openmm=[]
-    for atom in pdb.topology.atoms():
+        
+    # iteration over all atoms to select atoms for restrain
+    for atom in pdb.topology.atoms():        
+        # ignore atoms from ignore_list for restrain
         if len(ignore_list) > 0:
-            if ignore_list.count(atom.residue.index) > 0:
-                if atom.name == 'CA':
-                    res_list_openmm.append(atom.residue.name)
+            if atom.residue.index in ignore_list:
                 continue        
-        # import pdb ; pdb.set_trace()
-        if not_chain !='Z':
-            if atom.element.name == 'hydrogen':
-                continue
-            if atom.residue.chain.id != 'Z':       
-                restraint.addParticle(atom.index, pdb.positions[atom.index])
-        else:
-            restraint.addParticle(atom.index, pdb.positions[atom.index])
-    # if chain =='A':       
-    #     print("omm ignore  :",res_list_openmm)            
+        # ignore hydrogen atoms
+        if atom.element.name == 'hydrogen':
+            continue
+
+        # ignore atoms from not_chain chain.
+        if atom.residue.chain.id == not_chain:
+            continue
+        
+        # else apply restrain on other atoms
+        restraint.addParticle(atom.index, pdb.positions[atom.index])
+         
     system_.addForce(restraint)
     
 

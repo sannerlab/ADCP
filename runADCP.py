@@ -491,7 +491,7 @@ if __name__=='__main__':
     
     if len(sys.argv)==1:
         #parser.print_help()
-        print('You are running "ADCP with OpenMM support". \nRun Use "--help" to see available options.')
+        print('You are running "ADCP with OpenMM support v1.1.0". \nRun Use "--help" to see available options.')
         
     else:    
         kw = vars(parser.parse_args())

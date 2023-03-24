@@ -22,8 +22,8 @@ amino acids when minimization is requested. When omitted, it defaults to \
 "no-action" and the software will stop if non standard amino acids are \
 found in the receptor and minimization is required. Alternative options \
 could be: "replace" to replace non standard amino acid with similar standard AAs, \
-"delete" to remove non standard amino acid if found, or "replace_delete" \
-to replace if replaceable or delete')
+"replace_mutate" to replace non standard amino acid with similar standard AAs, \
+and mutate non replaceables to "ALA".')
 
 def flag_validator(kw):
     procede_after_after_flag_check = 1 # dfault to run the code    
@@ -38,9 +38,10 @@ non-minimization calculations.'
 a: Support for OpenMM Minimization is still under development. 
 b: Currently, it supports docking with "-rmsd 0" flag. 
 c: Non-standard amino acids can either be replaced by similar amino
-   acids, or can be removed from the sequence.(From pdbfixer v1.7)
-d: Non-standard amino-acids only in RECEPTOR is treated.  
-e: No support for external parameter input for non-standard amino
+   acids using pdbfixer v1.7, or if pdbfixer does not identify the
+   Non-standard amino acid, it can be replaced by ALA.
+d: Currently non-standard amino-acids only in the RECEPTOR are treated.  
+e: Currently no support for external parameter input for non-standard amino
    acids.{Style.RESET_ALL} 
    ''')        
         if importlib.find_loader('openmm') == None:  # checking presence of openmm
@@ -71,25 +72,25 @@ def residue_support_validator(kw):
             print(f"{Fore.GREEN}Non standard residue %s found" % ns_res)
             if substitutable_residues.count(ns_res):
                 print (f'Residue %s can be substituted by %s.{Style.RESET_ALL}' % (ns_res, substitutions[ns_res]))
-                treatment_options_per_nsr[indx] = ['replace','delete','replace_delete'] # replace; delete; delete if cannot replace                
+                treatment_options_per_nsr[indx] = ['replace', 'replace_mutate'] # replace; delete; delete if cannot replace                
             else:
-                print(f'Residue %s CANNOT be substituted. Use remove option.{Style.RESET_ALL}' % ns_res)
-                treatment_options_per_nsr[indx] = ['delete','replace_delete']
+                print(f'Residue %s CANNOT be substituted.{Style.RESET_ALL}' % ns_res)
+                treatment_options_per_nsr[indx] = ['replace_mutate']
     else:
         return 1, rec # no need check further if no NST
      
     num_replaceable = len([0 for i in treatment_options_per_nsr if i.count('replace')>0])
     
     if  num_replaceable == len(treatment_options_per_nsr):  # when all residues are replacable
-        print(f'{Fore.GREEN}All non-standard residues are replaceable. -nst "replace" (or "replace_delete") is suggested.{Style.RESET_ALL}')
-        combined_treatment_options = ['replace','delete','replace_delete']
+        print(f'{Fore.GREEN}All non-standard residues are replaceable. -nst "replace" (or "replace_mutate") is suggested.{Style.RESET_ALL}')
+        combined_treatment_options = ['replace','replace_mutate']
     elif num_replaceable == 0:                      # when none residues are replacable
-        print(f'{Fore.GREEN}None of the non-standard residues are replaceable. -nst "delete" (or "replace_delete")  is suggested.{Style.RESET_ALL}')
-        combined_treatment_options = ['delete','replace_delete']
+        print(f'{Fore.GREEN}None of the non-standard residues are replaceable. -nst "replace_mutate" is suggested.{Style.RESET_ALL}')
+        combined_treatment_options = ['replace_mutate']
     else:                                           # when some residues are replacable
         print(f'{Fore.GREEN}Some of the non-standard residues are replaceable. -nst "replace_delete" is suggested.{Style.RESET_ALL}')
-        combined_treatment_options = ['delete','replace_delete']
-    print("here:", kw['omm_nst'], combined_treatment_options, )
+        combined_treatment_options = ['replace_mutate']
+    # print("here:", kw['omm_nst'], combined_treatment_options, )
     if combined_treatment_options.count(kw['omm_nst'])> 0:
         return 1,'' #If possible -nst option is already provided
     else:

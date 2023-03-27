@@ -29,7 +29,7 @@
 #SOLVE ##DICT PROBLEM
 
 import os, sys, numpy, shutil, random
-from utils import flag_validator, add_open_mm_flags, residue_support_validator #OMM new line
+from utils import openmm_validator, add_open_mm_flags, support_validator #OMM new line
 #import os, sys, numpy, platform, datetime, tempfile, shutil, random, tarfile, pickle
 # from glob import glob
 
@@ -102,7 +102,7 @@ class runADCP:
         # run ADFR GAs using the list of command line arguments from the sysargv list
         # 
         # to check different flag requirements (currently added openMM)
-        if flag_validator(kw) == 0: #OMM new line
+        if openmm_validator(kw) == False: #OMM new line
             return                  #OMM new line
         import subprocess, datetime
         dataDict = {}
@@ -184,7 +184,7 @@ class runADCP:
             
             # to check openmm supports for the residues in the receptor file
             kw['rec'] = 'rigidReceptor.pdbqt'     #OMM new line
-            if not residue_support_validator(kw)[0]: #OMM new line
+            if not support_validator(kw)[0]:      #OMM new line
                 self.myexit()                     #OMM new line
                 return                            #OMM new line
                 

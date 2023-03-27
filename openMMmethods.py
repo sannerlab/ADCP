@@ -116,11 +116,10 @@ def AddListForUnknownNSTsToALA(fixer):
             fixer.nonstandardResidues.append([residue, 'ALA'])
 
 
-def fix_my_pdb(pdb_in,out=None, NonstandardResidueTreatment='no-action'): 
+def fix_my_pdb(pdb_in,out=None, NonstandardResidueTreatment=False): 
     ''' Options for NonstandardResidueTreatment:
-      no-action: do nothing; 
-      replace: try to swap NSTs with similar using pdbfixer v1.7; 
-      replace_mutate: try to swap NSTs with similar, if cannot swap mutate to ALA'''
+      false: do nothing; 
+      fnst: try to swap NSTs with similar, if cannot swap mutate to ALA'''
 
       
     if out==None:
@@ -164,10 +163,10 @@ def fix_my_pdb(pdb_in,out=None, NonstandardResidueTreatment='no-action'):
     # Cleaning in PDBFixer >>>>      
     fixer = PDBFixer(filename=pdb_out)
     
-    if ((NonstandardResidueTreatment == "replace") or (NonstandardResidueTreatment == "replace_mutate" )) :
+    
+    if NonstandardResidueTreatment:
         fixer.findNonstandardResidues()
-        if NonstandardResidueTreatment == "replace_mutate":
-            AddListForUnknownNSTsToALA(fixer)
+        AddListForUnknownNSTsToALA(fixer)
         fixer.replaceNonstandardResidues()
     fixer.findMissingResidues()
     fixer.findMissingAtoms()    
@@ -321,10 +320,9 @@ class ommTreatment:
         self.file_name_init = file_name_init
         self.pdb_and_score=[]
         self.delete_at_end =[]
-        self.omm_ranking=[]
-        self.omm_rearrange_index = []
+        self.rearranged_data_as_per_asked=[]
         self.output_file =''
-        self.rearrangeposes = 1
+        self.rearrangeposes = True
         self.combined_pep_file =''
         self.rec_data = rec_data
         self.CLEAN_AT_END = 1 # for debugging only
@@ -350,7 +348,8 @@ class ommTreatment:
             print(f"{Fore.RED}Clustered file %s does not exist. OpenMM calculation terminated.{Style.RESET_ALL}" % self.combined_pep_file)
             return
         
-        # combining peptides and receptor; and scoring        
+        # combining peptides and receptor; and scoring   
+        print('2')
         pep_pdb = Read( self.combined_pep_file )
         num_mode_to_minimize = min(pep_pdb._ag.numCoordsets(), int(kw['minimize']))        
         print(f"{Fore.GREEN}From total %d models, minimizing top %d ...{Style.RESET_ALL}" %
@@ -376,7 +375,7 @@ class ommTreatment:
             # save required details
             self.make_post_calculation_file_lists(out_complex_name, enzs)        
         self.calculate_reranking_index()    
-        self.print_reranked_models()
+        #self.print_reranked_models()
         self.read_pdb_files_and_combine_using_given_index()
         if self.CLEAN_AT_END == 1:
             self.clean_temp_files()
@@ -389,7 +388,13 @@ class ommTreatment:
         self.delete_at_end.append(flnm[:-4] + "_fixed_min_Z.pdb")
         self.delete_at_end.append(flnm[:-4] + "_fixed_min.pdb")
         # combining for final output
-        self.pdb_and_score.append([flnm[:-4]+"_fixed_min.pdb", enzs])
+        if len(self.pdb_and_score)<1:
+            self.pdb_and_score.append([0,flnm[:-4]+"_fixed_min.pdb", enzs])
+        else:
+            current_model = len(self.pdb_and_score)
+            self.pdb_and_score.append([current_model,flnm[:-4]+"_fixed_min.pdb", enzs])
+            
+        # self.pdb_and_score.append([flnm[:-4]+"_fixed_min.pdb", enzs])
         
     def read_settings_from_flags(self,kw):
         self.rearrangeposes = bool(kw['dockingRanking'])
@@ -402,31 +407,46 @@ class ommTreatment:
               % (self.minimization_env, self.minimization_steps))
         
     def calculate_reranking_index(self):  
+        '''Rearraging BUG removed'''
         metric_comp_minus_rec = []  
+        ommrank_adcprank_data = []
         for i in self.pdb_and_score:
-            metric_comp_minus_rec.append(i[1][-1])  
-        self.omm_ranking = np.argsort(metric_comp_minus_rec)
-        if self.rearrangeposes == True:
+            metric_comp_minus_rec.append(i[2][-1])          
+        reaarange_for_omm_ranking = np.argsort(metric_comp_minus_rec)
+        
+        for current_v, rearrage_idx in enumerate(reaarange_for_omm_ranking):
+            ommrank_adcprank_data.append([current_v, self.pdb_and_score[rearrage_idx][0],
+                                          self.pdb_and_score[rearrage_idx][1],
+                                          self.pdb_and_score[rearrage_idx][2]])
+        ommrank_adcprank_data = np.array(ommrank_adcprank_data)
+        
+            
+        # print(self.omm_ranking,metric_comp_minus_rec)
+        if self.rearrangeposes == True:            
             print (f"{Fore.GREEN}\nREARRANGING output poses using OpenMM energy{Style.RESET_ALL}")          
-            self.omm_rearrange_index = self.omm_ranking
+            self.rearranged_data_as_per_asked = ommrank_adcprank_data
+            
         else:
             print (f"{Fore.GREEN}\nNOT REARRANGING output poses using OpenMM energy{Style.RESET_ALL}")
-            self.omm_rearrange_index  = range(len(self.pdb_and_score))
-            
+            self.rearranged_data_as_per_asked = ommrank_adcprank_data[ommrank_adcprank_data[:,1].argsort()]
+        
+         
     def create_omm_dirs(self):        
         if not os.path.exists(self.omm_dir):
             os.mkdir(self.omm_dir)            
         if not os.path.exists(self.omm_proj_dir):
             os.mkdir(self.omm_proj_dir)
             
-    def print_reranked_models(self):      
-        print(f"{Fore.GREEN}Re-ranking by OpenMM{Style.RESET_ALL} (E_complex - E_receptor):")
-        print ("---------+------------------+---------+")
-        print ("rank omm | rank by AD score |  E_Comp |")
-        print ("         |                  |  -E_Rec |")
-        print ("---------+------------------+---------+")        
-        for i, rank_v in enumerate(self.omm_ranking):
-            print(" %8d %18d %8.1f" % (i+1, rank_v+1, self.pdb_and_score[rank_v][1][-1]))
+    # def print_reranked_models(self):      
+    #     print(f"{Fore.GREEN}Re-ranking by OpenMM{Style.RESET_ALL} (E_complex - E_receptor):")
+    #     # print ("-------+---------+------------------+---------+")
+    #     # print ("model |rank omm | rank by AD score |  E_Comp |")
+    #     # print ("      |         |                  |  -E_Rec |")
+    #     # print ("------+---------+------------------+---------+")  
+        
+        
+    #     # for i, rank_v in enumerate(self.omm_ranking):
+    #     #     print(" %8d %18d %8.1f" % (i+1, rank_v+1, self.pdb_and_score[rank_v][1][-1]))
             
     def clean_temp_files(self):
         for fl in self.delete_at_end:
@@ -437,26 +457,33 @@ class ommTreatment:
         
     def read_pdb_files_and_combine_using_given_index(self):
         out_file = open(self.output_file,"w+")        
-        omm_rank_sorted =self.omm_ranking
-        if (self.omm_ranking == self.omm_rearrange_index).all():
-            omm_rank_sorted = range(len(self.omm_ranking))
+
+        print ("-------+------+------+------------+")
+        print (" model | rank | rank |   E_Comp   |")
+        print ("       |OpenMM| ADCP |   -E_Rec   |")
+        print ("-------+------+------+------------+")  
         
-        for model_num, rank in enumerate(self.omm_rearrange_index):
+            
+        for model_num, arranged_line in enumerate(self.rearranged_data_as_per_asked):
             # file name and omm scores
-            flnm = self.pdb_and_score[rank][0]
-            scores = self.pdb_and_score[rank][1]
+            omm_rank, adcp_rank, flnm, scores = arranged_line
+            
+            # flnm = self.pdb_and_score[rank][0]
+            # scores = self.pdb_and_score[rank][1]
             score_string_to_write1 = "E_Complex = %9.2f; E_Receptor = %9.2f; E_Peptide  = %9.2f\n" % (scores[0],scores[1],scores[2])
             score_string_to_write2 = "dE_Interaction = %9.2f; dE_Complex-Receptor = %9.2f\n" % (scores[3], scores[4])           
                         
             out_file.write("MODEL     %4d\n" % ( model_num+1 ))
-            out_file.write("USER: OpenMM RESCORED SOLUTION %d\n" % (omm_rank_sorted[model_num]+1))            
+            out_file.write("USER: OpenMM RESCORED SOLUTION %d\n" % (omm_rank+1))            
             out_file.write("USER: " + score_string_to_write1)
             out_file.write("USER: " + score_string_to_write2)
-            
             flnm_data = Read(flnm)            
             writePDBStream(out_file, flnm_data._ag)                       
             out_file.write("ENDMDL\n")
+            print(" %6d %6d %6d %10.1f" %(model_num+1 , omm_rank, adcp_rank, scores[4] ))
+            
         out_file.close()
+        print ("-------+------+------+------------+")
         
     def estimate_energies_for_pdb(self,pdb_fl, verbose=0):
         env=self.minimization_env

@@ -17,16 +17,15 @@ without loading the main functions for openMM support.
 import importlib
 from colorama import Fore, Style
 
-replace_msg = ('this flag is used to specify the handling of non-standard \
-amino acids when minimization is requested. When omitted, it defaults to \
-"no-action" and the software will stop if non standard amino acids are \
-found in the receptor and minimization is required. Alternative options \
-could be: "replace" to replace non standard amino acid with similar standard AAs, \
-"replace_mutate" to replace non standard amino acid with similar standard AAs, \
-and mutate non replaceables to "ALA".')
+replace_msg = ('''This flag is used to specify the handling of non-standard \
+amino acids when minimization is requested. When omitted, the software will \
+stop if non standard amino acids are found in the receptor and minimization \
+is required. Alternatively if -fnst flag is given, non standard amino acids \
+will be swapped with similar standard AAs using pdbfixer(v1.7), and mutate \
+non-replaceables to "ALA".''')
 
-def flag_validator(kw):
-    procede_after_after_flag_check = 1 # dfault to run the code    
+def openmm_validator(kw):
+    procede_after_flag_check = True # dfault to run the code    
     # check openmm    
     if int(kw['minimize']) > 0:
         print (f'''{Fore.GREEN}
@@ -37,68 +36,83 @@ non-minimization calculations.'
 {Fore.BLUE}DECLARATION: 
 a: Support for OpenMM Minimization is still under development. 
 b: Currently, it supports docking with "-rmsd 0" flag. 
-c: Non-standard amino acids can either be replaced by similar amino
-   acids using pdbfixer v1.7, or if pdbfixer does not identify the
-   Non-standard amino acid, it can be replaced by ALA.
-d: Currently non-standard amino-acids only in the RECEPTOR are treated.  
-e: Currently no support for external parameter input for non-standard amino
-   acids.{Style.RESET_ALL} 
+c: Non-standard amino acids can either be replaced by similar amino \
+acids using pdbfixer v1.7, or if pdbfixer does not identify the \
+Non-standard amino acid, it can be replaced by ALA.
+d: Non-standard amino-acids only in the RECEPTOR are treated.  
+e: Currently no support for external parameter input for non-standard amino \
+acids.
+f: No cyclic peptides (flags "-cyc" or "-cys") are supported.{Style.RESET_ALL} 
+
    ''')        
         if importlib.find_loader('openmm') == None:  # checking presence of openmm
             print(f"{Fore.RED}OpenMM not found. Please install OpenMM or remove -nmin flag.{Style.RESET_ALL}")
-            procede_after_after_flag_check = 0
-    return procede_after_after_flag_check
+            if procede_after_flag_check:
+                procede_after_flag_check = False
+            
+    return procede_after_flag_check
 
 
-def residue_support_validator(kw):    
+def support_validator(kw):
     if not kw['minimize']:  # no need to validate residues if no NST
-        return 1,''
+        return True,''
     
-    from pdbfixer.pdbfixer import substitutions, proteinResidues
+    all_flags_allowed = True
+    detected_problems = []
+    from pdbfixer.pdbfixer import (
+        substitutions, proteinResidues,dnaResidues, rnaResidues)
     from MolKit2 import Read
     import numpy as np
     
-    substitutable_residues = list(substitutions.keys())
+    # check cyc flag 
+    if kw['cyclic'] :
+        detected_problems.append(f'{Fore.RED}"-cyc/--cyclic" flag detected. ' 
+                                 f'OpenMM support for cyclic peptide is not ' 
+                                 f'implemented yet.{Style.RESET_ALL}')
+        if all_flags_allowed:
+            all_flags_allowed = False
+    
+    # check cys flag
+    if kw['cystein'] :
+        detected_problems.append(f'{Fore.RED}"-cys/--cystein" flag detected. '
+                                 f'OpenMM support for cyclic peptide through '
+                                 f'disulfide bond is not implemented yet.{Style.RESET_ALL}')
+        if all_flags_allowed:
+            all_flags_allowed = False
+    
     # print(kw)
+    #check nst
     rec = Read(kw['rec'])
     residues_in_pdb = rec._ag.select('name CA').getResnames()
     uniq_residues = np.unique(residues_in_pdb) # for faster calculation
-    list_of_identified_non_standard_residues = [i for i in uniq_residues if proteinResidues.count(i)<1]
-    
-    combined_treatment_options =['no-action']
-    treatment_options_per_nsr = [['no-action']]*len(list_of_identified_non_standard_residues) # default do nothing   for all residues separately 
+    keep = set(proteinResidues).union(dnaResidues).union(rnaResidues).union(['N','UNK','HOH'])
+    list_of_identified_non_standard_residues = [i for i in uniq_residues if not i in keep]
     if len(list_of_identified_non_standard_residues) > 0:
-        for indx, ns_res in enumerate(list_of_identified_non_standard_residues):
-            print(f"{Fore.GREEN}Non standard residue %s found" % ns_res)
-            if substitutable_residues.count(ns_res):
-                print (f'Residue %s can be substituted by %s.{Style.RESET_ALL}' % (ns_res, substitutions[ns_res]))
-                treatment_options_per_nsr[indx] = ['replace', 'replace_mutate'] # replace; delete; delete if cannot replace                
+        print(f"{Fore.GREEN}Non standard residue(s) detected.{Style.RESET_ALL}")
+        replace_will_be_or_can_be = "will be"
+        if not kw['omm_nst']: #If -fnst option is not provided
+            replace_will_be_or_can_be = "can be"
+            detected_problems.append(f'{Fore.RED}Use "-fnst" flag for non-standard amino acids:')
+            detected_problems.append(replace_msg)
+            detected_problems.append(f'Or, remove -nmin flag.{Style.RESET_ALL}') 
+            if all_flags_allowed:
+                all_flags_allowed = False  
+         
+        for indx, ns_res in enumerate(list_of_identified_non_standard_residues): 
+            if ns_res in substitutions:
+                print (f'{Fore.GREEN}Residue %s %s substituted with %s.{Style.RESET_ALL}' % (ns_res, replace_will_be_or_can_be,substitutions[ns_res]))
             else:
-                print(f'Residue %s CANNOT be substituted.{Style.RESET_ALL}' % ns_res)
-                treatment_options_per_nsr[indx] = ['replace_mutate']
-    else:
-        return 1, rec # no need check further if no NST
-     
-    num_replaceable = len([0 for i in treatment_options_per_nsr if i.count('replace')>0])
-    
-    if  num_replaceable == len(treatment_options_per_nsr):  # when all residues are replacable
-        print(f'{Fore.GREEN}All non-standard residues are replaceable. -nst "replace" (or "replace_mutate") is suggested.{Style.RESET_ALL}')
-        combined_treatment_options = ['replace','replace_mutate']
-    elif num_replaceable == 0:                      # when none residues are replacable
-        print(f'{Fore.GREEN}None of the non-standard residues are replaceable. -nst "replace_mutate" is suggested.{Style.RESET_ALL}')
-        combined_treatment_options = ['replace_mutate']
-    else:                                           # when some residues are replacable
-        print(f'{Fore.GREEN}Some of the non-standard residues are replaceable. -nst "replace_delete" is suggested.{Style.RESET_ALL}')
-        combined_treatment_options = ['replace_mutate']
-    # print("here:", kw['omm_nst'], combined_treatment_options, )
-    if combined_treatment_options.count(kw['omm_nst'])> 0:
-        return 1,'' #If possible -nst option is already provided
-    else:
-        print(f'{Fore.RED}Use -nst flag, available options:')
-        print(replace_msg)
-        print(f'Or, remove -nmin flag.{Style.RESET_ALL}')        
-    return 0, rec #returning receptor to speed up calculation
+                print (f'{Fore.GREEN}Residue %s %s substituted with "ALA".{Style.RESET_ALL}' % (ns_res, replace_will_be_or_can_be))
+    if not all_flags_allowed:
+        print(f"{Fore.RED}Please resolve following issues to use openMM based ranking:{Style.RESET_ALL}")
+        for msg in detected_problems:
+            print(msg)
+        #print(f"{Fore.RED}Exiting now{Style.RESET_ALL}")
+       
+    return all_flags_allowed, rec #returning receptor to speed up calculation
         
+
+    
     
 def add_open_mm_flags(parser):
     parser.add_argument("-nmin", "--omm_nmin", type=int, default=0,
@@ -114,10 +128,10 @@ def add_open_mm_flags(parser):
                        minimized, the -dr flag is used to prevent the re-ordering\
                        and report the minimized solutions based on docking score\
                        ordered from best to worse. Default is False.'))   
-    parser.add_argument("-omm_max_itr", "-omm_max_itr", type=int, default=5,
+    parser.add_argument("-nitr", "--omm_max_itr", type=int, default=5,
                        dest="omm_max_itr", help='Maximum steps for OpenMM minimization. Default is 5')   
-    parser.add_argument("-omm_env", "-omm_environment", type=str, default='vaccum',
+    parser.add_argument("-env", "--omm_environment", type=str, default='vaccum',
                        dest="omm_environment", help='options: "vacuum" or "implicit". Default is "vacuum"')       
-    parser.add_argument("-nst", "-omm_non_standard_res_treatment", type=str, default="no-action",
+    parser.add_argument("-fnst", "--fix_nst", action="store_true",
                        dest="omm_nst", help=replace_msg)  
     return parser

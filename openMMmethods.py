@@ -119,7 +119,7 @@ def AddListForUnknownNSTsToALA(fixer):
 def fix_my_pdb(pdb_in,out=None, NonstandardResidueTreatment=False): 
     ''' Options for NonstandardResidueTreatment:
       false: do nothing; 
-      fnst: try to swap NSTs with similar, if cannot swap mutate to ALA'''
+     -fnst: try to swap NSTs with similar amino acids, if cannot swap, mutate to ALA'''
 
       
     if out==None:
@@ -459,8 +459,9 @@ class ommTreatment:
         out_file = open(self.output_file,"w+")        
 
         print ("-------+------+------+------------+")
-        print (" model | rank | rank |   E_Comp   |")
-        print ("       |OpenMM| ADCP |   -E_Rec   |")
+        print (" Model | Rank | Rank | E_Complex  |")
+        print (" #     |OpenMM| ADCP |-E_Receptor |")
+        # print ("       |      |      |  (kJ/mol)  |")
         print ("-------+------+------+------------+")  
         
             
@@ -480,7 +481,7 @@ class ommTreatment:
             flnm_data = Read(flnm)            
             writePDBStream(out_file, flnm_data._ag)                       
             out_file.write("ENDMDL\n")
-            print(" %6d %6d %6d %10.1f" %(model_num+1 , omm_rank, adcp_rank, scores[4] ))
+            print(" %6d %6d %6d %10.1f" %(model_num+1 , omm_rank+1, adcp_rank+1, scores[4] ))
             
         out_file.close()
         print ("-------+------+------+------------+")

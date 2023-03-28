@@ -80,8 +80,17 @@ def support_validator(kw):
         if all_flags_allowed:
             all_flags_allowed = False
     
-    # print(kw)
-    #check nst
+    # check nst peptide
+    if "<" in kw['sequence']:
+        detected_problems.append(f'{Fore.RED}"Non-standard amino acid(s) detected in the PEPTIDE '
+                                 f'sequence. OpenMM support for non-standard '
+                                 f'amino acids in PEPTIDE is not implemented yet.{Style.RESET_ALL}')
+        if all_flags_allowed:
+            all_flags_allowed = False
+        
+
+    
+    #check nst receptor
     rec = Read(kw['rec'])
     residues_in_pdb = rec._ag.select('name CA').getResnames()
     uniq_residues = np.unique(residues_in_pdb) # for faster calculation

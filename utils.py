@@ -26,14 +26,14 @@ non-replaceables to "ALA".''')
 
 def openmm_validator(kw):
     procede_after_flag_check = True # dfault to run the code    
-    # check openmm    
+    # check if minimization is asked 
     if int(kw['minimize']) > 0:
         print (f'''{Fore.GREEN}
 ------------------------------------------------------------------
 OpenMM minimization flag detected. This step takes more time than 
 non-minimization calculations.'        
 
-{Fore.BLUE}DECLARATION: 
+{Fore.BLUE}DECLARATION (V1.1.0 build 1): 
 a: Support for OpenMM Minimization is still under development. 
 b: Currently, it supports docking with "-rmsd 0" flag. 
 c: Non-standard amino acids can either be replaced by similar amino \
@@ -41,17 +41,23 @@ acids using pdbfixer v1.7, or if pdbfixer does not identify the \
 Non-standard amino acid, it can be replaced by ALA.
 d: Non-standard amino-acids only in the RECEPTOR are treated.  
 e: Currently no support for external parameter input for non-standard amino \
-acids.
-f: No cyclic peptides (flags "-cyc" or "-cys") are supported.{Style.RESET_ALL} 
+acids.{Style.RESET_ALL} 
 
    ''')        
-        if importlib.find_loader('openmm') == None:  # checking presence of openmm
-            print(f"{Fore.RED}OpenMM not found. Please install OpenMM or remove -nmin flag.{Style.RESET_ALL}")
-            if procede_after_flag_check:
-                procede_after_flag_check = False
+        # check these packages:
+        packages_to_check = ['openmm', 'parmed']
+        
+        for pkg in packages_to_check:             
+            if importlib.find_loader(pkg) == None:  # checking presence of package
+                print((f"{Fore.RED}%s not found. Please install %s" +
+                      " or remove -nmin flag.{Style.RESET_ALL}") % (pkg, pkg))
+                if procede_after_flag_check:
+                    procede_after_flag_check = False
+
             
     return procede_after_flag_check
 
+    
 
 def support_validator(kw):
     if not kw['minimize']:  # no need to validate residues if no NST
@@ -64,21 +70,36 @@ def support_validator(kw):
     from MolKit2 import Read
     import numpy as np
     
-    # check cyc flag 
-    if kw['cyclic'] :
-        detected_problems.append(f'{Fore.RED}"-cyc/--cyclic" flag detected. ' 
-                                 f'OpenMM support for cyclic peptide is not ' 
-                                 f'implemented yet.{Style.RESET_ALL}')
+    # nmin
+    if kw['minimize'] < 0:
+        detected_problems.append(f'{Fore.RED}"-nmin" cannot be a negative integer.{Style.RESET_ALL}')
         if all_flags_allowed:
             all_flags_allowed = False
+    #omm_max_itr        
+    if kw['omm_max_itr'] < 0:
+        detected_problems.append(f'{Fore.RED}"-nitr" cannot be a negative integer.{Style.RESET_ALL}')
+        if all_flags_allowed:
+            all_flags_allowed = False
+    #ommenvironement      
+    if not kw['omm_environment'] in ["vacuum" , "implicit"]:
+        detected_problems.append(f'{Fore.RED}"-env" can be either "vacuum" or "implicit".{Style.RESET_ALL}')
+        if all_flags_allowed:
+            all_flags_allowed = False   
+    # # check cyc flag 
+    # if kw['cyclic'] :
+    #     detected_problems.append(f'{Fore.RED}"-cyc/--cyclic" flag detected. ' 
+    #                              f'OpenMM support for cyclic peptide is not ' 
+    #                              f'implemented yet.{Style.RESET_ALL}')
+    #     if all_flags_allowed:
+    #         all_flags_allowed = False
     
     # check cys flag
-    if kw['cystein'] :
-        detected_problems.append(f'{Fore.RED}"-cys/--cystein" flag detected. '
-                                 f'OpenMM support for cyclic peptide through '
-                                 f'disulfide bond is not implemented yet.{Style.RESET_ALL}')
-        if all_flags_allowed:
-            all_flags_allowed = False
+    # if kw['cystein'] :
+    #     detected_problems.append(f'{Fore.RED}"-cys/--cystein" flag detected. '
+    #                               f'OpenMM support for cyclic peptide through '
+    #                               f'disulfide bond is not implemented yet.{Style.RESET_ALL}')
+    #     if all_flags_allowed:
+    #         all_flags_allowed = False
     
     # check nst peptide
     if "<" in kw['sequence']:
@@ -139,7 +160,7 @@ def add_open_mm_flags(parser):
                        ordered from best to worse. Default is False.'))   
     parser.add_argument("-nitr", "--omm_max_itr", type=int, default=5,
                        dest="omm_max_itr", help='Maximum steps for OpenMM minimization. Default is 5')   
-    parser.add_argument("-env", "--omm_environment", type=str, default='vaccum',
+    parser.add_argument("-env", "--omm_environment", type=str, default='vacuum',
                        dest="omm_environment", help='options: "vacuum" or "implicit". Default is "vacuum"')       
     parser.add_argument("-fnst", "--fix_nst", action="store_true",
                        dest="omm_nst", help=replace_msg)  

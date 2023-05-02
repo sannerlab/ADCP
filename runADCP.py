@@ -71,7 +71,7 @@ class runADCP:
         _platform = system_info[0]
         from ADFR.utils.MakeGrids import findBinary
         if _platform == "Linux":
-            binaryName = "adcp_Linux-x86_64"
+            binaryName = "adcp_Linux-x86_64_1.1"
         elif _platform == "Darwin":
             binaryName = "adcp_Darwin"
         else:

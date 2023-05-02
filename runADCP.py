@@ -222,10 +222,10 @@ class runADCP:
                 argv.append('%s'%kw['input'])
         else:
             if kw['partition'] is None:
-                argv.append('%s'%kw['sequence'])
+                argv.append('"%s"'%kw['sequence'])
             else:
                 partition = kw['partition']
-                argv.append('%s'%kw['sequence'])
+                argv.append('"%s"'%kw['sequence'])
                 if partition < 0:
                     partition = 0
                 elif partition > 100:
@@ -286,9 +286,9 @@ class runADCP:
             # overwrite the sequence if parition is found
             if partition > 0 and partition < 100 and kw['sequence'] is not None:
                 if jobNum <= numHelix:
-                    argv[1] = kw['sequence'].upper()
+                    argv[1] = '"%s"'%kw['sequence'].upper()
                 else:
-                    argv[1] = kw['sequence'].lower()
+                    argv[1] = '"%s"'%kw['sequence'].lower()
             if self.dryRun:
                 print ('/n*************** command ***************************\n')
                 print (' '.join(argv))
@@ -379,9 +379,9 @@ class runADCP:
                         # overwrite the sequence if parition is found
                         if partition > 0 and partition < 100 and kw['sequence'] is not None:
                             if jobNum <= numHelix:
-                                argv[1] = kw['sequence'].upper()
+                                argv[1] = '"%s"'%kw['sequence'].upper()
                             else:
-                                argv[1] = kw['sequence'].lower()
+                                argv[1] = '"%s"'%kw['sequence'].lower()
                         #process = subprocess.Popen(' '.join(argv),
                         #                           stdout=subprocess.PIPE , 
                         #                           stderr=subprocess.PIPE, 

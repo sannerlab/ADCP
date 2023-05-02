@@ -33,7 +33,7 @@ def openmm_validator(kw):
 OpenMM minimization flag detected. This step takes more time than 
 non-minimization calculations.'        
 
-{Fore.BLUE}DECLARATION (V1.1.0 build 1): 
+{Fore.BLUE}DECLARATION (V1.1.0 build 2): 
 a: Support for OpenMM Minimization is still under development. 
 b: Currently, it supports docking with "-rmsd 0" flag. 
 c: Non-standard amino acids can either be replaced by similar amino \

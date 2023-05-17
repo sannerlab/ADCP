@@ -8,27 +8,27 @@ This is a collection of functions to identify OpenMM support.
 It is made as a separate file from openmmmethods.py to quick check requirements
 without loading the main functions for openMM support.
 
-* Checks availibility of openMM
+* Checks availability of openMM
 * Identifies non-standand aa and suggests (finds) ways to treat them
 * Parser flags for openMM parameters. 
 
 """
 
 import importlib
-from colorama import Fore, Style
+#from colorama import Fore, Style
 
-replace_msg = ('''This flag is used to specify the handling of non-standard \
+replace_msg = ("""This flag is used to specify the handling of non-standard \
 amino acids when minimization is requested. When omitted, the software will \
 stop if non standard amino acids are found in the receptor and minimization \
 is required. Alternatively if -fnst flag is given, non standard amino acids \
 will be swapped with similar standard AAs using pdbfixer(v1.7), and mutate \
-non-replaceables to "ALA".''')
+non-replaceables to "ALA".""")
 
 def openmm_validator(kw):
-    procede_after_flag_check = True # dfault to run the code    
+    procede_after_flag_check = True # default to run the code    
     # check if minimization is asked 
     if int(kw['minimize']) > 0:
-        print (f'''{Fore.GREEN}
+        print ("""
 ------------------------------------------------------------------
 OpenMM minimization flag detected. This step takes more time than 
 non-minimization calculations.'        
@@ -41,16 +41,15 @@ acids using pdbfixer v1.7, or if pdbfixer does not identify the \
 Non-standard amino acid, it can be replaced by ALA.
 d: Non-standard amino-acids only in the RECEPTOR are treated.  
 e: Currently no support for external parameter input for non-standard amino \
-acids.{Style.RESET_ALL} 
-
-   ''')        
+acids. 
+   """)        
         # check these packages:
         packages_to_check = ['openmm', 'parmed']
         
         for pkg in packages_to_check:             
             if importlib.find_loader(pkg) == None:  # checking presence of package
-                print((f"{Fore.RED}%s not found. Please install %s" +
-                      " or remove -nmin flag.{Style.RESET_ALL}") % (pkg, pkg))
+                print(("%s not found. Please install %s" +
+                      " or remove -nmin flag.") % (pkg, pkg))
                 if procede_after_flag_check:
                     procede_after_flag_check = False
 
@@ -72,40 +71,40 @@ def support_validator(kw):
     
     # nmin
     if kw['minimize'] < 0:
-        detected_problems.append(f'{Fore.RED}"-nmin" cannot be a negative integer.{Style.RESET_ALL}')
+        detected_problems.append('"-nmin" cannot be a negative integer.')
         if all_flags_allowed:
             all_flags_allowed = False
     #omm_max_itr        
     if kw['omm_max_itr'] < 0:
-        detected_problems.append(f'{Fore.RED}"-nitr" cannot be a negative integer.{Style.RESET_ALL}')
+        detected_problems.append(f'"-nitr" cannot be a negative integer.')
         if all_flags_allowed:
             all_flags_allowed = False
     #ommenvironement      
     if not kw['omm_environment'] in ["vacuum" , "implicit"]:
-        detected_problems.append(f'{Fore.RED}"-env" can be either "vacuum" or "implicit".{Style.RESET_ALL}')
+        detected_problems.append(f'"-env" can be either "vacuum" or "implicit".')
         if all_flags_allowed:
             all_flags_allowed = False   
     # # check cyc flag 
     # if kw['cyclic'] :
-    #     detected_problems.append(f'{Fore.RED}"-cyc/--cyclic" flag detected. ' 
+    #     detected_problems.append(f'"-cyc/--cyclic" flag detected. ' 
     #                              f'OpenMM support for cyclic peptide is not ' 
-    #                              f'implemented yet.{Style.RESET_ALL}')
+    #                              f'implemented yet.')
     #     if all_flags_allowed:
     #         all_flags_allowed = False
     
     # check cys flag
     # if kw['cystein'] :
-    #     detected_problems.append(f'{Fore.RED}"-cys/--cystein" flag detected. '
+    #     detected_problems.append(f'"-cys/--cystein" flag detected. '
     #                               f'OpenMM support for cyclic peptide through '
-    #                               f'disulfide bond is not implemented yet.{Style.RESET_ALL}')
+    #                               f'disulfide bond is not implemented yet.')
     #     if all_flags_allowed:
     #         all_flags_allowed = False
     
     # check nst peptide
     if "<" in kw['sequence']:
-        detected_problems.append(f'{Fore.RED}"Non-standard amino acid(s) detected in the PEPTIDE '
+        detected_problems.append(f'"Non-standard amino acid(s) detected in the PEPTIDE '
                                  f'sequence. OpenMM support for non-standard '
-                                 f'amino acids in PEPTIDE is not implemented yet.{Style.RESET_ALL}')
+                                 f'amino acids in PEPTIDE is not implemented yet.')
         if all_flags_allowed:
             all_flags_allowed = False
         
@@ -118,26 +117,26 @@ def support_validator(kw):
     keep = set(proteinResidues).union(dnaResidues).union(rnaResidues).union(['N','UNK','HOH'])
     list_of_identified_non_standard_residues = [i for i in uniq_residues if not i in keep]
     if len(list_of_identified_non_standard_residues) > 0:
-        print(f"{Fore.GREEN}Non standard residue(s) detected.{Style.RESET_ALL}")
+        print("Non standard residue(s) detected.")
         replace_will_be_or_can_be = "will be"
         if not kw['omm_nst']: #If -fnst option is not provided
             replace_will_be_or_can_be = "can be"
-            detected_problems.append(f'{Fore.RED}Use "-fnst" flag for non-standard amino acids:')
+            detected_problems.append(f'Use "-fnst" flag for non-standard amino acids:')
             detected_problems.append(replace_msg)
-            detected_problems.append(f'Or, remove -nmin flag.{Style.RESET_ALL}') 
+            detected_problems.append(f'Or, remove -nmin flag.') 
             if all_flags_allowed:
                 all_flags_allowed = False  
          
         for indx, ns_res in enumerate(list_of_identified_non_standard_residues): 
             if ns_res in substitutions:
-                print (f'{Fore.GREEN}Residue %s %s substituted with %s.{Style.RESET_ALL}' % (ns_res, replace_will_be_or_can_be,substitutions[ns_res]))
+                print ('Residue %s %s substituted with %s.' % (ns_res, replace_will_be_or_can_be,substitutions[ns_res]))
             else:
-                print (f'{Fore.GREEN}Residue %s %s substituted with "ALA".{Style.RESET_ALL}' % (ns_res, replace_will_be_or_can_be))
+                print ('Residue %s %s substituted with "ALA".' % (ns_res, replace_will_be_or_can_be))
     if not all_flags_allowed:
-        print(f"{Fore.RED}Please resolve following issues to use openMM based ranking:{Style.RESET_ALL}")
+        print("Please resolve following issues to use openMM based ranking:")
         for msg in detected_problems:
             print(msg)
-        #print(f"{Fore.RED}Exiting now{Style.RESET_ALL}")
+        #print("Exiting now")
        
     return all_flags_allowed, rec #returning receptor to speed up calculation
         

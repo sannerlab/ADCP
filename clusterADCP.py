@@ -175,8 +175,10 @@ class clusterADCP:
         ## read the files containg all the docking poses to be clustered
         ## this file was created in runADCP.py by concatenating the trajectories
         ## of all MC runs
-        syst = kw['input']
+        syst = os.path.join(kw['workingFolder'],kw['input'])+".pdb"
 
+        print = kw['print']
+        
         models = Read(syst)
         seq = ''
         for res in models._ag.iterResidues():
@@ -185,7 +187,7 @@ class clusterADCP:
         ## palindrom =  isPalindrom(seq)
 
         if kw['rec']:
-            rec = Read(kw['rec'])
+            rec = Read(os.path.join(kw['targetFolder'], kw['rec']))
             
         ## set cutoff used for clustering based on contacts (default)
         ## or rmsd is specified
@@ -198,7 +200,7 @@ class clusterADCP:
             else:                
                 natContact = True
                 rmsd = False
-                receptor = Read(kw['rec'])
+                receptor = Read(os.path.join(kw['targetFolder'],kw['rec']))
                 clusterCutoff = 0.8
 
         moldelAtoms = models._ag.select('name C N CA')
@@ -287,20 +289,19 @@ class clusterADCP:
         order = numpy.array(order)[oorder]
 
         # open file for saving docked poses that are reported
-        solutionFile = open('./%s_%s_out.pdb'%(kw['input'][:-4],kw['sequence']), 'w')
-
+        solutionFile = open('%s_out.pdb'%(kw['input']), 'w')
+        
         # maximum number of reported docked poses 
         maxModes = int(kw['nmodes'])
-
         if rmsd: # clustering based on RMSD values between poses
-            print ("Clustering MC trajectories based in backbone N,CA,C atoms RMSD using cutoff: %f"%clusterCutoff)
+            print("Clustering MC trajectories based in backbone N,CA,C atoms RMSD using cutoff: %f"%clusterCutoff)
 
             rmsdCalc = RMSDCalculator(models._ag._coords[0][modelAtomIndices])
             clusters = clusterPoses(models._ag._coords, order, rmsdCalc, clusterCutoff)
 
-            print ("mode |  affinity  | clust. | ref. |  5A cutoff |     10 A cutoff    |   CAPRI   |")
-            print ("     | (kcal/mol) | size   | rmsd | fnat !fnat |  iRMS  LRMS  DockQ |   class   |")
-            print ("-----+------------+--------+------+------------+--------------------+-----------+")
+            print("mode |  affinity  | clust. | ref. |  5A cutoff |     10 A cutoff    |   CAPRI   |")
+            print("     | (kcal/mol) | size   | rmsd | fnat !fnat |  iRMS  LRMS  DockQ |   class   |")
+            print("-----+------------+--------+------+------------+--------------------+-----------+")
 
             for i, cl in enumerate(clusters):
                 if i >= maxModes:
@@ -349,12 +350,12 @@ class clusterADCP:
                         i+1, extE[cl[0]] * 0.59219, len(cl), rmsdRef, fnat, fnonnat,
                         iRMS, LRMS, DockQ, dockq.capri_class_DockQ(DockQ)))
                 else:
-                    print ("%4d  %11.1f %6d      NA     NA    NA      NA    NA     NA        NA"%(
+                    print("%4d  %11.1f %6d      NA     NA    NA      NA    NA     NA        NA"%(
                         i+1, extE[cl[0]] * 0.59219, len(cl)))
 
         elif natContact:
             # FIXME needs to be made to work again and add DockQ calculation (MS)
-            print ("Clustering MC trajectories based in contacts using cutoff: %f"%clusterCutoff)
+            print("Clustering MC trajectories based in contacts using cutoff: %f"%clusterCutoff)
             cset = models._ag._coords.shape[0]
             neighbors = []
             start_time = time.time()
@@ -369,18 +370,17 @@ class clusterADCP:
                     #import pdb;pdb.set_trace()
                     pairs.add(str(pair[0].getResnum())+'_'+str(pair[1].getResnum())+'_'+str(pair[1].getChid()))
                 neighbors.append(pairs)
-            print ("finished calculating neighbors for %d poses with %3.1f seconds"%(cset,time.time()-start_time))
+            print("finished calculating neighbors for %d poses with %3.1f seconds"%(cset,time.time()-start_time))
             clusters=clusterPosesInteraction(neighbors,order,clusterCutoff)
-            
 
             if hasRef:
                 refpairs = findResPairs(refAtomsMap,receptor._ag.select("not hydrogen"))
                 #refpairs = set()
                 #for pair in findNeighbors(refAtoms,5,receptor._ag.select("not hydrogen")):
                 #    refpairs.add(str(pair[0].getResnum()-residDiff)+'_'+str(pair[1].getResnum())+'_'+str(pair[1].getChid()))
-            print ("mode |  affinity  | ref. | clust. | rmsd | energy | best |")
-            print ("     | (kcal/mol) | fnc  |  size  | stdv |  stdv  | run  |")
-            print ("-----+------------+------+--------+------+--------+------+")
+            print("mode |  affinity  | ref. | clust. | rmsd | energy | best |")
+            print("     | (kcal/mol) | fnc  |  size  | stdv |  stdv  | run  |")
+            print("-----+------------+------+--------+------+--------+------+")
 
             bestNCRef = 0.
             bestNCInd = -1.
@@ -404,7 +404,7 @@ class clusterADCP:
                         bestNCRef = NCRef
                 ene0 = extE[cl[0]]
                 ene = [ene0]        
-                print ("%4d  %11.1f  %7.1f  %6d      NA      NA    %03d "%(i+1, ene0 * 0.59219, NCRef, len(cl),cl[0]))
+                print("%4d  %11.1f  %7.1f  %6d      NA      NA    %03d "%(i+1, ene0 * 0.59219, NCRef, len(cl),cl[0]))
             if hasRef:
                 writePDB("%s_best_%3.2f.pdb"%(kw['input'][:-4],bestNCRef),models._ag,bestNCInd)
 
@@ -422,8 +422,6 @@ if __name__=='__main__':
     parser.add_argument("-m", "--nmodes", type=int, default=100,
                        dest="nmodes", help='maximum number of reported docked poses')
     parser.add_argument("-ref", "--ref",dest="ref", help='reference peptide structure for calculating rmsd and fnc')
-    parser.add_argument("-mm", "--nmodesmin", type=int, default=10,
-                       dest="nmodesmin", help='maximum number of reported minimized docked poses')
     kw = vars(parser.parse_args())
     runner = clusterADCP()
     runner(**kw)

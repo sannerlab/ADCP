@@ -60,7 +60,8 @@ class runADCP:
                 shutil.rmtree(self.workingFolder)
             except OSError:
                 pass        
-        self.summaryFile.close()
+        if self.summaryFile:
+            self.summaryFile.close()
         if error:
             sys.exit()
             
@@ -77,6 +78,7 @@ class runADCP:
         self.jobName = 'NoName'
         self.targetFile = None
         self.cleanup = True
+        self.summaryFile = None
 
     def __call__(self, **kw):
         #
@@ -154,15 +156,15 @@ class runADCP:
         #check overwriting files
         if os.path.exists('%s_out.pdb'%jobName):
             if not kw['overwriteFiles']:
-                print("ERROR: file %s_out.pdb exists! please use different jobName (-j) or use -O to force overwritting output files"%jobName)
+                print("ERROR: file %s_out.pdb exists! please use different jobName (-o) or use -O to force overwritting output files"%jobName)
                 self.myexit()
         if os.path.exists('%s_summary.dlg'%jobName):
             if not kw['overwriteFiles']:
-                print("ERROR: file %s_summary.dlg exists! please use different jobName (-j) or use -O to force overwritting output files"%jobName)
+                print("ERROR: file %s_summary.dlg exists! please use different jobName (-o) or use -O to force overwritting output files"%jobName)
                 self.myexit()
         if os.path.exists(jobName):
             if not kw['overwriteFiles']:
-                print("ERROR: file/folder %s exists! please use different jobName (-j) or use -O to force overwritting output files"%jobName)
+                print("ERROR: file/folder %s exists! please use different jobName (-o) or use -O to force overwritting output files"%jobName)
                 self.myexit()
 
         # open summary file
@@ -214,7 +216,7 @@ class runADCP:
                 if os.path.exists(os.path.join(targetFile, 'translationPoints.npy')):
                     transPoints = numpy.load(os.path.join(targetFile, 'translationPoints.npy'))
                     TPfile = open(os.path.join(targetFile, 'transpoints'),'w')
-                    TPfile.write('%s\n'%len(ttt))
+                    TPfile.write('%s\n'%len(transPoints))
                     numpy.savetxt(TPfile,transPoints,fmt='%7.3f')
                     TPfile.close()
 

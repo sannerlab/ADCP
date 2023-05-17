@@ -37,57 +37,37 @@ from utils import openmm_validator, add_open_mm_flags, support_validator #OMM ne
 
 class runADCP:
 
+    def sanitize(self, name):
+        name = name.replace('&', '\&')
+        name = name.replace('<', '\<')
+        name = name.replace('>', '\>')
+        return name
+    
     def myprint(self, txt, newline=True):
+        if self.summaryFile:
+            self.summaryFile.write(txt)
+            if newline:
+                self.summaryFile.write('\n')
+            
         sys.stdout.write(txt)
         if newline:
             sys.stdout.write('\n')
 
-    def myexit(self):
-        if self.targetFile is not None:
-            print ("clean up unzipped map files")
+    def myexit(self, error=True):
+        if not self.keepWokingFolder:
+            print ("removing working folder %s"%self.workingFolder)
             try:
-                shutil.rmtree('./tmp_%s'%self.jobName)
+                shutil.rmtree(self.workingFolder)
             except OSError:
                 pass        
-            for element in ['C','A','SA','N','NA','OA','HD','d','e']:
-                if os.path.isfile('rigidReceptor.%s.map'%element):
-                    os.remove('rigidReceptor.%s.map'%element)
-            if os.path.isfile('transpoints'):
-                os.remove('transpoints')
-            if os.path.isfile('translationPoints.npy'):
-                os.remove('translationPoints.npy')
-            if os.path.isfile('rigidReceptor.pdbqt'):
-                os.remove('rigidReceptor.pdbqt')
-            if os.path.isfile('con'):
-                os.remove('con')
-        sys.exit(0)
-
+        self.summaryFile.close()
+        if error:
+            sys.exit()
+            
     def __init__(self):
 
         import multiprocessing
         self.ncpu = multiprocessing.cpu_count()
-        import platform, subprocess
-        system_info = platform.uname()
-        _platform = system_info[0]
-        from ADFR.utils.MakeGrids import findBinary
-        if _platform == "Linux":
-            binaryName = "adcp_Linux-x86_64_1.1"
-        elif _platform == "Darwin":
-            binaryName = "adcp_Darwin"
-        else:
-            binaryName = "adcp_Win-x86_64"
-        binary = findBinary(binaryName)
-        assert binary is not None
-        self._ADFRpath = os.path.dirname(binary)
-        #print "_ADFRpath", self._ADFRpath, "cwd:", os.getcwd(), "binary" , binary, "_platform", _platform
-        if _platform == 'Windows':
-            self.shell=False
-        else:
-            self.shell=True
-        self._argv = ['%s/%s -t 2'%(self._ADFRpath, binaryName)]
-        # modify here
-        #cmd = os.path.join(os.path.abspath(ADFR.__path__[0]), 'bin', 'adcp')
-        #self._argv = ['/1tb/crankite_new/peptide -t 2']
 
         self.completedJobs = 0    
         self.numberOfJobs = 0
@@ -96,17 +76,54 @@ class runADCP:
                                    # is specified using -o on the command line
         self.jobName = 'NoName'
         self.targetFile = None
-     
+        self.cleanup = True
+
     def __call__(self, **kw):
         #
         # run ADFR GAs using the list of command line arguments from the sysargv list
         # 
         # to check different flag requirements (currently added openMM)
+
+        import ADCP
+        path = os.path.dirname(ADCP.__file__)
+
+        import platform, subprocess
+        system_info = platform.uname()
+        _platform = system_info[0]
+
+        self.keepWokingFolder = kw.pop('keepWorkingFolder')
+        # find the binary
+        if _platform == "Linux":
+            binary = os.path.join(path, "adcp_Linux-x86_64")
+        elif _platform == "Darwin":
+            binary = os.path.join(path, "adcp_Darwin")
+        else:
+            binary = os.path.join(path, "adcp_Win-x86_64")
+
+        assert binary is not None, "ERROR: binary for platform %s not found in path %s"%(_platform, path)
+
+        #print "ADCPpath", ADCPpath, "cwd:", os.getcwd(), "binary" , binary, "_platform", _platform
+        if _platform == 'Windows':
+            self.shell=False
+        else:
+            self.shell=True
+
         if openmm_validator(kw) == False: #OMM new line
             return                  #OMM new line
+
         import subprocess, datetime
         dataDict = {}
         
+        # make path to reference molecule absolute
+        startFolder = os.path.abspath(os.getcwd())
+        if kw['ref']:
+            kw['ref'] = os.path.abspath(kw['ref'])
+            if os.oath.isfile(kw['ref']):
+                try:
+                    ref = Read(kw['ref'])
+                except e:
+                    self.print('ERROR: failed to load reference structure: %s %s'%(kw['ref'], str(e)))
+
         seed = None
         rncpu= None
         nbRuns = 50
@@ -114,6 +131,47 @@ class runADCP:
         jobName = 'NoName'
         partition = 0
         skip = False
+
+        self.targetFile = targetFile = kw.pop('target')
+        if targetFile is None:
+            print("ERROR: no receptor files found, please provide a .trg file or path to inflated .trg")
+            self.myexit()
+
+        # find receptor name
+        if os.path.isdir(targetFile):
+            l = targetFile.split(os.sep)
+            # find lst non mepty string because '/a/b/c/'.split('/') gives ['a', 'b', 'c', '']
+            i = len(l)-1
+            while i>-1 and len(l[i])==0: i-=1
+            targetName = l[i]
+        else:
+            targetName = os.path.splitext(os.path.basename(targetFile))[0]
+
+        jobName = kw['jobName']
+        if jobName is None:
+            jobName = '%s_%s'%(targetName, self.sanitize(kw['sequence']))
+
+        #check overwriting files
+        if os.path.exists('%s_out.pdb'%jobName):
+            if not kw['overwriteFiles']:
+                print("ERROR: file %s_out.pdb exists! please use different jobName (-j) or use -O to force overwritting output files"%jobName)
+                self.myexit()
+        if os.path.exists('%s_summary.dlg'%jobName):
+            if not kw['overwriteFiles']:
+                print("ERROR: file %s_summary.dlg exists! please use different jobName (-j) or use -O to force overwritting output files"%jobName)
+                self.myexit()
+        if os.path.exists(jobName):
+            if not kw['overwriteFiles']:
+                print("ERROR: file/folder %s exists! please use different jobName (-j) or use -O to force overwritting output files"%jobName)
+                self.myexit()
+
+        # open summary file
+        self.summaryFile = open('%s_summary.dlg'%jobName, 'w')
+        self.myprint("performing MC searches with: %s "%binary)
+        if kw['ref']:
+            self.myprint('reference srtucture: %s'%kw['ref'])
+        self.myprint('target data from file: %s'%targetFile)
+        self.myprint('job name: {0}, summary file {0}_summary.dlg, docked poses: {0}_out.pdb'.format(jobName))
 
         rncpu = kw.pop('maxCores')
 
@@ -136,86 +194,67 @@ class runADCP:
         if seed is None:
             seed = str(random.randint(1,999999))
 
-        # check ramaprob.data file
-        foundData = False
-        if os.path.isfile("ramaprob.data"):
-            print ("Using ramaprob.data in current folder")
-            foundData = True
-        else:
-            from mglutil.util.packageFilePath import findFilePath
-            dataFile = findFilePath("ramaprob.data", "ADCP")
-            if dataFile:
-                cwd = os.getcwd()
-                print ("Copying the ramaprob.data file from %s to %s"%(dataFile, cwd))
-                shutil.copy(dataFile, cwd)
-                foundData = True
-        ## elif os.path.isfile("%s/ramaprob.data"%self._ADFRpath):
-        ##     print "copying the ramaprob.data file"
-        ##     shutil.copy(os.path.join('%s/ramaprob.data'%self._ADFRpath),os.getcwd())
-        if not foundData:
-            print ("ERROR: cannot find probability data for ramachandran plot")
-            self.myexit()
-        if kw['jobName'] is not None:
-            self.jobName = jobName = kw['jobName']
+        # create a working folder name after the jobname where we will perform calculations
+        self.workingFolder = workingFolder = jobName
+        if not os.path.exists(workingFolder):
+            os.mkdir(workingFolder)
 
-        # if target is zip file unzip and replace cmdline arguments
-        self.targetFile = targetFile = kw.pop('target')
-        if targetFile is None and not os.path.isfile("transpoints"):
-            print ("ERROR: no receptor files found")
-            self.myexit()
-        # if transpoints file does not exists
-        elif targetFile is not None:
-            # unzip mapsFile
-            import zipfile
-            with zipfile.ZipFile(targetFile, 'r') as zip_ref:
-                zip_ref.extractall('./tmp_%s/'%jobName)
-            for element in ['C','A','SA','N','NA','OA','HD','d','e']:
-                try:
-                    shutil.copy(os.path.join('./tmp_%s/'%jobName,targetFile[:-4],'rigidReceptor.%s.map'%element),os.getcwd())
-                except IOError:
-                    print ("WARNING: cannot locate map file for %s"%element)
-            shutil.copy(os.path.join('./tmp_%s/'%jobName,targetFile[:-4],'translationPoints.npy'),os.getcwd())
-            shutil.copy(os.path.join('./tmp_%s/'%jobName,targetFile[:-4],'rigidReceptor.pdbqt'),os.getcwd())
-            ttt = numpy.load('translationPoints.npy')
-            fff = open('transpoints','w')
-            fff.write('%s\n'%len(ttt))
-            numpy.savetxt(fff,ttt,fmt='%7.3f')
-            fff.close()
+        #if not os.path.isdir(workingFolder):
+        #    raise RuntimeError('ERROR: "%s" exists but is not a folder. Please specify a different working folder'%workingFolder)
+        #else:
+        #    os.chdir(workingFolder)
+
+        if not os.path.exists(targetFile):
+            raise RuntimeError('ERROR: target file "%s" does not exist, fix -t option'%targetFile)
             
-            # to check openmm supports for the residues in the receptor file
-            kw['rec'] = 'rigidReceptor.pdbqt'     #OMM new line
-            if not support_validator(kw)[0]:      #OMM new line
-                self.myexit()                     #OMM new line
-                return                            #OMM new line
-                
-        else:
-            for element in ['C','A','SA','N','NA','OA','HD','d','e']:
-                if not os.path.isfile("rigidReceptor.%s.map"%element):
-                    print ("WARNING: cannot locate map file rigidReceptor.%s.map"%element)
+        if os.path.isdir(targetFile):
+            target_folder = targetFile
+            if not os.path.exists(os.path.join(targetFile, 'transpoints')):
+                # create text version of translational points in target folder
+                if os.path.exists(os.path.join(targetFile, 'translationPoints.npy')):
+                    transPoints = numpy.load(os.path.join(targetFile, 'translationPoints.npy'))
+                    TPfile = open(os.path.join(targetFile, 'transpoints'),'w')
+                    TPfile.write('%s\n'%len(ttt))
+                    numpy.savetxt(TPfile,transPoints,fmt='%7.3f')
+                    TPfile.close()
 
-        fff = open('constrains','w')
-        fff.write('1\n')
-        fff.close()
-        #print 'write constrains %s\n'%''.join(lines)
+        elif os.path.isfile(targetFile):
+            # if target is zip file unzip and replace cmdline arguments
+            import zipfile
+            self.myprint( 'Inflating target file %s'%(targetFile))
+            with zipfile.ZipFile(targetFile, 'r') as zip_ref:
+                # if the trg file was renamed it might create a folder with a different name
+                # so we first find out the name of the folder in which the maps are
+                filenames = zip_ref.namelist()
+                folder = filenames[0].split(os.sep)[0]
+                zip_ref.extractall(workingFolder)
+            target_folder = os.path.join(workingFolder, folder)
+            transPoints = numpy.load(os.path.join(target_folder, 'translationPoints.npy'))
+            TPfile = open(os.path.join(target_folder, 'transpoints'),'w')
+            TPfile.write('%s\n'%len(transPoints))
+            numpy.savetxt(TPfile,transPoints,fmt='%7.3f')
+            TPfile.close()
 
-        #check overwriting files
-        for i in range(nbRuns):
-            if os.path.isfile('%s_%d.pdb'%(jobName,i+1)):
-                if not kw['overwriteFiles']:
-                    print ("ERROR: output file exists %s_%d.pdb"%(jobName,i+1))
-                    self.myexit()
-                else:
-                    print ("Warning: overwriting output file %s_%d.pdb"%(jobName,i+1))
 
-        
+        # to check openmm supports for the residues in the receptor file
+        kw['rec'] = os.path.join(target_folder, 'rigidReceptor.pdbqt')  #OMM new line
+        if not support_validator(kw)[0]:      #OMM new line
+            self.myexit()                     #OMM new line
+            return                            #OMM new line
+
+        if not os.path.exists(os.path.join(target_folder, 'constrains')):
+            fff = open(os.path.join(target_folder, 'constrains'),'w')
+            fff.write('1\n')
+            fff.close()
+
         self.dryRun = kw.pop('dryRun')
 
         # build cmdline args for adcp binary
-        argv = self._argv
+        argv = ['cd %s; %s -t 2'%(workingFolder, binary)]
 
         if kw['sequence'] is None:
             if kw['input'] is None or kw['input'][-3:] != 'pdb':
-                print ("ERROR: no input for peptide found")
+                self.myprint ("ERROR: no input for peptide found")
                 self.myexit()
             else:
                 argv.append('-f')
@@ -231,6 +270,18 @@ class runADCP:
                 elif partition > 100:
                     partition = 100
 
+        if kw['rotlibs']:
+            argv.append('-L %s'%kw['rotlibs'])
+            self.myprint( 'using system rotamer libraries %s from %s'%(
+                kw['rotlibs'], os.path.join(os.path.dirname(binary), 'data', 'rotamers')))
+
+        if kw['userrotlibs']:
+            argv.append('-l %s'%os.path.abspath(kw['userrotlibs']))
+            for word in kw['userrotlibs'].split(':'):
+                self.myprint( 'using %s rotamer libraries from %s'%word)
+
+        argv.append('-T %s'%os.path.abspath(target_folder))
+              
         # set up the length for each run, 25M as default
         argv.append('-r')
         if kw['numSteps'] is not None:
@@ -261,14 +312,17 @@ class runADCP:
         nbStart = 0 # number of started runs
         nbDone = 0 # number of completed runs
 
+        self.myprint( 'Performing %d MC searches using %d evals each using seed %g'%(self.nbRuns, numSteps, seed))
+
         self.myprint( "Performing search (%d ADCP runs with %d steps each) ..."%
                       (nbRuns, numSteps))
-        print ("0%   10   20   30   40   50   60   70   80   90   100%")
-        print ("|----|----|----|----|----|----|----|----|----|----|")
+        self.myprint ("0%   10   20   30   40   50   60   70   80   90   100%")
+        self.myprint ("|----|----|----|----|----|----|----|----|----|----|")
 
 
         numHelix = nbRuns * partition / 100
-        # submit the first set of jobs
+
+        ## submit the first set of jobs
         for jobNum in range(1,min(nbRuns,ncores)+1):
             # overwrite seed
             if seed == -1:
@@ -276,7 +330,7 @@ class runADCP:
             else:
                 argv[-4] = str(seed+jobNum-1)
             # overwrite jobNum
-            argv[-2] = '%s_%d.pdb'%(jobName,jobNum)
+            argv[-2] = 'run_%d.pdb'%(jobNum)
             # since we set shell=False on Windows, we cannot redirect output to a file
             # like in the following commented out line. We will open a file "outfile"
             # and set stdout to the file handle.
@@ -290,26 +344,25 @@ class runADCP:
                 else:
                     argv[1] = '"%s"'%kw['sequence'].lower()
             if self.dryRun:
-                print ('/n*************** command ***************************\n')
-                print (' '.join(argv))
-                print()
+                self.myprint ('/n*************** command ***************************\n')
+                self.myprint (' '.join(argv))
                 self.myexit()
-
-            outfile =  open('%s_%d.out'%(jobName,jobNum), 'w')
+                sys.exit()
+            elif jobNum==1:
+                command = ' '.join(argv)
+                
+            outfile =  open(os.path.join(workingFolder, 'run_%d.out'%(jobNum)), 'w')
             
-            #process = subprocess.Popen(' '.join(argv),
-            #                           stdout=subprocess.PIPE , 
-            #                           stderr=subprocess.PIPE, 
-            #                           bufsize = 1, shell=self.shell, cwd=os.getcwd())
             process = subprocess.Popen(' '.join(argv),
                                        stdout=outfile,#subprocess.PIPE , 
                                        stderr=outfile, #subprocess.PIPE, 
                                        bufsize = 1, shell=self.shell ,  cwd=os.getcwd())
 
             procToRun[process] = jobNum-1
+            #print('FUFU1', process, jobNum-1)
             outfiles[jobNum] = outfile # process.stdout returns None. So save the file handle in the dictionary, so that we can close the file after the job finishes
             nbStart += 1
-
+            
         # check for completion and start new runs until we are done
         while nbDone < nbRuns:
             # check running processes            
@@ -317,13 +370,16 @@ class runADCP:
                 # print(proc, jnum)
                 #import pdb;pdb.set_trace()
                 if proc.poll() is not None: # process finished
+                    if runStatus[jnum] is not None: continue
                     if proc.returncode !=0:
+                        #print('FAFA1', proc, jnum)
                         runStatus[jnum] = ('Error', '%s%04d'%(jobName, jnum+1))
                         error = '\n'.join(runStatus[jnum][1])
                         status = 'FAILED'
                         self.myprint( '%d ENDED WITH ERROR'%(jnum,))
                         print ('%d err'%jnum)
                     else:
+                         #print('FAFA2', proc, jnum)
                         status = 'OK'
                         error = ''
                         runStatus[jnum] = ('OKAY', '%s%04d'%(jobName, jnum+1))
@@ -334,7 +390,7 @@ class runADCP:
                         f = outfiles[jnum+1] # the file should still be open
                         if not f.closed:
                             f.close()
-                        f = open('%s_%d.out'%(jobName,jnum+1))
+                        f = open(os.path.join(workingFolder, 'run_%d.out'%(jnum+1)))
                         lines = f.readlines()
                         #print "Lines in %s_%d.out %d"%(jobName,jnum+1, len(lines))
                         f.close()
@@ -343,27 +399,24 @@ class runADCP:
                                 runEnergies[jnum] = float(ln.rstrip().split()[3])
 
                     nbDone += 1
-                    # remove process why??
-                    # del procToRun[proc] ##DICT PROBLEM
-                    # print(procToRun)
                     self._jobStatus[jobNum-1] = 2
                     self.completedJobs += 1
                     percent = float(self.completedJobs)/self.numberOfJobs
+                    #print('FUGU percent %f %d %d %d %d'%(percent, self.completedJobs, self.numberOfJobs, int(50*percent), jnum))
                     sys.stdout.write('%s\r' % ('*'*int(50*percent)))
                     sys.stdout.flush()
 
                     if nbStart < nbRuns:
                         # start new one
-                        print(procToRun)
                         jobNum += 1
                         if seed == -1:
                             argv[-4] = str(random.randint(1,999999))
                         else:
                             argv[-4] = str(seed+jobNum-1)
                         # overwrite jobNum
-                        argv[-2] = '%s_%d.pdb'%(jobName,jobNum)
+                        argv[-2] = 'run_%d.pdb'%(jobNum)
                         #argv[-1] = '> %s_%d.out 2>&1'%(jobName,jobNum)
-                        outfileName =  "%s_%d.out"%(jobName,jobNum)
+                        outfileName =  open(os.path.join(workingFolder, '%s_%d.out'%(jobName,jobNum)), 'w')
                         # remove output file in case it exists
                         #try:
                         #    os.remove(argv[-1])
@@ -391,7 +444,8 @@ class runADCP:
                                                    stderr=outfile, #subprocess.PIPE, 
                                                    bufsize = 1, shell=self.shell, cwd=os.getcwd())
                         # print(process)
-                        procToRun[process] = jobNum-1 
+                        procToRun[process] = jobNum-1
+                        #print('FUFU2', process, jobNum-1)
                         outfiles[jobNum] = outfile
                         nbStart += 1
             
@@ -411,13 +465,19 @@ class runADCP:
                 self.myprint('No. %d energy found is %3.1f kcal/mol at %s_%d.pdb '%(i+1, runEnergies[sort_index[i]]*0.59219, jobName, sort_index[i]+1))
             self.myexit()
 
-        kw['input'] = "%s.pdb"%jobName
+        self.myprint('Analyzing results ....')
+        kw['print'] = self.myprint
+        kw['workingFolder'] = workingFolder
+        kw['input'] = jobName
         kw['rec'] = 'rigidReceptor.pdbqt'
+        kw['targetFolder'] = os.path.abspath(target_folder)
+        #import pdb; pdb.set_trace()
         #import shutil
-        with open("%s.pdb"%jobName, 'wb') as outFile:
+        ## concatenate all runs into a single pdb file
+        with open(os.path.join(workingFolder, "%s.pdb"%jobName), 'wb') as outFile:
             for i in range(nbRuns):
                 if runEnergies[i] < runEnergies[sort_index[0]] + 20:
-                    with open("%s_%d.pdb"%(jobName,i+1), 'rb') as com:
+                    with open(os.path.join(workingFolder, "run_%d.pdb"%(i+1)), 'rb') as com:
                         shutil.copyfileobj(com, outFile)
 
         from clusterADCP import clusterADCP
@@ -425,11 +485,16 @@ class runADCP:
         runner(**kw)
         
         if kw['minimize']:                                #OMM new line
+            self.myprint('Minimizing docked poses ....')
             from openMMmethods import ommTreatment        #OMM new line       
             runner_omm = ommTreatment(targetFile,jobName) #OMM new line
             runner_omm(**kw)                              #OMM new line
 
-        self.myexit()
+
+        self.myprint('MC search command: %s'%command)
+        dt = time()-t0
+        self.myprint( 'Calculations completed %.2f seconds, i.e. %s hours %s minutes %s seconds '%(dt, h, m, s))
+        self.myexit(error = False)
 
 
 
@@ -452,13 +517,21 @@ if __name__=='__main__':
     parser.add_argument("-i", "--input",dest="input",
                         help="use conformation from pdb file as input")
     parser.add_argument("-t", "--target",dest="target",
-                        help="a zipped file prepared with AGFR describing the receptor")
+                        help="a .trg file created by AGFR or the path to the inflated file")
+    parser.add_argument("-L", "--rotlibs",dest="rotlibs",
+                        help="a ':' separated list of filenames to load rotamers from ADCP/data/rotamers eg")
+    parser.add_argument("-l", "--userRotlibs",dest="userrotlibs",
+                        help="a ':' separated list of filenames with path and extension to load user-specified rotamer, eg. -L ./myrots.lib")
     parser.add_argument("-n", "--numSteps", type=int,
                              default=2500000, dest="numSteps", help='max step for one replica')
     parser.add_argument("-N", "--nbRuns", type=int,
                              default=50, dest="nbRuns", help='number of replicas')
     parser.add_argument("-c", "--maxCores", type=int, dest="maxCores")
-    parser.add_argument("-o", "--jobName",dest="jobName")
+    parser.add_argument("-k", "--keepWorkingFolder", action="store_true", default=False,
+                        help="prevents the deletion of the working Folder")
+    parser.add_argument("-o", "--jobName",dest="jobName",
+                        help="used to create the working folder, the _out.pdb docked poses and _summary.dlg log file.\
+                        when ommited it is build as [basename(targetFile)]_[peptideSequence]")
     parser.add_argument(
             '-y', "--dryRun", dest="dryRun", action="store_true",
             default=False,
@@ -491,7 +564,7 @@ if __name__=='__main__':
     
     if len(sys.argv)==1:
         #parser.print_help()
-        print('You are running "ADCP with OpenMM support v1.1.0". \nRun Use "--help" to see available options.')
+        self.myprint('You are running "ADCP with OpenMM support v1.1.0". \nRun Use "--help" to see available options.')
         
     else:    
         kw = vars(parser.parse_args())

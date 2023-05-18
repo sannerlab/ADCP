@@ -54,8 +54,8 @@ class runADCP:
             sys.stdout.write('\n')
 
     def myexit(self, error=True):
-        if not self.keepWokingFolder:
-            print ("removing working folder %s"%self.workingFolder)
+        if not self.keepWokingFolder and self.workingFolder:
+            print("removing working folder %s"%self.workingFolder)
             try:
                 shutil.rmtree(self.workingFolder)
             except OSError:
@@ -79,6 +79,7 @@ class runADCP:
         self.targetFile = None
         self.cleanup = True
         self.summaryFile = None
+        self.workingFolder = None
 
     def __call__(self, **kw):
         #
@@ -96,11 +97,11 @@ class runADCP:
         self.keepWokingFolder = kw.pop('keepWorkingFolder')
         # find the binary
         if _platform == "Linux":
-            binary = os.path.join(path, "adcp_Linux-x86_64")
+            binary = os.path.join(path, "CrankiteAD_Linux-x86_64_1.1")
         elif _platform == "Darwin":
-            binary = os.path.join(path, "adcp_Darwin")
+            binary = os.path.join(path, "CrankiteAD_Darwin_1.1")
         else:
-            binary = os.path.join(path, "adcp_Win-x86_64")
+            binary = os.path.join(path, "CrankiteAD_Win-x86_64_1.1")
 
         assert binary is not None, "ERROR: binary for platform %s not found in path %s"%(_platform, path)
 
@@ -124,7 +125,7 @@ class runADCP:
                 try:
                     ref = Read(kw['ref'])
                 except e:
-                    self.print('ERROR: failed to load reference structure: %s %s'%(kw['ref'], str(e)))
+                    print('ERROR: failed to load reference structure: %s, %s'%(kw['ref'], str(e)))
 
         seed = None
         rncpu= None
@@ -280,7 +281,7 @@ class runADCP:
         if kw['userrotlibs']:
             argv.append('-l %s'%os.path.abspath(kw['userrotlibs']))
             for word in kw['userrotlibs'].split(':'):
-                self.myprint( 'using %s rotamer libraries from %s'%word)
+                self.myprint( 'using user rotamer library %s'%word)
 
         argv.append('-T %s'%os.path.abspath(target_folder))
               
@@ -565,8 +566,8 @@ if __name__=='__main__':
     parser = add_open_mm_flags(parser) #OMM new line
     
     if len(sys.argv)==1:
-        #parser.print_help()
-        self.myprint('You are running "ADCP with OpenMM support v1.1.0". \nRun Use "--help" to see available options.')
+        parser.print_help()
+        #print('You are running "ADCP with OpenMM support v1.1.0". \nRun Use "--help" to see available options.')
         
     else:    
         kw = vars(parser.parse_args())

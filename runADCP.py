@@ -208,7 +208,7 @@ class runADCP:
         #    os.chdir(workingFolder)
 
         if not os.path.exists(targetFile):
-            raise RuntimeError('ERROR: target file "%s" does not exist, fix -t option'%targetFile)
+            raise RuntimeError('ERROR: target file "%s" does not exist, fix -T option'%targetFile)
             
         if os.path.isdir(targetFile):
             target_folder = targetFile
@@ -519,7 +519,7 @@ if __name__=='__main__':
                         help="partition for starting from a mixture of helix/coil conformation, percentage(helix)=partition/100 note this option will overwrite the CaSe in sequence")
     parser.add_argument("-i", "--input",dest="input",
                         help="use conformation from pdb file as input")
-    parser.add_argument("-t", "--target",dest="target",
+    parser.add_argument("-T", "--target",dest="target",
                         help="a .trg file created by AGFR or the path to the inflated file")
     parser.add_argument("-L", "--rotlibs",dest="rotlibs",
                         help="a ':' separated list of filenames to load rotamers from ADCP/data/rotamers eg")

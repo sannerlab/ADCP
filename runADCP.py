@@ -29,6 +29,7 @@
 #SOLVE ##DICT PROBLEM
 
 import os, sys, numpy, shutil, random
+from MolKit2 import Read
 from utils import openmm_validator, add_open_mm_flags, support_validator #OMM new line
 #import os, sys, numpy, platform, datetime, tempfile, shutil, random, tarfile, pickle
 # from glob import glob
@@ -240,7 +241,7 @@ class runADCP:
 
 
         # to check openmm supports for the residues in the receptor file
-        kw['rec'] = os.path.join(target_folder, 'rigidReceptor.pdbqt')  #OMM new line
+        kw['recpath'] = os.path.join(target_folder, 'rigidReceptor.pdbqt')  #OMM new line
         if not support_validator(kw)[0]:      #OMM new line
             self.myexit()                     #OMM new line
             return                            #OMM new line
@@ -314,7 +315,7 @@ class runADCP:
         outfiles = {}
         nbStart = 0 # number of started runs
         nbDone = 0 # number of completed runs
-
+        # print(" ".join(argv))
         self.myprint( 'Performing %d MC searches using %d evals each using seed %g'%(self.nbRuns, numSteps, seed))
 
         self.myprint( "Performing search (%d ADCP runs with %d steps each) ..."%
@@ -490,7 +491,7 @@ class runADCP:
         if kw['minimize']:                                #OMM new line
             self.myprint('Minimizing docked poses ....')
             from openMMmethods import ommTreatment        #OMM new line       
-            runner_omm = ommTreatment(targetFile,jobName) #OMM new line
+            runner_omm = ommTreatment(targetFile,jobName,self.myprint) #OMM new line
             runner_omm(**kw)                              #OMM new line
 
 

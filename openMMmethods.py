@@ -7,7 +7,7 @@ v2
 """
 import os
 import numpy as np
-from colorama import Fore, Style
+#from colorama import Fore, Style
 
 import prody
 from prody.measure.contacts import findNeighbors
@@ -35,12 +35,14 @@ Steps:
 '''
 
 class my_dot_variable:
+    # a dot type variable for complex data handling
     pass
 
 
 # PDB fixing and NST treatment 
 
 def AddListForUnknownNSTsToALA(fixer):
+    # Idenitifes unknow NSTs and make list to replace them by Alanine
     '''Do not run fixer.findNonstandardResidues() 
     after running this command. You can run 
     fixer.findNonstandardResidues() before this.
@@ -63,6 +65,7 @@ def AddListForUnknownNSTsToALA(fixer):
 
 
 def fix_my_pdb(pdb_in,out=None, NonstandardResidueTreatment=False, return_topology= False): 
+    # uses pdbfixer and other required atom arrangements to fixed pdb errors. 
     ''' Options for NonstandardResidueTreatment:
       false: do nothing; 
      -fnst: try to swap NSTs with similar amino acids, if cannot swap, mutate to ALA'''
@@ -133,6 +136,7 @@ def fix_my_pdb(pdb_in,out=None, NonstandardResidueTreatment=False, return_topolo
   
 ## Interface identification and restrain     
 def identify_interface_residues(pdb_file, needs_b=0):
+    #identifies interface residues
     mol_temp = Read(pdb_file)    
     rec = mol_temp._ag.select('not chid Z and not hydrogen')
     pep = mol_temp._ag.select('chid Z not hydrogen')    
@@ -198,7 +202,8 @@ def restrain_(system_, pdb, not_chain='Z', ignore_list=[]):
          
     system_.addForce(restraint)
 
-def cyclize_backbone_of_last_chain(topology, positions, display_info = False):
+def cyclize_backbone_of_last_chain(topology, positions, myprint=print, display_info = False):
+    #cyclizes the backbone of last chain : peptide
     modeller = Modeller(topology, positions)
     nat = cat = None
 
@@ -242,18 +247,19 @@ def cyclize_backbone_of_last_chain(topology, positions, display_info = False):
         if display_info:
             n_detail = nat.residue.name + nat.residue.id + "@" + nat.name #+"." +nat.residue.chain.id
             c_detail = cat.residue.name + cat.residue.id+ "@" + cat.name#+"." +cat.residue.chain.id
-            print("Cyclizing peptide (last chain) by adding a bond between %s and %s."%(n_detail, c_detail))
+            myprint("Cyclizing peptide (last chain) by adding a bond between %s and %s."%(n_detail, c_detail))
         modeller.topology.addBond(nat, cat, 'single')
         # print ('deleting', todelete)
         modeller.delete(todelete)
     else:
         if display_info:
-            print("cyclization bond was already present")
+            myprint("cyclization bond was already present")
     
     return modeller
 
    
-def make_disulfide_between_cys_in_last_chain(top, pos, debug = False):    
+def make_disulfide_between_cys_in_last_chain(top, pos, myprint=print, debug = False):    
+    #makes disulfide bridge;it is different than openmm default as it used 3.5A cutoff
     # print("Inside check")
     class Cys_data:
         def __init__(self):
@@ -330,12 +336,12 @@ def make_disulfide_between_cys_in_last_chain(top, pos, debug = False):
                     hg2_detail = SG2.residue.name + SG2.residue.id+ "@" + SG2.name#+"." +cat.residue.chain.id
                     
                     if not ( isDisulfideBonded(SG1, topology) or  isDisulfideBonded(SG2, topology)):                    
-                        print("Marking for disulfide link in peptide (last chain) between residue %s and residue %s." % 
+                        myprint("Marking for disulfide link in peptide (last chain) between residue %s and residue %s." % 
                               (hg1_detail, hg2_detail))
     
                         make_bond_pair.append([SG1,SG2])
                     else: 
-                        print("Disulfide present in peptide (last chain) between residue %s and residue %s." % 
+                        myprint("Disulfide present in peptide (last chain) between residue %s and residue %s." % 
                               (hg1_detail, hg2_detail))
                         
                     if not HG1 =='':
@@ -352,7 +358,7 @@ def make_disulfide_between_cys_in_last_chain(top, pos, debug = False):
         sg2_detail = SGj.residue.name + SGj.residue.id+ "@" + SGj.name#+"." +cat.residue.chain.id
         
         
-        print("Making disulfide link in peptide (last chain) between residue %s and residue %s." % 
+        myprint("Making disulfide link in peptide (last chain) between residue %s and residue %s." % 
               (sg1_detail, sg2_detail))
         modeller.topology.addBond(SGi, SGj, 'single')
     modeller.delete(del_HG) 
@@ -366,6 +372,7 @@ def make_disulfide_between_cys_in_last_chain(top, pos, debug = False):
 
  
 def get_energy_on_modeller(modeller, mode='vacuum', verbose = 0):
+    # takes modeller object as input and calculates potential energy 
     if mode == 'implicit':
         force_field = ForceField("amber99sb.xml",'implicit/gbn2.xml')
         msg="Using GBSA (gbn2) environment for energy calculation"    
@@ -375,7 +382,7 @@ def get_energy_on_modeller(modeller, mode='vacuum', verbose = 0):
     positions = modeller.positions
     topology = modeller.topology
     if verbose == 1:
-        print(msg)
+        self.myprint(msg)
     system = force_field.createSystem( topology, nonbondedCutoff=1*nanometer, constraints=HBonds)
     # restrain_(system, pdb_handle, 'All')
     integrator = openmm.LangevinIntegrator(0, 0.01, 0.0)
@@ -387,13 +394,13 @@ def get_energy_on_modeller(modeller, mode='vacuum', verbose = 0):
     return( state.getPotentialEnergy()._value)
 
 
-def openmm_minimize( pdb_str: str, env='implicit', verbose = 0, max_itr=5, cyclize = False, SSbond=False, amberparminit=None):
-    """Minimize energy via openmm."""
+def openmm_minimize( pdb_str: str, env='implicit', verbose = 0, max_itr=5, cyclize = False, SSbond=False, amberparminit=None, myprint=print):
+    #"""Minimize energy via openmm."""
     pdb = PDBFile(pdb_str)
     out_var = my_dot_variable()
     # for cyclic peptides
     if cyclize:
-        modeller = cyclize_backbone_of_last_chain(pdb.topology, pdb.positions, display_info=True)
+        modeller = cyclize_backbone_of_last_chain(pdb.topology, pdb.positions, myprint=myprint, display_info=True)
         topology = modeller.topology
         positions = modeller.positions
     else:
@@ -402,7 +409,7 @@ def openmm_minimize( pdb_str: str, env='implicit', verbose = 0, max_itr=5, cycli
     
     # for disulfide bridges
     if SSbond:
-        topology, positions = make_disulfide_between_cys_in_last_chain(topology, positions) 
+        topology, positions = make_disulfide_between_cys_in_last_chain(topology, positions, myprint=myprint) 
     
     if env == 'implicit':
         force_field = ForceField("amber99sb.xml",'implicit/gbn2.xml')        
@@ -412,8 +419,8 @@ def openmm_minimize( pdb_str: str, env='implicit', verbose = 0, max_itr=5, cycli
         msg = "Using in-vacuo environment for energy minimization"
     
     if verbose == 1:
-        print('max itr is %d and env is %s' % (max_itr,env))
-        print(msg)
+        self.myprint('max itr is %d and env is %s' % (max_itr,env))
+        self.myprint(msg)
     # integrator = LangevinIntegrator(300*kelvin, 1/picosecond, 0.002*picoseconds)
     integrator = openmm.LangevinIntegrator(0, 0.01, 0.0)
     # constraints = HBonds    
@@ -459,6 +466,8 @@ def openmm_minimize( pdb_str: str, env='implicit', verbose = 0, max_itr=5, cycli
 
 
 def return_comp_rec_pep_energies_from_omm_minimize_output(omm_min_in):
+    # for faster E_consensus and E_interface calulation it uses modeller object
+    # to calculate energy values
     topology = omm_min_in.topology
     positions = omm_min_in.positions
     env = omm_min_in.env
@@ -516,7 +525,8 @@ def makeChidNonPeptide(receptor):
     
 
 def read_and_write_pdb_data_to_fid(fid, pdbfile):
-    # prody gives error with modified residues lyke cys -> cyx
+    # for combining output pdbs 
+    # prody gives error with modified residues like cys -> cyx
     fid2= open(pdbfile, 'r')
     data = fid2.readlines()
     data.remove('END\n')
@@ -527,8 +537,9 @@ def read_and_write_pdb_data_to_fid(fid, pdbfile):
 
 
 class ommTreatment:
-    def __init__(self,name_proj, file_name_init, rec_data=None):
-        print(f'{Fore.GREEN}Rescoring clustered poses using OpenMM ...{Style.RESET_ALL}')
+    #a class to perform all required operations for openmm calculations
+    def __init__(self,name_proj, file_name_init, myprint, rec_data=None):
+        myprint('Rescoring clustered poses using OpenMM ..')
         #omm defaults
         self.minimization_env = 'in-vacuo'
         self.minimization_steps = 100
@@ -548,6 +559,7 @@ class ommTreatment:
         self.cyclize_by_backbone = False
         self.SSbond = False
         self.CLEAN_AT_END = 1 # for debugging only
+        self.myprint = myprint
      
     def __call__(self, **kw):       
         # reading all flags
@@ -558,8 +570,8 @@ class ommTreatment:
         
         # reading receptor file
         if self.rec_data == None:
-            if kw['rec']:
-                rec = Read(kw['rec'])                         
+            if kw['recpath']:
+                rec = Read(kw['recpath'])                         
         else:
                 rec = self.rec_data[0]
         rec = rec._ag # receptor
@@ -567,17 +579,17 @@ class ommTreatment:
         
         # identifying peptide clustered file and initiating output file name        
         if not os.path.isfile(self.combined_pep_file):
-            print(f"{Fore.RED}Clustered file %s does not exist. OpenMM calculation terminated.{Style.RESET_ALL}" % self.combined_pep_file)
+            self.myprint("Clustered file %s does not exist. OpenMM calculation terminated" % self.combined_pep_file)
             return
         
         # combining peptides and receptor; and scoring   
         pep_pdb = Read( self.combined_pep_file )
         num_mode_to_minimize = min(pep_pdb._ag.numCoordsets(), int(kw['minimize']))        
-        print(f"{Fore.GREEN}From total %d models, minimizing top %d ...{Style.RESET_ALL}" %
+        self.myprint("From total %d models, minimizing top %d ..." %
               (pep_pdb._ag.numCoordsets(), num_mode_to_minimize))
         
         for f in range( num_mode_to_minimize ):
-            print( f"{Fore.GREEN}\nWorking on #%d of %d models.{Style.RESET_ALL}" % (f+1, num_mode_to_minimize))
+            self.myprint( "\nWorking on #%d of %d models" % (f+1, num_mode_to_minimize))
             
             #peptide data
             pep_pdb._ag.setACSIndex(f)  
@@ -591,8 +603,8 @@ class ommTreatment:
             
             # energy calculation
             enzs = self.estimate_energies_for_pdb( out_complex_name, out_parm_dirname)
-            print ( "E_Complex = %9.2f; E_Receptor = %9.2f; E_Peptide  = %9.2f" % (enzs[0],enzs[1],enzs[2]))
-            print ("dE_Interaction = %9.2f; dE_Complex-Receptor = %9.2f" % (enzs[3], enzs[4]))
+            self.myprint( "E_Complex = %9.2f; E_Receptor = %9.2f; E_Peptide  = %9.2f" % (enzs[0],enzs[1],enzs[2]))
+            self.myprint("dE_Interaction = %9.2f; dE_Complex-Receptor = %9.2f" % (enzs[3], enzs[4]))
             
             # save required details
             self.make_post_calculation_file_lists(out_complex_name, enzs)        
@@ -619,24 +631,28 @@ class ommTreatment:
         # self.pdb_and_score.append([flnm[:-4]+"_fixed_min.pdb", enzs])
         
     def read_settings_from_flags(self,kw):
+        # reading options
         self.rearrangeposes = bool(kw['dockingRanking'])
-        self.combined_pep_file = self.file_name_init + "_" + kw['sequence'] + "_out.pdb"
-        self.output_file = self.file_name_init + "_" + kw['sequence'] + "_omm_rescored_out.pdb"
+        # self.combined_pep_file = self.file_name_init + "_" + kw['sequence'] + "_out.pdb"
+        self.combined_pep_file = self.file_name_init + "_out.pdb"
+        # self.output_file = self.file_name_init + "_" + kw['sequence'] + "_omm_rescored_out.pdb"
+        self.output_file = self.file_name_init + "_omm_rescored_out.pdb"
         self.minimization_env = 'implicit'  if kw['omm_environment'] == 'implicit' else  'in-vacuo'
         self.minimization_steps = kw['omm_max_itr']
         self.NonstandardResidueTreatment = kw['omm_nst']
         self.cyclize_by_backbone = kw['cyclic']
         self.SSbond = kw['cystein']
-        print(f'{Fore.GREEN}OpenMM minimization settings: Environment="%s"; Max_itr=%d.{Style.RESET_ALL}'
+        self.myprint('OpenMM minimization settings: Environment="%s"; Max_itr=%d'
               % (self.minimization_env, self.minimization_steps))
         
         if self.cyclize_by_backbone:
-            print(f'{Fore.GREEN}OpenMM minimization settings: Cyclizing by backbone.{Style.RESET_ALL}')
+            self.myprint('OpenMM minimization settings: Cyclizing by backbone')
         if self.SSbond:
-            print(f'{Fore.GREEN}OpenMM minimization settings: Making Disulfide bonds if applicable.{Style.RESET_ALL}')
+            self.myprint('OpenMM minimization settings: Making Disulfide bonds if applicable')
             
         
     def calculate_reranking_index(self):  
+        #for rearraging poses
         '''Rearraging BUG removed'''
         metric_comp_minus_rec = []  
         ommrank_adcprank_data = []
@@ -653,15 +669,16 @@ class ommTreatment:
             
         # print(self.omm_ranking,metric_comp_minus_rec)
         if self.rearrangeposes == True:            
-            print (f"{Fore.GREEN}\nREARRANGING output poses using OpenMM energy{Style.RESET_ALL}")          
+            self.myprint("\nREARRANGING output poses using OpenMM energy")          
             self.rearranged_data_as_per_asked = ommrank_adcprank_data
             
         else:
-            print (f"{Fore.GREEN}\nNOT REARRANGING output poses using OpenMM energy{Style.RESET_ALL}")
+            self.myprint("\nNOT REARRANGING output poses using OpenMM energy")
             self.rearranged_data_as_per_asked = ommrank_adcprank_data[ommrank_adcprank_data[:,1].argsort()]
         
          
-    def create_omm_dirs(self):        
+    def create_omm_dirs(self):   
+        # create required output directories
         if not os.path.exists(self.omm_dir):
             os.mkdir(self.omm_dir)            
         if not os.path.exists(self.omm_proj_dir):
@@ -683,6 +700,7 @@ class ommTreatment:
     #     #     print(" %8d %18d %8.1f" % (i+1, rank_v+1, self.pdb_and_score[rank_v][1][-1]))
             
     def clean_temp_files(self):
+        # works as function name says
         for fl in self.delete_at_end:
             if os.path.isfile(fl):
                 os.remove(fl)
@@ -690,13 +708,14 @@ class ommTreatment:
             os.rmdir(self.omm_proj_dir)
         
     def read_pdb_files_and_combine_using_given_index(self):
+        # works as function name says
         out_file = open(self.output_file,"w+")        
 
-        print ("-------+------+------+------------+")
-        print (" Model | Rank | Rank | E_Complex  |")
-        print (" #     |OpenMM| ADCP |-E_Receptor |")
+        self.myprint("-------+------+------+------------+")
+        self.myprint (" Model | Rank | Rank | E_Complex  |")
+        self.myprint(" #     |OpenMM| ADCP |-E_Receptor |")
         # print ("       |      |      |  (kJ/mol)  |")
-        print ("-------+------+------+------------+")  
+        self.myprint("-------+------+------+------------+")  
         
             
         for model_num, arranged_line in enumerate(self.rearranged_data_as_per_asked):
@@ -716,21 +735,22 @@ class ommTreatment:
             # writePDBStream(out_file, flnm_data._ag.select('not hydrogen')) 
             read_and_write_pdb_data_to_fid(out_file, flnm)
             out_file.write("ENDMDL\n")
-            print(" %6d %6d %6d %10.1f" %(model_num+1 , omm_rank+1, adcp_rank+1, scores[4] ))
+            self.myprint(" %6d %6d %6d %10.1f" %(model_num+1 , omm_rank+1, adcp_rank+1, scores[4] ))
             
         out_file.close()
-        print ("-------+------+------+------------+")
+        self.myprint("-------+------+------+------------+")
         
     def estimate_energies_for_pdb(self,pdb_fl, amber_parm_init, verbose=0):
+        # works as function name says
         env=self.minimization_env
         if verbose == 1:
-            print('Working on:',pdb_fl.split("/")[-1])
+            self.myprint('Working on:',pdb_fl.split("/")[-1])
         fixed_pdb = fix_my_pdb(pdb_fl, pdb_fl[:-4] +"_fixed.pdb",NonstandardResidueTreatment=self.NonstandardResidueTreatment)
         if verbose == 1:
-            print("Minimizing ...")
+            self.myprint("Minimizing ...")
         
         omm_min_list = openmm_minimize(fixed_pdb,env, max_itr=self.minimization_steps, 
-                           cyclize=self.cyclize_by_backbone, SSbond=self.SSbond, amberparminit = amber_parm_init)
+                           cyclize=self.cyclize_by_backbone, SSbond=self.SSbond, amberparminit = amber_parm_init, myprint=self.myprint)
         
         enzs = return_comp_rec_pep_energies_from_omm_minimize_output(omm_min_list)
         
@@ -740,8 +760,8 @@ class ommTreatment:
         for i in enzs:
             e_str = e_str + "%10.2f" % i
         if verbose == 1:
-            print(' E_Complex E_Receptr E_Peptide dE_Interc dE_ComRes')   
-            print (e_str)
+            self.myprint(' E_Complex E_Receptr E_Peptide dE_Interc dE_ComRes')   
+            self.myprint (e_str)
 
         return enzs
     

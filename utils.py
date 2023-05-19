@@ -24,7 +24,8 @@ is required. Alternatively if -fnst flag is given, non standard amino acids \
 will be swapped with similar standard AAs using pdbfixer(v1.7), and mutate \
 non-replaceables to "ALA".""")
 
-def openmm_validator(kw):
+def openmm_validator(kw, myprint=print):
+    # checks if openMM is installed or not
     procede_after_flag_check = True # default to run the code    
     # check if minimization is asked 
     if int(kw['minimize']) > 0:
@@ -33,7 +34,7 @@ def openmm_validator(kw):
 OpenMM minimization flag detected. This step takes more time than 
 non-minimization calculations.'        
 
-{Fore.BLUE}DECLARATION (V1.1.0 build 2): 
+DECLARATION (V1.1.0 build 2): 
 a: Support for OpenMM Minimization is still under development. 
 b: Currently, it supports docking with "-rmsd 0" flag. 
 c: Non-standard amino acids can either be replaced by similar amino \
@@ -48,7 +49,7 @@ acids.
         
         for pkg in packages_to_check:             
             if importlib.find_loader(pkg) == None:  # checking presence of package
-                print(("%s not found. Please install %s" +
+                myprint(("%s not found. Please install %s" +
                       " or remove -nmin flag.") % (pkg, pkg))
                 if procede_after_flag_check:
                     procede_after_flag_check = False
@@ -58,7 +59,8 @@ acids.
 
     
 
-def support_validator(kw):
+def support_validator(kw,myprint=print):
+    # this function validates the input options for openMM calculation
     if not kw['minimize']:  # no need to validate residues if no NST
         return True,''
     
@@ -107,17 +109,15 @@ def support_validator(kw):
                                  f'amino acids in PEPTIDE is not implemented yet.')
         if all_flags_allowed:
             all_flags_allowed = False
-        
 
-    
     #check nst receptor
-    rec = Read(kw['rec'])
+    rec = Read(kw['recpath'])
     residues_in_pdb = rec._ag.select('name CA').getResnames()
     uniq_residues = np.unique(residues_in_pdb) # for faster calculation
     keep = set(proteinResidues).union(dnaResidues).union(rnaResidues).union(['N','UNK','HOH'])
     list_of_identified_non_standard_residues = [i for i in uniq_residues if not i in keep]
     if len(list_of_identified_non_standard_residues) > 0:
-        print("Non standard residue(s) detected.")
+        myprint("Non standard residue(s) detected.")
         replace_will_be_or_can_be = "will be"
         if not kw['omm_nst']: #If -fnst option is not provided
             replace_will_be_or_can_be = "can be"
@@ -129,13 +129,13 @@ def support_validator(kw):
          
         for indx, ns_res in enumerate(list_of_identified_non_standard_residues): 
             if ns_res in substitutions:
-                print ('Residue %s %s substituted with %s.' % (ns_res, replace_will_be_or_can_be,substitutions[ns_res]))
+                myprint ('Residue %s %s substituted with %s.' % (ns_res, replace_will_be_or_can_be,substitutions[ns_res]))
             else:
-                print ('Residue %s %s substituted with "ALA".' % (ns_res, replace_will_be_or_can_be))
+                myprint ('Residue %s %s substituted with "ALA".' % (ns_res, replace_will_be_or_can_be))
     if not all_flags_allowed:
-        print("Please resolve following issues to use openMM based ranking:")
+        myprint("Please resolve following issues to use openMM based ranking:")
         for msg in detected_problems:
-            print(msg)
+            myprint(msg)
         #print("Exiting now")
        
     return all_flags_allowed, rec #returning receptor to speed up calculation
@@ -144,6 +144,7 @@ def support_validator(kw):
     
     
 def add_open_mm_flags(parser):
+    # Add flags for openMM based calculations
     parser.add_argument("-nmin", "--omm_nmin", type=int, default=0,
                        dest="minimize", help=( 'The -nmin option specifies the\
                       number of top ranking docking solutions to minimize with\

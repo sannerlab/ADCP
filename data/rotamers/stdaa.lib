@@ -18,7 +18,7 @@
 // example for ARG: (0:C 1:N 3:H)
 // 0.012345679 0.012345679 0.012345679 .... 0.012345679
 //
-// following the rotamer probabilitesline we expect to find a space separated
+// following the rotamer probabilities line we expect to find a space separated
 // list of atoms types
 //
 // example for ARG: (0:C 1:N 3:H)

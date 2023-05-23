@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 Created on Mon Dec 12 14:44:26 2022
-@author: sshanker
+Last Update 5/23/23
+@author: Sudhanshu Shanker
 
 This is a collection of functions to identify OpenMM support.
 It is made as a separate file from openmmmethods.py to quick check requirements
@@ -34,7 +35,7 @@ def openmm_validator(kw, myprint=print):
 OpenMM minimization flag detected. This step takes more time than 
 non-minimization calculations.'        
 
-DECLARATION (V1.1.0 build 2): 
+DECLARATION (V1.1.0 build 3): 
 a: Support for OpenMM Minimization is still under development. 
 b: Currently, it supports docking with "-rmsd 0" flag. 
 c: Non-standard amino acids can either be replaced by similar amino \

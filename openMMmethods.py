@@ -2,8 +2,9 @@
 # -*- coding: utf-8 -*-
 """
 Created on Fri Sep 23 13:29:31 2022
-v2
-@author: sshanker
+v3
+Last Update 5/23/23
+@author: Sudhanshu Shanker
 """
 import os
 import numpy as np
@@ -538,17 +539,17 @@ def read_and_write_pdb_data_to_fid(fid, pdbfile):
 
 class ommTreatment:
     #a class to perform all required operations for openmm calculations
-    def __init__(self,name_proj, file_name_init, myprint, rec_data=None):
+    def __init__(self,target_file, jobName, myprint, rec_data=None):
         myprint('Rescoring clustered poses using OpenMM ..')
         #omm defaults
         self.minimization_env = 'in-vacuo'
         self.minimization_steps = 100
         self.find_neighbor_cutoff = 5        
         #other settings
-        self.omm_dir = "omm_dir"
-        self.omm_proj_dir = self.omm_dir + "/" + name_proj.split(".")[0]
-        self.amber_parm_out_dir = "omm_amber_parm_" + name_proj.split(".")[0]
-        self.file_name_init = file_name_init
+        self.omm_temp_dir = "omm_temp_dir_" + jobName
+        self.omm_proj_dir = self.omm_temp_dir + "/" + target_file.split(".")[0]
+        self.amber_parm_out_dir = "%s_omm_amber_parm/" % jobName + target_file.split(".")[0]
+        self.file_name_init = jobName
         self.pdb_and_score=[]
         self.delete_at_end =[]
         self.rearranged_data_as_per_asked=[]
@@ -558,7 +559,7 @@ class ommTreatment:
         self.rec_data = rec_data
         self.cyclize_by_backbone = False
         self.SSbond = False
-        self.CLEAN_AT_END = 1 # for debugging only
+        self.CLEAN_AT_END = True # for debugging only
         self.myprint = myprint
      
     def __call__(self, **kw):       
@@ -611,7 +612,7 @@ class ommTreatment:
         self.calculate_reranking_index()    
         #self.print_reranked_models()
         self.read_pdb_files_and_combine_using_given_index()
-        if self.CLEAN_AT_END == 1:
+        if self.CLEAN_AT_END == True:
             self.clean_temp_files()
         
     def make_post_calculation_file_lists(self, flnm, enzs):
@@ -679,13 +680,13 @@ class ommTreatment:
          
     def create_omm_dirs(self):   
         # create required output directories
-        if not os.path.exists(self.omm_dir):
-            os.mkdir(self.omm_dir)            
+        if not os.path.exists(self.omm_temp_dir):
+            os.mkdir(self.omm_temp_dir)            
         if not os.path.exists(self.omm_proj_dir):
             os.mkdir(self.omm_proj_dir)
         #for AMBER parameters
         if not os.path.exists(self.amber_parm_out_dir):
-            os.mkdir(self.amber_parm_out_dir)
+            os.makedirs(self.amber_parm_out_dir, exist_ok=True)
             
             
     # def print_reranked_models(self):      
@@ -706,6 +707,8 @@ class ommTreatment:
                 os.remove(fl)
         if os.path.isdir(self.omm_proj_dir):
             os.rmdir(self.omm_proj_dir)
+        if os.path.isdir(self.omm_temp_dir):
+            os.rmdir(self.omm_temp_dir)
         
     def read_pdb_files_and_combine_using_given_index(self):
         # works as function name says

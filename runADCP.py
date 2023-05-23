@@ -105,7 +105,7 @@ class runADCP:
             binary = os.path.join(path, "CrankiteAD_Win-x86_64_1.1")
 
         assert binary is not None, "ERROR: binary for platform %s not found in path %s"%(_platform, path)
-
+        assert os.path.exists(binary) is True, "ERROR: binary %s does not exist." % binary
         #print "ADCPpath", ADCPpath, "cwd:", os.getcwd(), "binary" , binary, "_platform", _platform
         if _platform == 'Windows':
             self.shell=False
@@ -316,7 +316,10 @@ class runADCP:
         nbStart = 0 # number of started runs
         nbDone = 0 # number of completed runs
         # print(" ".join(argv))
-        self.myprint( 'Performing %d MC searches using %d evals each using seed %g'%(self.nbRuns, numSteps, seed))
+        if seed == -1:
+            self.myprint( 'Performing %d MC searches using %d evals each using a random seed.'%(self.nbRuns, numSteps))
+        else:
+            self.myprint( 'Performing %d MC searches using %d evals each using seed %g.'%(self.nbRuns, numSteps, seed))
 
         self.myprint( "Performing search (%d ADCP runs with %d steps each) ..."%
                       (nbRuns, numSteps))
@@ -512,7 +515,7 @@ if __name__=='__main__':
     parser = argparse.ArgumentParser(description='AutoDock CrankPep', 
                                   usage="usage: python %(prog)s -s GaRyMiChEL -t rec.trg -o output")
                                   # version="%prog 0.1")
-    parser.add_argument('--version', action='version', version="%prog 0.1" )
+    parser.add_argument('--version', action='version', version="1.1.0" )
 
     parser.add_argument("-s", "--sequence",dest="sequence",
                         help="initialize peptide from sequence, lower case for coil and UPPER case for helix")
@@ -566,11 +569,24 @@ if __name__=='__main__':
     # openMM flag support
     parser = add_open_mm_flags(parser) #OMM new line
     
-    if len(sys.argv)==1:
+    if len(sys.argv) == 1:
         parser.print_help()
         #print('You are running "ADCP with OpenMM support v1.1.0". \nRun Use "--help" to see available options.')
         
     else:    
-        kw = vars(parser.parse_args())
-        runner = runADCP()        
-        runner(**kw)
+        # kw = vars(parser.parse_args())
+        # runner = runADCP()        
+        # runner(**kw)
+        kwn, unknw = parser.parse_known_args()
+        if len(unknw)> 0:
+            print('Unknown options: ',end="")
+            for u in unknw:
+                if u.startswith("-"):
+                    print(u, end=" ")
+            print("")
+            if "-t" in unknw:
+                print('Option "-t" is deprecated and replaced by "-T".')
+        else:
+            kw = vars(kwn)
+            runner = runADCP()
+            runner(**kw)

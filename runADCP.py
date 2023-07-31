@@ -26,7 +26,6 @@
 #
 #########################################################################
 #
-#SOLVE ##DICT PROBLEM
 
 import os, sys, numpy, shutil, random
 from MolKit2 import Read
@@ -125,7 +124,7 @@ class runADCP:
             if os.oath.isfile(kw['ref']):
                 try:
                     ref = Read(kw['ref'])
-                except e:
+                except Exception as e:
                     print('ERROR: failed to load reference structure: %s, %s'%(kw['ref'], str(e)))
 
         seed = None
@@ -242,7 +241,7 @@ class runADCP:
 
         # to check openmm supports for the residues in the receptor file
         kw['recpath'] = os.path.join(target_folder, 'rigidReceptor.pdbqt')  #OMM new line
-        if not support_validator(kw)[0]:      #OMM new line
+        if not support_validator(kw,self.myprint)[0]:      #OMM new line
             self.myexit()                     #OMM new line
             return                            #OMM new line
 
@@ -280,9 +279,15 @@ class runADCP:
                 kw['rotlibs'], os.path.join(os.path.dirname(binary), 'data', 'rotamers')))
 
         if kw['userrotlibs']:
-            argv.append('-l %s'%os.path.abspath(kw['userrotlibs']))
-            for word in kw['userrotlibs'].split(':'):
-                self.myprint( 'using user rotamer library %s'%word)
+            userrotlibswithpath = []
+            for userrotlib in kw['userrotlibs'].split(':'):
+                userrotlibswithpath.append(os.path.abspath(userrotlib))
+                self.myprint( 'using user rotamer library %s'%userrotlib)
+            print(":".join(userrotlibswithpath))
+            argv.append('-l %s'% ":".join(userrotlibswithpath))      
+            # argv.append('-l %s'%os.path.abspath(kw['userrotlibs']))
+            # for word in kw['userrotlibs'].split(':'):
+            #     self.myprint( 'using user rotamer library %s'%word)
 
         argv.append('-T %s'%os.path.abspath(target_folder))
               

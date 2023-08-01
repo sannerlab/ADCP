@@ -413,7 +413,7 @@ def support_validator(kw,myprint=print):
             all_flags_allowed = False
             bracket_error = True
 
-    # check standard aa in squence
+    # check standard aa in sequence
     if bracket_error is False:
         saa = 'ACDEFGHIKLMNPQRSTVWY'
         unknownaa=[]
@@ -435,7 +435,7 @@ def support_validator(kw,myprint=print):
                 all_flags_allowed = False
             
 
-    # check erros and possible sources for NSTs
+    # check errors and possible sources for NSTs
     if len(NSTlist)>0:  
         # print (NSTlist)        
         all_possible_rotamers = all_available_rotamers(kw,myprint)
@@ -444,7 +444,7 @@ def support_validator(kw,myprint=print):
         # checking NSTs
         for nst in NSTlist:
             if not nst[0] in all_possible_rotamers.residues:
-                detected_problems.append('Rotamer data for NST: "%s" is not available from any default rotamer library files' % nst[0] +
+                detected_problems.append('Undefined rotamers for NST: "%s" is not available from any default rotamer library files' % nst[0] +
                                          '.To run ADCP for peptide with NST "%s", please provide an user-defined rotamer library using "-l" option'
                                          % nst[0] )                
                 if all_flags_allowed:
@@ -453,7 +453,7 @@ def support_validator(kw,myprint=print):
             else:
                 if not nst[0] in loaded_rotamers.residues:
                     name_of_required_rotamer_file = all_possible_rotamers.get_rotamerfile_name_for_residue(nst[0])                                        
-                    detected_problems.append('No Rotamer data is provided for NST "%s". Rotamer library "%s" supports "%s" and '
+                    detected_problems.append('Undefined rotamers for NST "%s". Rotamer library "%s" supports "%s" and '
                                              % (nst[0], '", "'.join(name_of_required_rotamer_file), nst[0]) + 
                                                 'can be used with "-L" option.')                                             
                     if all_flags_allowed:
@@ -462,7 +462,8 @@ def support_validator(kw,myprint=print):
                 else:
                     if not loaded_rotamers.if_residue_and_course_combination_possible(nst[0], nst[1]):
                         if nst[1] == 'o':
-                            detected_problems.append('No default coarse potential available("o") for NST: "%s".' %(nst[0]))
+                            # FIXME: a better message would be "NST: %s defined in library: %s does not provide a default coarse potential. Do not use o<%s> instead replace o by a valid coarse potential" 
+                            detected_problems.append('There is no default coarse potential defined for NST: "%s".' %(nst[0]))
                             detected_problems.append('Please provide a coarse potential amino-acid letter for calculation with NST: "%s".' %(nst[0]))
                             if all_flags_allowed:
                                 all_flags_allowed = False
@@ -483,8 +484,11 @@ def support_validator(kw,myprint=print):
     # >>>>>> OPENMM RELATED ERROR CHECKS STARTS
         
     ## Terminal NSTs are not supported yet with OpenMM.Will be added in build 7>>>
+
+    ## QUESTION: I thought you did the QM calculations to suport this case
+    ##
     if kw['sequence'][0] =="<" or kw['sequence'][1] =="<" or kw['sequence'][-1] == ">":
-        detected_problems.append('OpenMM calculation for terminal Non-standard amino acids are supported yet!')
+        detected_problems.append('OpenMM calculation for terminal Non-standard amino acids are not supported yet!')
         if all_flags_allowed:
             all_flags_allowed = False
             bracket_error = True
@@ -498,8 +502,11 @@ def support_validator(kw,myprint=print):
         # checking NSTs
         for nst in NSTlist:
             if not nst[0] in all_possible_ffxmls.residues:
-                if not kw['omm_nst']: #If -fnst option is not provided 
-                    detected_problems.append('Required ffxml data for NST: "%s" is not available in any default ffxml library files' % nst[0]
+                if not kw['omm_nst']: #If -fnst option is not provided
+                    ## QUESTION: can the user specify a user-defined  ffxml library file ?? This else branch seems to indicate this is possible
+                    ##           if it is possible then this message should tell the use to specify his ffxml file and ideally point to some
+                    ##           documentation explaining hot to create thus file
+                    detected_problems.append('ffxml data for NST: "%s" is not available in default ffxml library files' % nst[0]
                                              + ' use -fnst option to mutate unknown NSTs to standard amino acids, or remove -nmin option'
                                              
                                              ) #+
@@ -535,7 +542,7 @@ def support_validator(kw,myprint=print):
             all_flags_allowed = False
     #ommenvironement
     if not kw['omm_environment'] in ["vacuum" , "implicit"]:
-        detected_problems.append('"-env" can be either "vacuum" or "implicit".')
+        detected_problems.append('"-env" shoudl be "vacuum" or "implicit".')
         if all_flags_allowed:
             all_flags_allowed = False
             
@@ -583,8 +590,10 @@ def add_open_mm_flags(parser):
                       OpenMM after docking. If omitted this number defaults to\
                       0 meaning no solution is minimized. When solutions are\
                       minimized the reported solutions a ranked based on the\
-                      minimized energy and by default ordered from best to worse\
-                      based on the minimized complex energetic terms.'))
+                      minimized energy by default unless -dr is specified to \
+                      retain the docking order before minimizationed. \
+                      The solutions are ranked from best to worst according\
+                      to the minimized complex energetic terms.'))
     parser.add_argument("-dr", "--dockingRanking", action="store_false",
                        dest="dockingRanking", help=( 'When docking solutions are\
                        minimized, the -dr flag is used to prevent the re-ordering\

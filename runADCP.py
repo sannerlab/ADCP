@@ -428,7 +428,7 @@ class runADCP:
                         # overwrite jobNum
                         argv[-2] = 'run_%d.pdb'%(jobNum)
                         #argv[-1] = '> %s_%d.out 2>&1'%(jobName,jobNum)
-                        outfileName =  open(os.path.join(workingFolder, '%s_%d.out'%(jobName,jobNum)), 'w')
+                        outfileName =  open(os.path.join(workingFolder, 'run_%d.out'%(jobNum)), 'w')
                         # remove output file in case it exists
                         #try:
                         #    os.remove(argv[-1])

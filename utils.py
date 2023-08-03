@@ -67,6 +67,20 @@ acids.
 
     return procede_after_flag_check
 
+def loaded_ffxml_sets(): # current set to default # 
+    """ 'swissaa' openmm parameters for non-terminal NSTs generated from 
+    charges obtained from swissaa .rtp files. 
+    
+   'swiss_sannerlab' openmm parameters for terminal as well as intenal NSTs
+    charges generated using local RED server with GAMESS. NME/ACE caps used
+    for charge generation. N,H,C,O charges addjested as amber FFs as 
+    N = -.4157; H = .2719; C = .5973 ; O = -.5679.    
+    """
+
+    system_ffxml_sets = ['swissaa']
+    #system_ffxml_sets = ['swiss_sannerlab'] #under development 
+    return system_ffxml_sets
+
 
 class rotamerfile:
     ''' This class reads a rotamer lib file and provides various operations to 
@@ -245,7 +259,7 @@ class ffxmlfile:
 ## FOR FFXML CURRENTLY ONLY BY DEFAULT SWISS_FF.XML IS LOADED
 ## USER CAN NOT PROVIDE A NEW FFXML FILE, BUT CAN USE -FNST FLAG TO
 ## RUN ADCP CALCULATIONS FOR FIXING UNKNOWN RSIDUES USING PDBFIXER
-      
+
 def currently_loaded_ffxml_data(kw,myprint=print):
     '''Provide rotamerdata object for currently loaded ffxml files'''  
     loaded_ffxmls = ffxmldata(myprint)   
@@ -257,7 +271,7 @@ def currently_loaded_ffxml_data(kw,myprint=print):
         sys_ffxml_dir = os.path.join( os.path.dirname(__file__), 'data/openMMff')
         # system_ffxml_libs = kw['rotlibs'].split(":")
         # currently overriding for 'swissaa' only
-        system_ffxml_libs = ['swissaa']
+        system_ffxml_libs = loaded_ffxml_sets()
         
         for filenm in system_ffxml_libs:
             ffxml_file = os.path.join(sys_ffxml_dir, filenm+"_ff.xml")
@@ -425,11 +439,11 @@ def support_validator(kw,myprint=print):
         if len(unknownaa)>0:
             unknownaa = list(set(unknownaa))
             unknownaa.sort()
-            detected_problems.append('Unknown amino acid letter(s) in input sequence: "%s".' % '", "'.join(unknownaa))
+            detected_problems.append('Unknown amino acid letter(s) in input peptide sequence: "%s".' % '", "'.join(unknownaa))
             if all_flags_allowed:
                 all_flags_allowed = False
                 
-        if len(SAAseq) < 5:
+        if len(SAAseq) < 5:  # as SAA contains the Coarse potential letter for NSTs, only len(SAAaeq) will be enough to know the sequence length
             if all_flags_allowed:
                 detected_problems.append('Peptide sequence should be longer than 4 amino acids.')  
                 all_flags_allowed = False
@@ -487,11 +501,15 @@ def support_validator(kw,myprint=print):
 
     ## QUESTION: I thought you did the QM calculations to suport this case
     ##
-    if kw['sequence'][0] =="<" or kw['sequence'][1] =="<" or kw['sequence'][-1] == ">":
-        detected_problems.append('OpenMM calculation for terminal Non-standard amino acids are not supported yet!')
-        if all_flags_allowed:
-            all_flags_allowed = False
-            bracket_error = True
+    if loaded_ffxml_sets()[0] == 'swissaa':
+        if kw['sequence'][0] =="<" or kw['sequence'][1] =="<" or kw['sequence'][-1] == ">":
+            detected_problems.append('OpenMM calculation for terminal Non-standard amino acids are not supported with swiss ffxml.')
+            #+
+            #                        ' the ffxml set "swiss_sannerlab" can be used (under development) for terminal NSTs but currently'+
+            #                        ' it does not support all NSTs listed on swisssidechain.ch. To use "swiss_sannerlab",')
+            if all_flags_allowed:
+                all_flags_allowed = False
+                bracket_error = True
     ## Terminal NST check<<<
   
     if len(NSTlist)>0: 
@@ -542,7 +560,7 @@ def support_validator(kw,myprint=print):
             all_flags_allowed = False
     #ommenvironement
     if not kw['omm_environment'] in ["vacuum" , "implicit"]:
-        detected_problems.append('"-env" shoudl be "vacuum" or "implicit".')
+        detected_problems.append('"-env" should be "vacuum" or "implicit".')
         if all_flags_allowed:
             all_flags_allowed = False
             

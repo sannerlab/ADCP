@@ -22,7 +22,7 @@ import prody
 from prody.measure.contacts import findNeighbors
 from prody import writePDB, writePDBStream
 from MolKit2 import Read
-from utils import currently_loaded_ffxml_data
+from utils import currently_loaded_ffxml_data, loaded_ffxml_sets
 
 from openmm import *
 from openmm.app import *
@@ -44,6 +44,11 @@ Steps:
   4: Calculate different E metrics. and sort best to worst. Combine respective
       models in a single output file.
 '''
+
+# Global Variables
+ffxml_path = os.path.join(os.path.dirname(__file__), 'data/openMMff') 
+current_ffxml_set = loaded_ffxml_sets()[0] # currently set to only one
+
 
 class my_dot_variable:
     # a dot type variable for complex data handling
@@ -80,9 +85,6 @@ def AddListForUnknownNSTsToALA(fixer,kw=None):
             if not residue.name in current_ffxmls.residues:  # to ignore loaded NSTS to mutate
                 fixer.nonstandardResidues.append([residue, 'ALA'])
 
-
-
-ffxml_path = os.path.join(os.path.dirname(__file__), 'data/openMMff') 
 
 def fix_my_pdb(pdb_in,out=None, NonstandardResidueTreatment=False, return_topology= False,kw=None): 
     '''Uses pdbfixer to solve problems and fix nsts; and prody to identify 
@@ -137,11 +139,12 @@ def fix_my_pdb(pdb_in,out=None, NonstandardResidueTreatment=False, return_topolo
     fixer = PDBFixer(filename=pdb_out)    
     
     #    # adding required bond data for NSTs
-    fixer.topology.loadBondDefinitions(os.path.join(ffxml_path, 'swissaa_bond_def.xml')) ## default in B6
+    # fixer.topology.loadBondDefinitions(os.path.join(ffxml_path, 'swissaa_bond_def.xml')) ## default in B6
+    fixer.topology.loadBondDefinitions(os.path.join(ffxml_path, '%s_bond_def.xml' % current_ffxml_set))
 
     # loading hydrogen info for NSTs
     modeller =Modeller(fixer.topology,fixer.positions)
-    modeller.loadHydrogenDefinitions(os.path.join(ffxml_path, 'swissaa_hydrogen_def.xml')) ## default in B6
+    modeller.loadHydrogenDefinitions(os.path.join(ffxml_path, '%s_hydrogen_def.xml' % current_ffxml_set)) ## default in B6
     
     ## Replacement Treatment for unidentified NSTs
     if NonstandardResidueTreatment:
@@ -153,6 +156,55 @@ def fix_my_pdb(pdb_in,out=None, NonstandardResidueTreatment=False, return_topolo
     fixer.addMissingAtoms(seed=2112)
     fixer.addMissingHydrogens(7.4)
     
+    
+    ## AS pdbfixer uses its modeller topology to add hydrogens, it works well on N-terminal residues
+    ## but it can not fix the C-terminal residues So we need to do it here for NSTs
+    
+    pep_chain = list(fixer.topology.chains())[-1] ## As last chain is peptide
+    
+    ## As we will face problem with last NST in peptide 
+    # This problem can happen with the last NST in receptors too, but currently we are ignoring this
+    last_res_in_pep = list(pep_chain.residues())[-1] 
+    
+    atomNames = list(atom.name for atom in last_res_in_pep.atoms())
+
+    C_atom_idx = [atom.index for atom in last_res_in_pep.atoms() if atom.name == 'C'][0]
+    O_atom_idx = [atom.index for atom in last_res_in_pep.atoms() if atom.name == 'O'][0]
+    CA_atom_idx = [atom.index for atom in last_res_in_pep.atoms() if atom.name == 'CA'][0]      
+    C_atom = list(last_res_in_pep.atoms())[atomNames.index('C')]
+
+    if not 'OXT' in atomNames: # if OXT is not added
+        from openmm.app.element import oxygen
+        import openmm.unit as unit
+    
+        OXT_atom = fixer.topology.addAtom('OXT', oxygen, last_res_in_pep)
+        fixer.topology.addBond(OXT_atom, C_atom)
+        unit_v = fixer.positions.unit
+        
+        #       OXT
+        #      /
+        #CA---C
+        #      \
+        #       O
+        # To get OXT position, we will use unit vectors C-->CA and C-->O, 
+        # combining these vectors and inversing the direction will give unit vector for OXT position.
+        
+        d_c_ca = fixer.positions[CA_atom_idx].value_in_unit(unit_v) - fixer.positions[C_atom_idx].value_in_unit(unit_v)         
+        v_c_ca = d_c_ca/unit.sqrt(unit.dot(d_c_ca, d_c_ca))        # unit vector C--> CA
+                
+        d_c_o = fixer.positions[O_atom_idx].value_in_unit(unit_v) - fixer.positions[C_atom_idx].value_in_unit(unit_v) 
+        len_d_c_o = unit.sqrt(unit.dot(d_c_o, d_c_o))        
+        v_c_o = d_c_o/ len_d_c_o # unit vector C--> O
+        
+        v = -(v_c_o + v_c_ca)/2   # vector in direction of OXT
+        v =v/unit.sqrt(unit.dot(v, v)) # unit vector for OXT
+        v *= len_d_c_o    # vector with C--O distance for OXT when C at origin
+        
+        c_val = fixer.positions[C_atom_idx].value_in_unit(unit_v) # Positon of 'C'
+        v += c_val  # C dependent position of OXT        
+        fixer.positions.append(v*unit_v) #As last residue and last atom, we do not need to check anything else
+    
+        
        
     if return_topology:
         return fixer.topology, fixer.positions
@@ -413,7 +465,8 @@ def get_energy_on_modeller(modeller, mode='vacuum', verbose = 0):
         force_field = ForceField("amber99sb.xml",'implicit/gbn2.xml')
         msg="Using GBSA (gbn2) environment for energy calculation"    
     else:
-        force_field = ForceField("amber99sb.xml", os.path.join(ffxml_path, 'swissaa_ff.xml'))
+        # force_field = ForceField("amber99sb.xml", os.path.join(ffxml_path, 'swissaa_ff.xml'))
+        force_field = ForceField("amber99sb.xml", os.path.join(ffxml_path, '%s_ff.xml' % current_ffxml_set))
         msg="Using In-Vacuo environment for energy calculation"
     positions = modeller.positions
     topology = modeller.topology
@@ -452,7 +505,7 @@ def openmm_minimize( pdb_str: str, env='implicit', verbose = 0, max_itr=5, cycli
         force_field = ForceField("amber99sb.xml",'implicit/gbn2.xml')        
         msg = "Using GBSA (gbn2) environment for energy minimization"
     else:
-        force_field = ForceField("amber99sb.xml", os.path.join(ffxml_path, 'swissaa_ff.xml'))
+        force_field = ForceField("amber99sb.xml", os.path.join(ffxml_path, '%s_ff.xml' % current_ffxml_set))
         msg = "Using in-vacuo environment for energy minimization"
     
     if verbose == 1:

@@ -15,11 +15,25 @@ without loading the main functions for openMM support.
 
 Last Update 7/31/23 build 6
 Build 6:
+    Update 7/31/23 
     1: file objects to handle ffxml and rotamer library files.
     2: peptide sequence validations to avoid unknown errors by Crankite.
     3: Coarse potential validation to avoid runtime error for rotamers without default Coarse potentials.
     4: rotamer and ffxml(partially) lookup to find loaded rotamers/ffxml and suggest 
        use of specific rotamer/ffxml files.
+    
+    Update 8/8/23 
+    1: Added openMM support for amino-acids with similar graphs e.g. (ALO & THR; ILE & IIL).
+    2: Added support for terminal NSTs. using swiss_sannerlab.xml file.
+    3: swiss_sannerlab.xml have AMBER compatible partial charges generated from local RED/pyRED server. 
+    3: Added scheme to override default hydrogens.xml to avoid conflicts with some NST templates, like for ORN. 
+    4: Solved atom-type errors for 2 letter element codes in rotamer files.
+    
+    
+    
+    Remaining:
+    1: ffxml parameters for all NSTs.
+    2: clustering of similar atomtypes in ffxml file.
 """
 
 import importlib
@@ -47,12 +61,11 @@ non-minimization calculations.'
 DECLARATION (V1.1.0 build 6):
 a: Support for OpenMM Minimization is still under development.
 b: Currently, it supports docking with "-rmsd 0" flag.
-c: Current version provides docking supports for peptides containing ~400 Non-standard amino acids. 
-   other unknown non-standard amino acids can either be replaced by similar amino \
-acids (pdbfixer v1.7), or if pdbfixer does not identify the non-standard amino \
+c: Current version provides docking supports for peptides containing ~400 (L and D) NSTs\
+   and openMM support for 173 (173x2 for D and L) NSTs. Other unknown non-standard amino acids can either be replaced by similar amino \
+acids (pdbfixer v1.7), or if pdbfixer does not identify a non-standard amino \
 acid, it can be replaced by ALA.
-d: Treatment of non-standard amino-acids in PEPTIDE IS UNDER_DEVELOPMENT. (New from build 4)
-e: Currently no support for external parameter input for non-standard amino \
+d: Currently no support for external parameter input for non-standard amino \
 acids.
    """)
         # check these packages:
@@ -67,18 +80,18 @@ acids.
 
     return procede_after_flag_check
 
-def loaded_ffxml_sets(): # current set to default # 
+def loaded_ffxml_names(kw): # current set to default # 
     """ 'swissaa' openmm parameters for non-terminal NSTs generated from 
     charges obtained from swissaa .rtp files. 
     
-   'swiss_sannerlab' openmm parameters for terminal as well as intenal NSTs
+   'sannerlab' openmm parameters for terminal as well as intenal NSTs
     charges generated using local RED server with GAMESS. NME/ACE caps used
     for charge generation. N,H,C,O charges addjested as amber FFs as 
     N = -.4157; H = .2719; C = .5973 ; O = -.5679.    
     """
-
-    system_ffxml_sets = ['swissaa']
-    #system_ffxml_sets = ['swiss_sannerlab'] #under development 
+    #system_ffxml_sets = ['swiss'] #under
+    system_ffxml_sets = ['sannerlab'] #under development 
+    system_ffxml_sets = [kw['systemffxml']]    
     return system_ffxml_sets
 
 
@@ -243,6 +256,7 @@ class ffxmlfile:
         for res in all_res:
             self.residues.append(res.get('name'))               
         self.residues.sort()
+        self.name = os.path.split(self.ffxmlFile)[1][:-4]
         
     def get_all_residues(self):
         if len(self.residues) > 0:
@@ -267,11 +281,11 @@ def currently_loaded_ffxml_data(kw,myprint=print):
     # currently implemented for default swiss only
     # from system defaults
     # if not kw['rotlibs']==None:
-    if 1: # currently overriding for 'swissaa' only
+    if 1: # currently overriding for 'swiss' only
         sys_ffxml_dir = os.path.join( os.path.dirname(__file__), 'data/openMMff')
         # system_ffxml_libs = kw['rotlibs'].split(":")
         # currently overriding for 'swissaa' only
-        system_ffxml_libs = loaded_ffxml_sets()
+        system_ffxml_libs = loaded_ffxml_names(kw)
         
         for filenm in system_ffxml_libs:
             ffxml_file = os.path.join(sys_ffxml_dir, filenm+"_ff.xml")
@@ -288,21 +302,20 @@ def currently_loaded_ffxml_data(kw,myprint=print):
     return loaded_ffxmls
 
 # currently not accepts openmm ff from users
-# def all_available_ffxml_data(kw,myprint=print):
-#     '''Provide rotamerdata object for currently loaded rotamer files and all other
-#     system available rotamer files'''  
-#     loaded_rotamers = currently_loaded_rotamer_data(kw,myprint)    
-#     sys_rotamer_dir = os.path.join( os.path.dirname(__file__), 'data/rotamers')    
-#     for libFile in os.listdir(sys_rotamer_dir):
-#         if not libFile.endswith(".lib"):
-#             continue
-#         if libFile in ['stdaa.lib']: # ignoring standard library
-#             continue    
-#         libfilepath = os.path.join(sys_rotamer_dir,libFile)
-#         if libfilepath in loaded_rotamers.rotamerfiles:
-#             continue        
-#         loaded_rotamers.readrotamerfile(libfilepath)        
-#     return loaded_rotamers
+def all_available_ffxml_data(kw,myprint=print):
+    '''Provide rotamerdata object for currently loaded rotamer files and all other
+    system available rotamer files'''  
+        
+    loaded_ffxmls = currently_loaded_ffxml_data(kw,myprint)      
+    sys_ffxml_dir = os.path.join( os.path.dirname(__file__), 'data/openMMff')    
+    for xmlFile in os.listdir(sys_ffxml_dir):
+        if not xmlFile.endswith("_ff.xml"):
+            continue        
+        xmlFilePath = os.path.join(sys_ffxml_dir,xmlFile)
+        if xmlFilePath in loaded_ffxmls.ffxmlfiles:
+            continue        
+        loaded_ffxmls.readffxmlfile(xmlFilePath)        
+    return loaded_ffxmls
         
     
 class ffxmldata:
@@ -456,7 +469,7 @@ def support_validator(kw,myprint=print):
         loaded_rotamers = currently_loaded_rotamer_data(kw,myprint)
         
         # checking NSTs
-        for nst in NSTlist:
+        for nst in NSTlist:            
             if not nst[0] in all_possible_rotamers.residues:
                 detected_problems.append('Undefined rotamers for NST: "%s" is not available from any default rotamer library files' % nst[0] +
                                          '.To run ADCP for peptide with NST "%s", please provide an user-defined rotamer library using "-l" option'
@@ -467,7 +480,7 @@ def support_validator(kw,myprint=print):
             else:
                 if not nst[0] in loaded_rotamers.residues:
                     name_of_required_rotamer_file = all_possible_rotamers.get_rotamerfile_name_for_residue(nst[0])                                        
-                    detected_problems.append('Undefined rotamers for NST "%s". Rotamer library "%s" supports "%s" and '
+                    detected_problems.append('Undefined rotamers for NST "%s". Rotamer library(ies) "%s" support(s) "%s" and '
                                              % (nst[0], '", "'.join(name_of_required_rotamer_file), nst[0]) + 
                                                 'can be used with "-L" option.')                                             
                     if all_flags_allowed:
@@ -496,35 +509,30 @@ def support_validator(kw,myprint=print):
     
     
     # >>>>>> OPENMM RELATED ERROR CHECKS STARTS
-        
-    ## Terminal NSTs are not supported yet with OpenMM.Will be added in build 7>>>
-
-    ## QUESTION: I thought you did the QM calculations to suport this case
-    ##
-    if loaded_ffxml_sets()[0] == 'swissaa':
-        if kw['sequence'][0] =="<" or kw['sequence'][1] =="<" or kw['sequence'][-1] == ">":
-            detected_problems.append('OpenMM calculation for terminal Non-standard amino acids are not supported with swiss ffxml.')
+    
+    if 'swiss' in loaded_ffxml_names(kw):
+        if kw['sequence'][0] =="<" or kw['sequence'][1] =="<" or kw['sequence'][-1] == ">" or (kw['sequence'][0] == "&" and kw['sequence'][2] =="<"):
+            detected_problems.append('OpenMM calculation for terminal Non-standard amino acids are not supported with "swiss" ffxml set. Try "-F sannerlab"')
             #+
             #                        ' the ffxml set "swiss_sannerlab" can be used (under development) for terminal NSTs but currently'+
             #                        ' it does not support all NSTs listed on swisssidechain.ch. To use "swiss_sannerlab",')
             if all_flags_allowed:
                 all_flags_allowed = False
-                bracket_error = True
+                
     ## Terminal NST check<<<
   
     if len(NSTlist)>0: 
         loaded_ffxmls = currently_loaded_ffxml_data(kw,myprint)
         # print(loaded_ffxmls.ffxmlfiles)
-        all_possible_ffxmls = loaded_ffxmls ## as currently user can not define so both are same
+        all_possible_ffxmls = all_available_ffxml_data(kw,myprint) ## as currently user can not define so both are same
         
         # checking NSTs
+        ## As for standard amino acids, amber uses same paramters for L and D type AAs. so nst[0].split("_") is used 
+        ## to remove "_D" for D type res.
         for nst in NSTlist:
-            if not nst[0] in all_possible_ffxmls.residues:
+            if not nst[0].split("_")[0] in all_possible_ffxmls.residues: #nst[0].split("_") to remove "_D" for D type res
                 if not kw['omm_nst']: #If -fnst option is not provided
-                    ## QUESTION: can the user specify a user-defined  ffxml library file ?? This else branch seems to indicate this is possible
-                    ##           if it is possible then this message should tell the use to specify his ffxml file and ideally point to some
-                    ##           documentation explaining hot to create thus file
-                    detected_problems.append('ffxml data for NST: "%s" is not available in default ffxml library files' % nst[0]
+                    detected_problems.append('Undefined openMM parameters for NST: "%s" is not available from any default ffxml files' % nst[0].split("_")[0] 
                                              + ' use -fnst option to mutate unknown NSTs to standard amino acids, or remove -nmin option'
                                              
                                              ) #+
@@ -534,11 +542,11 @@ def support_validator(kw,myprint=print):
                         all_flags_allowed = False
                     
             else:
-                if not nst[0] in loaded_ffxmls.residues:
-                    name_of_required_ffxmls_file = all_possible_ffxmls.get_ffxmlfile_name_for_residue(nst[0])                                        
-                    detected_problems.append('No ffxml file is provided for NST "%s". ffxml library that support "%s" is "%s" and '
-                                             % (nst[0], nst[0],'", "'.join(name_of_required_ffxmls_file))) #+ 
-                                                # 'can be used with "-L" option to perform ADCP docking.')                                             
+                if not nst[0].split("_")[0] in loaded_ffxmls.residues:
+                    name_of_required_ffxmls_file = all_possible_ffxmls.get_ffxmlfile_name_for_residue(nst[0].split("_")[0])                                        
+                    detected_problems.append('Undefined openMM parameters for NST "%s". ffxml library(ies) "%s" support(s) "%s" and '
+                                             % (nst[0].split("_")[0] , nst[0].split("_")[0] ,'", "'.join(name_of_required_ffxmls_file))+ #+ 
+                                                'can be used with "-F" option.')                                             
                     if all_flags_allowed:
                         all_flags_allowed = False
                         
@@ -589,7 +597,18 @@ def support_validator(kw,myprint=print):
             else:
                 myprint ('Receptor residue %s %s substituted with "ALA".' % (ns_res, replace_will_be_or_can_be))
 
-    # all_flags_allowed = False       
+    # all_flags_allowed = False  
+
+
+    # check ffxml file
+    system_ffxml_set = kw['systemffxml']     
+    
+    if not system_ffxml_set in ['swiss','sannerlab']:
+        detected_problems.append('Unknown ffxmlset "%s". "-ffxmlset" should be "swiss" or "sannerlab".' % system_ffxml_set)
+        if all_flags_allowed:
+            all_flags_allowed = False
+        
+    
                 
     if not all_flags_allowed:
         myprint("Please resolve following issues to use openMM based ranking:")
@@ -623,6 +642,15 @@ def add_open_mm_flags(parser):
                        dest="omm_environment", help='options: "vacuum" or "implicit". Default is "vacuum"')
     parser.add_argument("-fnst", "--fix_nst", action="store_true",
                        dest="omm_nst", help=replace_msg)
+    
+    parser.add_argument("-F", "--ffxmlset",dest="systemffxml", default= "swiss",
+                        help=("To use openmm parameter (swiss or sannerlab) \
+                        from 'ADCP/data/openMMff' directory (Default:'swiss'). \
+                        parameter 'swiss' supports only non-terminal \
+                        NST residues. For terminal NSTs use 'sannerlab' library\
+                        List of supported NSTs for both libraries is given in\
+                        'AVAILABLE_PARAMETER.dat' file in 'ADCP/data/openMMff' \
+                        directory."))
     
     # THIS PART WILL BE ACTIVATED IN BUILD 7
     # parser.add_argument("-x", "--userffxml",dest="ffxmlibs",

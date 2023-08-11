@@ -15,20 +15,21 @@ Build 6:
     4: 
 """
 import os
+import sys
 import numpy as np
 #from colorama import Fore, Style
 
 import prody
 from prody.measure.contacts import findNeighbors
-from prody import writePDB, writePDBStream
+from prody import writePDB
 from MolKit2 import Read
-from utils import currently_loaded_ffxml_data, loaded_ffxml_sets
+from utils import currently_loaded_ffxml_data, loaded_ffxml_names
 
-from openmm import *
-from openmm.app import *
-from openmm.unit import *
+import openmm
+from openmm import CustomExternalForce
+from openmm.app import Modeller, PDBFile, ForceField, Simulation, HBonds
+from openmm.unit import kilojoules_per_mole, nanometer
 from pdbfixer import PDBFixer
-import copy
 import parmed
 
 
@@ -47,16 +48,20 @@ Steps:
 
 # Global Variables
 ffxml_path = os.path.join(os.path.dirname(__file__), 'data/openMMff') 
-current_ffxml_set = loaded_ffxml_sets()[0] # currently set to only one
 
+# Similar graphs ILE & IIL; THR & ALO, HLU & HL2, LME & MEG. we may need to update this list for new residues
+# In future use something like this for openMM: https://github.com/ParmEd/ParmEd/issues/629
+RESIDUES_WITH_SIMILAR_GRAPHS = ['IIL', 'ILE',
+                                'ALO', 'THR', 
+                                'HL2', 'HLU', 
+                                'LME', 'MEG', 
+                                'MHO', 'SME'] # we may need to update it for new residues
 
 class my_dot_variable:
     # a dot type variable for complex data handling
     pass
 
-
 # PDB fixing and NST treatment 
-
 def AddListForUnknownNSTsToALA(fixer,kw=None):
     '''Idenitifes unknow NSTs and makes list to replace them by Alanine
     
@@ -91,11 +96,11 @@ def fix_my_pdb(pdb_in,out=None, NonstandardResidueTreatment=False, return_topolo
       required atom arrangements and fix pdb errors. 
       Options for NonstandardResidueTreatment:
       false: do nothing; 
-      -fnst: try to swap NSTs with similar amino acids, if cannot swap, mutate to ALA'''
-     
+      -fnst: try to swap NSTs with similar amino acids, if cannot swap, mutate to ALA'''     
 
-    if out==None:
-        pdb_out = "./fixed/" + pdb_in.split('/')[-1].split('.')[0]+'_fixed.pdb'
+    if out==None:        
+        pdb_out = os.path.join("./fixed/", os.path.split(pdb_in)[-1].split('.')[0]+'_fixed.pdb' )
+        
     else:
         pdb_out = out
         
@@ -139,12 +144,8 @@ def fix_my_pdb(pdb_in,out=None, NonstandardResidueTreatment=False, return_topolo
     fixer = PDBFixer(filename=pdb_out)    
     
     #    # adding required bond data for NSTs
-    # fixer.topology.loadBondDefinitions(os.path.join(ffxml_path, 'swissaa_bond_def.xml')) ## default in B6
-    fixer.topology.loadBondDefinitions(os.path.join(ffxml_path, '%s_bond_def.xml' % current_ffxml_set))
-
-    # loading hydrogen info for NSTs
-    modeller =Modeller(fixer.topology,fixer.positions)
-    modeller.loadHydrogenDefinitions(os.path.join(ffxml_path, '%s_hydrogen_def.xml' % current_ffxml_set)) ## default in B6
+    # fixer.topology.loadBondDefinitions(os.path.join(ffxml_path, 'swissaa_bond_def.xml')) ## default in Build6
+    fixer.topology.loadBondDefinitions(os.path.join(ffxml_path, 'NST_residues.xml'))
     
     ## Replacement Treatment for unidentified NSTs
     if NonstandardResidueTreatment:
@@ -154,20 +155,32 @@ def fix_my_pdb(pdb_in,out=None, NonstandardResidueTreatment=False, return_topolo
     fixer.findMissingResidues()
     fixer.findMissingAtoms()    
     fixer.addMissingAtoms(seed=2112)
+    fixer.addMissingHydrogens(7.4)  ## This adds hydrogens to standard amino acids.
+    
+    
+    # loading hydrogen info for NSTs to modeller
+    modeller =Modeller(fixer.topology,fixer.positions) 
+    
+    # As some NSTs (like ORN) are present in the openMM default hydrogen defenition file i.e.
+    # (openmm/app/data/hydrogens.xml), we have to override values of previsouly
+    # loaded templates for that we will make Modeller._hasLoadedStandardHydrogens = True  
+    # to forbid Modeller to load default hydrogen definition data again.    
+    Modeller._hasLoadedStandardHydrogens = True  
+    
+    # adding NST data and overriding all defaults
+    modeller.loadHydrogenDefinitions(os.path.join(ffxml_path, 'NST_hydrogens.xml')) ## default in Build6
     fixer.addMissingHydrogens(7.4)
     
-    
-    ## AS pdbfixer uses its modeller topology to add hydrogens, it works well on N-terminal residues
-    ## but it can not fix the C-terminal residues So we need to do it here for NSTs
-    
+    ## modeller can add hydrogens to topology, it works well on N-terminal residues
+    ## but it can not fix the C-terminal residues So we need to do it here for NSTs    
     pep_chain = list(fixer.topology.chains())[-1] ## As last chain is peptide
     
-    ## As we will face problem with last NST in peptide 
+    ## As we will face problem with last NST in peptide IT WILL ONLY WORK FOR 
+    ## THE LAST NST OF LAST CHAIN
     # This problem can happen with the last NST in receptors too, but currently we are ignoring this
     last_res_in_pep = list(pep_chain.residues())[-1] 
     
     atomNames = list(atom.name for atom in last_res_in_pep.atoms())
-
     C_atom_idx = [atom.index for atom in last_res_in_pep.atoms() if atom.name == 'C'][0]
     O_atom_idx = [atom.index for atom in last_res_in_pep.atoms() if atom.name == 'O'][0]
     CA_atom_idx = [atom.index for atom in last_res_in_pep.atoms() if atom.name == 'CA'][0]      
@@ -203,23 +216,97 @@ def fix_my_pdb(pdb_in,out=None, NonstandardResidueTreatment=False, return_topolo
         c_val = fixer.positions[C_atom_idx].value_in_unit(unit_v) # Positon of 'C'
         v += c_val  # C dependent position of OXT        
         fixer.positions.append(v*unit_v) #As last residue and last atom, we do not need to check anything else
-    
-        
        
     if return_topology:
         return fixer.topology, fixer.positions
     
     # import pdb; pdb.set_trace()
     with open( pdb_out , 'w') as outfile:
-         PDBFile.writeFile(fixer.topology, fixer.positions, file=outfile,
-    keepIds=True)
+        writePDBfile(fixer.topology, fixer.positions, outfile)
     return pdb_out
+
+def PDBFilewriteModel_override(topology, positions, file=sys.stdout, modelIndex=None, keepIds=False, extraParticleIdentifier='EP'):
+    """Write out a model to a PDB file.
+    Modified version of openmm.app.pdbfile.writeModel to support 4 Letter amino acid codes
+    """
+    from openmm.unit import  angstroms, is_quantity, norm
+    import math
+    from openmm.app.pdbfile import PDBFile, _format_83
+    
+    if len(list(topology.atoms())) != len(positions):
+        raise ValueError('The number of positions must match the number of atoms')
+    if is_quantity(positions):
+        positions = positions.value_in_unit(angstroms)
+    if any(math.isnan(norm(pos)) for pos in positions):
+        raise ValueError('Particle position is NaN')
+    if any(math.isinf(norm(pos)) for pos in positions):
+        raise ValueError('Particle position is infinite')
+    nonHeterogens = PDBFile._standardResidues[:]
+    nonHeterogens.remove('HOH')
+    atomIndex = 1
+    posIndex = 0
+    if modelIndex is not None:
+        print("MODEL     %4d" % modelIndex, file=file)
+    for (chainIndex, chain) in enumerate(topology.chains()):
+        if keepIds and len(chain.id) == 1:
+            chainName = chain.id
+        else:
+            chainName = chr(ord('A')+chainIndex%26)
+        residues = list(chain.residues())
+        for (resIndex, res) in enumerate(residues):
+            if len(res.name) > 4:                     # CHANGE for 4Letter Codes
+                resName = res.name[:4]               # CHANGE for 4Letter Codes
+            else:
+                resName = res.name
+            if keepIds and len(res.id) < 5:
+                resId = res.id
+            else:
+                resId = "%4d" % ((resIndex+1)%10000)
+            if len(res.insertionCode) == 1:
+                resIC = res.insertionCode
+            else:
+                resIC = " "
+            if res.name in nonHeterogens:
+                recordName = "ATOM  "
+            else:
+                recordName = "HETATM"
+            for atom in res.atoms():
+                if atom.element is not None:
+                    symbol = atom.element.symbol
+                else:
+                    symbol = extraParticleIdentifier
+                if len(atom.name) < 4 and atom.name[:1].isalpha() and len(symbol) < 2:
+                    atomName = ' '+atom.name
+                elif len(atom.name) > 4:
+                    atomName = atom.name[:4]
+                else:
+                    atomName = atom.name
+                coords = positions[posIndex]
+                # line = "%s%5d %-4s %3s %s%4s%1s   %s%s%s  1.00  0.00          %2s  " % (
+                line = "%s%5d %-4s %-4s%s%4s%1s   %s%s%s  1.00  0.00          %2s  " % (                # CHANGE for 4Letter Codes
+                    recordName, atomIndex%100000, atomName, resName, chainName, resId, resIC, _format_83(coords[0]),
+                    _format_83(coords[1]), _format_83(coords[2]), symbol)
+                if len(line) != 80:
+                    raise ValueError('Fixed width overflow detected')
+                print(line, file=file)
+                posIndex += 1
+                atomIndex += 1
+            if resIndex == len(residues)-1:
+                print("TER   %5d      %3s %s%4s" % (atomIndex, resName, chainName, resId), file=file)
+                atomIndex += 1
+    if modelIndex is not None:
+        print("ENDMDL", file=file)
+
+def writePDBfile(topols, pos, outfile) :
+    '''Variant of PDBFile.writeFile to support 4Letter AA codes'''
+    PDBFile.writeHeader(topols,file=outfile)
+    PDBFilewriteModel_override(topols, pos, file=outfile, keepIds=True)
+    PDBFile.writeFooter(topols, file=outfile)    
 
   
 ## Interface identification and restrain     
 def identify_interface_residues(pdb_file, needs_b=0):
-    '''identifies interface residues between macromolecule(s) and peptide'''
-    
+    '''identifies interface residues between macromolecule(s) and peptide'''    
     mol_temp = Read(pdb_file)    
     rec = mol_temp._ag.select('not chid Z and not hydrogen')
     pep = mol_temp._ag.select('chid Z not hydrogen')    
@@ -283,8 +370,7 @@ def restrain_(system_, pdb, not_chain='Z', ignore_list=[]):
             continue
         
         # else apply restrain on other atoms
-        restraint.addParticle(atom.index, pdb.positions[atom.index])
-         
+        restraint.addParticle(atom.index, pdb.positions[atom.index])         
     system_.addForce(restraint)
 
 def cyclize_backbone_of_last_chain(topology, positions, myprint=print, display_info = False):
@@ -315,7 +401,6 @@ def cyclize_backbone_of_last_chain(topology, positions, myprint=print, display_i
             cat = atom
         if atom.name =='OXT':
             todelete.append(atom)
-
     # make sure bond (nat, cat) does not exist
     # I beleive the bonds are built using templates, not based on distance
     # so this will always returns FALSE
@@ -438,7 +523,7 @@ def make_disulfide_between_cys_in_last_chain(top, pos, myprint=print, debug = Fa
     
     if debug:
         #checking output
-        PDBFile.writeFile(modeller.topology, modeller.positions, open('output1.pdb', 'w')) 
+        writePDBfile(modeller.topology, modeller.positions, open('output1.pdb', 'w')) 
       
     for SGi,SGj in make_bond_pair:
         sg1_detail = SGi.residue.name + SGi.residue.id + "@" + SGi.name #+"." +nat.residue.chain.id
@@ -450,29 +535,33 @@ def make_disulfide_between_cys_in_last_chain(top, pos, myprint=print, debug = Fa
       
     if debug:
     #checking output
-        PDBFile.writeFile(modeller.topology, modeller.positions, open('output2.pdb', 'w'))
+        writePDBfile(modeller.topology, modeller.positions, open('output2.pdb', 'w'))
     
     else:
         return modeller.topology, modeller.positions
 
  
-def get_energy_on_modeller(modeller, mode='vacuum', verbose = 0):
+def get_energy_on_modeller(modeller, mode='vacuum',loaded_ffxml_name='',verbose = 0 ):
     ''' Rather than using temp pdb files this method 
     takes modeller object as input to calculates potential energy.    
     '''
-   
+
     if mode == 'implicit':
-        force_field = ForceField("amber99sb.xml",'implicit/gbn2.xml')
+        force_field = ForceField("amber99sb.xml",'implicit/gbn2.xml',
+                                 os.path.join(ffxml_path, '%s_ff.xml' % loaded_ffxml_name))  
         msg="Using GBSA (gbn2) environment for energy calculation"    
     else:
         # force_field = ForceField("amber99sb.xml", os.path.join(ffxml_path, 'swissaa_ff.xml'))
-        force_field = ForceField("amber99sb.xml", os.path.join(ffxml_path, '%s_ff.xml' % current_ffxml_set))
+        force_field = ForceField("amber99sb.xml", os.path.join(ffxml_path, '%s_ff.xml' % loaded_ffxml_name))
         msg="Using In-Vacuo environment for energy calculation"
     positions = modeller.positions
     topology = modeller.topology
+    
+    residueTemplates = get_residue_templates_for_residues_with_same_graphs(topology)
+    
     if verbose == 1:
-        self.myprint(msg)
-    system = force_field.createSystem( topology, nonbondedCutoff=1*nanometer, constraints=HBonds)
+        print(msg)
+    system = force_field.createSystem( topology, nonbondedCutoff=1*nanometer, constraints=HBonds, residueTemplates=residueTemplates)
     # restrain_(system, pdb_handle, 'All')
     integrator = openmm.LangevinIntegrator(0, 0.01, 0.0)
     simulation = Simulation( topology, system, integrator)
@@ -483,7 +572,42 @@ def get_energy_on_modeller(modeller, mode='vacuum', verbose = 0):
     return( state.getPotentialEnergy()._value)
 
 
-def openmm_minimize( pdb_str: str, env='implicit', verbose = 0, max_itr=5, cyclize = False, SSbond=False, amberparminit=None, myprint=print):
+def get_residue_templates_for_residues_with_same_graphs(topol):
+    '''This program creates residuetemplates for residues
+    with similar graph patterns to avoid error like:
+    Multiple non-identical matching templates found for residue 2 (THR): THR, ALO'''
+    
+    residues=list(topol.residues())
+    residueTemplates={}
+    
+    # we need different treatments for terminal residues
+    chains = list(topol.chains())
+    Nterm_res = []
+    Cterm_res = []
+    
+    for c in chains:
+        res_in_chain = list(c.residues()) # added this for all chains
+        Nterm_res.append(res_in_chain[0])
+        Cterm_res.append(res_in_chain[-1])    
+
+    for r in residues:
+        if r.name in RESIDUES_WITH_SIMILAR_GRAPHS:
+            
+            if r in Nterm_res:
+                residueTemplates[residues[r.index]] =  "N" + r.name
+            
+            elif r in Cterm_res:
+                residueTemplates[residues[r.index]] =  "C" + r.name
+                
+            else:
+                residueTemplates[residues[r.index]] =  r.name
+    # print(residueTemplates)
+    return residueTemplates
+
+
+def openmm_minimize( pdb_str: str, env='implicit', verbose = 0, max_itr=5, 
+                    cyclize = False, SSbond=False, amberparminit=None, 
+                    loaded_ffxml_name ='',myprint=print):
     '''Minimize a protein-peptide complex using openMM'''
     #"""Minimize energy via openmm."""
     pdb = PDBFile(pdb_str)
@@ -501,24 +625,28 @@ def openmm_minimize( pdb_str: str, env='implicit', verbose = 0, max_itr=5, cycli
     if SSbond:
         topology, positions = make_disulfide_between_cys_in_last_chain(topology, positions, myprint=myprint) 
     
+    # for alo residues
+    residueTemplates = get_residue_templates_for_residues_with_same_graphs(topology)
+    
+    # force field
     if env == 'implicit':
         force_field = ForceField("amber99sb.xml",'implicit/gbn2.xml')        
         msg = "Using GBSA (gbn2) environment for energy minimization"
     else:
-        force_field = ForceField("amber99sb.xml", os.path.join(ffxml_path, '%s_ff.xml' % current_ffxml_set))
+        force_field = ForceField("amber99sb.xml", os.path.join(ffxml_path, '%s_ff.xml' % loaded_ffxml_name))
         msg = "Using in-vacuo environment for energy minimization"
     
     if verbose == 1:
-        self.myprint('max itr is %d and env is %s' % (max_itr,env))
-        self.myprint(msg)
+        myprint('max itr is %d and env is %s' % (max_itr,env))
+        myprint(msg)
     # integrator = LangevinIntegrator(300*kelvin, 1/picosecond, 0.002*picoseconds)
     integrator = openmm.LangevinIntegrator(0, 0.01, 0.0)
     # constraints = HBonds    
-    system = force_field.createSystem(  topology, nonbondedCutoff=1*nanometer)
+    system = force_field.createSystem(  topology, nonbondedCutoff=1*nanometer, 
+                                      residueTemplates=residueTemplates)
                                       # constraints=constraints)    
     ignore_list = identify_interface_residues(pdb_str)        
-    restrain_(system, pdb, ignore_list=ignore_list)
-    
+    restrain_(system, pdb, ignore_list=ignore_list)    
     
     # platform = openmm.Platform.getPlatformByName("CUDA" if use_gpu else "CPU")
     simulation = Simulation( topology, system, integrator)
@@ -532,7 +660,7 @@ def openmm_minimize( pdb_str: str, env='implicit', verbose = 0, max_itr=5, cycli
     return_energy["efinal"] = state.getPotentialEnergy()
     # ret["pos"] = state.getPositions(asNumpy=True)
     positions = simulation.context.getState(getPositions=True).getPositions()
-    PDBFile.writeFile(topology, positions, open(pdb_str[:-4]+"_min.pdb", 'w'))
+    writePDBfile(topology, positions, open(pdb_str[:-4]+"_min.pdb", 'w'))
     # ret["min_pdb"] = _get_pdb_string(simulation.topology, state.getPositions())
     
     out_var.minimized_energy = return_energy
@@ -546,14 +674,47 @@ def openmm_minimize( pdb_str: str, env='implicit', verbose = 0, max_itr=5, cycli
         # print(pdb_str)
         structure.save(amberparminit+'.parm7', overwrite=True)
         structure.save(amberparminit+'.rst7' , format='rst7', overwrite=True)
-
-    # with open('system.xml', 'w') as output:
-    #     output.write(XmlSerializer.serialize(system))
-
+        
     return out_var
 
+def openmm_create_system( pdb_str: str, env='implicit', verbose = 0, max_itr=5, 
+                         cyclize = False, SSbond=False, amberparminit=None, 
+                         loaded_ffxml_name ='',myprint=print):
+    '''FOR DEBUGGING: This program loads parametes to openMM engine to check the compatability'''
+    #"""Minimize energy via openmm."""
+    pdb = PDBFile(pdb_str)
+    # for cyclic peptides
+    if cyclize:
+        modeller = cyclize_backbone_of_last_chain(pdb.topology, pdb.positions, myprint=myprint, display_info=True)
+        topology = modeller.topology
+        positions = modeller.positions
+    else:
+        topology = pdb.topology
+        positions = pdb.positions
+    
+    # for disulfide bridges
+    if SSbond:
+        topology, positions = make_disulfide_between_cys_in_last_chain(topology, positions, myprint=myprint) 
+        
+    if env == 'implicit':
+        force_field = ForceField("amber99sb.xml",'implicit/gbn2.xml',
+                                 os.path.join(ffxml_path, '%s_ff.xml' % loaded_ffxml_name))        
+        msg = "Using GBSA (gbn2) environment for energy minimization"
+    else:
+        force_field = ForceField("amber99sb.xml", os.path.join(ffxml_path, '%s_ff.xml' % loaded_ffxml_name))
+        msg = "Using in-vacuo environment for energy minimization"
+    
+    if verbose == 1:
+        myprint('max itr is %d and env is %s' % (max_itr,env))
+        myprint(msg)
+    
+    # for alo residues
+    residueTemplates = get_residue_templates_for_residues_with_same_graphs(topology)    
+    system = force_field.createSystem(  topology, nonbondedCutoff=1*nanometer,residueTemplates=residueTemplates)
+    return system
 
-def return_comp_rec_pep_energies_from_omm_minimize_output(omm_min_in):
+
+def return_comp_rec_pep_energies_from_omm_minimize_output(omm_min_in, loaded_ffxml_name):
     '''for faster E_consensus and E_interface calulation it uses modeller object
     to calculate energy values'''
     
@@ -565,17 +726,16 @@ def return_comp_rec_pep_energies_from_omm_minimize_output(omm_min_in):
     
     # complex single point energy
     modeller_comp = Modeller(topology, positions)
-    comp_e = get_energy_on_modeller(modeller_comp, mode=env)        
+    comp_e = get_energy_on_modeller(modeller_comp, mode=env, loaded_ffxml_name=loaded_ffxml_name)        
     
     # receptor single point energy
     modeller_comp.delete([chains[-1]])
-    rec_e = get_energy_on_modeller(modeller_comp, mode=env)
+    rec_e = get_energy_on_modeller(modeller_comp, mode=env, loaded_ffxml_name=loaded_ffxml_name)  
     
     # peptide single point energy
     modeller_pep = Modeller(topology, positions)
     modeller_pep.delete(chains[:-1])
-    pep_e = get_energy_on_modeller(modeller_pep, mode=env)
-    
+    pep_e = get_energy_on_modeller(modeller_pep, mode=env, loaded_ffxml_name=loaded_ffxml_name)    
     return [comp_e, rec_e, pep_e]
 
 
@@ -637,6 +797,7 @@ class ommTreatment:
         self.minimization_steps = 100
         self.find_neighbor_cutoff = 5        
         #other settings
+        self.target_file = target_file
         self.omm_temp_dir = "omm_temp_dir_" + jobName
         self.omm_proj_dir = self.omm_temp_dir + "/" + target_file.split(".")[0]
         self.amber_parm_out_dir = "%s_omm_amber_parm/" % jobName + target_file.split(".")[0]
@@ -645,14 +806,19 @@ class ommTreatment:
         self.delete_at_end =[]
         self.rearranged_data_as_per_asked=[]
         self.output_file =''
-        self.rearrangeposes = True
+        self.rearrangeposes = True        
         self.combined_pep_file =''
         self.rec_data = rec_data
         self.cyclize_by_backbone = False
         self.SSbond = False
-        self.CLEAN_AT_END = True # for debugging only
         self.myprint = myprint
+        self.loaded_ffxml_name = ''
         
+        # Options For code debugging        
+        self.CLEAN_AT_END = False # for debugging only ; True to keep all intermediate files
+        self.peptide_dir = "" # for debugging only; peptide_directory is current directory by defualt        
+        self.debug_openmm_load_mode = False # for debugging; minimization will be off; only loading of parameters without any errors will be checked
+
      
     def __call__(self, **kw):       
         # reading all flags
@@ -660,7 +826,10 @@ class ommTreatment:
         self.read_settings_from_flags(kw)     
         
         # creating required directories        
-        self.create_omm_dirs()    
+        self.create_omm_dirs()   
+        
+        # getting ffxml file names
+        self.loaded_ffxml_name = loaded_ffxml_names(kw)[0] # currently only one name
         
         # reading receptor file
         if self.rec_data == None:
@@ -672,19 +841,22 @@ class ommTreatment:
         makeChidNonPeptide(rec) # removing numerical and 'Z' chains from receptor
         
         # identifying peptide clustered file and initiating output file name        
-        if not os.path.isfile(self.combined_pep_file):
+        if not os.path.isfile(self.peptide_dir+self.combined_pep_file):
             self.myprint("Clustered file %s does not exist. OpenMM calculation terminated" % self.combined_pep_file)
             return
         
         # combining peptides and receptor; and scoring   
-        pep_pdb = Read( self.combined_pep_file )
+        pep_pdb = Read( self.peptide_dir+self.combined_pep_file )
         num_mode_to_minimize = min(pep_pdb._ag.numCoordsets(), int(kw['minimize']))        
-        self.myprint("From total %d models, minimizing top %d ..." %
-              (pep_pdb._ag.numCoordsets(), num_mode_to_minimize))
+        
+        if not self.debug_openmm_load_mode: # DONT PRINT WHEN DEBUGGING
+            self.myprint("From total %d models, minimizing top %d ..." %
+                  (pep_pdb._ag.numCoordsets(), num_mode_to_minimize))
         
         for f in range( num_mode_to_minimize ):
-            self.myprint( "\nWorking on #%d of %d models" % (f+1, num_mode_to_minimize))
-            
+            if not self.debug_openmm_load_mode: # DONT PRINT WHEN DEBUGGING
+                self.myprint( "\nWorking on #%d of %d models" % (f+1, num_mode_to_minimize))
+                
             #peptide data
             pep_pdb._ag.setACSIndex(f)  
             pep_pdb._ag.setChids([x for x in 'Z'*pep_pdb._ag.numAtoms()]) # setting peptide chid to 'B'
@@ -693,9 +865,14 @@ class ommTreatment:
             out_complex_name = self.omm_proj_dir + "/" + self.file_name_init + "_recNpep_%d.pdb" % (f)  
             out_parm_dirname = self.amber_parm_out_dir + "/"+ self.file_name_init + "_%d" % f
             combinedRecPep= rec + pep_pdb._ag
-            writePDB(out_complex_name, combinedRecPep.select('not hydrogen'))
+            writePDB(out_complex_name, combinedRecPep.select('not hydrogen'))            
             
-            # energy calculation
+            if self.debug_openmm_load_mode:
+                enzs = self.load_pdb_file_to_openMM_engine(out_complex_name, out_parm_dirname) # will return PASSED of FAILED
+                self.myprint(self.target_file + " "+ enzs) # if enzs in ['PASSED','FAILED'] : ## from debugging
+                return
+
+            # energy calculation    
             enzs = self.estimate_energies_for_pdb( out_complex_name, out_parm_dirname)
             self.myprint( "E_Complex = %9.2f; E_Receptor = %9.2f; E_Peptide  = %9.2f" % (enzs[0],enzs[1],enzs[2]))
             self.myprint("dE_Interaction = %9.2f; dE_Complex-Receptor = %9.2f" % (enzs[3], enzs[4]))
@@ -709,7 +886,7 @@ class ommTreatment:
             self.clean_temp_files()
         
     def make_post_calculation_file_lists(self, flnm, enzs):
-        # for deleting at end
+        # for deleting temprory files at the end
         self.delete_at_end.append(flnm)
         self.delete_at_end.append(flnm[:-4] + "_fixed.pdb")
         self.delete_at_end.append(flnm[:-4] + "_fixed_min_A.pdb")
@@ -737,8 +914,7 @@ class ommTreatment:
         self.cyclize_by_backbone = kw['cyclic']
         self.SSbond = kw['cystein']
         self.myprint('OpenMM minimization settings: Environment="%s"; Max_itr=%d'
-              % (self.minimization_env, self.minimization_steps))
-        
+              % (self.minimization_env, self.minimization_steps))        
         if self.cyclize_by_backbone:
             self.myprint('OpenMM minimization settings: Cyclizing by backbone')
         if self.SSbond:
@@ -752,24 +928,20 @@ class ommTreatment:
         ommrank_adcprank_data = []
         for i in self.pdb_and_score:
             metric_comp_minus_rec.append(i[2][-1])          
-        reaarange_for_omm_ranking = np.argsort(metric_comp_minus_rec)
-        
+        reaarange_for_omm_ranking = np.argsort(metric_comp_minus_rec)        
         for current_v, rearrage_idx in enumerate(reaarange_for_omm_ranking):
             ommrank_adcprank_data.append([current_v, self.pdb_and_score[rearrage_idx][0],
                                           self.pdb_and_score[rearrage_idx][1],
                                           self.pdb_and_score[rearrage_idx][2]])
         #ommrank_adcprank_data = np.array(ommrank_adcprank_data)
-        adcp_ranks = np.array([ i[1] for i in ommrank_adcprank_data])
-            
+        adcp_ranks = np.array([ i[1] for i in ommrank_adcprank_data])            
         # print(self.omm_ranking,metric_comp_minus_rec)
         if self.rearrangeposes == True:            
             self.myprint("\nREARRANGING output poses using OpenMM energy")          
-            self.rearranged_data_as_per_asked = ommrank_adcprank_data
-            
+            self.rearranged_data_as_per_asked = ommrank_adcprank_data            
         else:
             self.myprint("\nNOT REARRANGING output poses using OpenMM energy")
             self.rearranged_data_as_per_asked = [ ommrank_adcprank_data[i] for i in adcp_ranks.argsort()]
-        
          
     def create_omm_dirs(self):   
         # create required output directories
@@ -780,18 +952,7 @@ class ommTreatment:
         #for AMBER parameters
         if not os.path.exists(self.amber_parm_out_dir):
             os.makedirs(self.amber_parm_out_dir, exist_ok=True)
-            
-            
-    # def print_reranked_models(self):      
-    #     print(f"{Fore.GREEN}Re-ranking by OpenMM{Style.RESET_ALL} (E_complex - E_receptor):")
-    #     # print ("-------+---------+------------------+---------+")
-    #     # print ("model |rank omm | rank by AD score |  E_Comp |")
-    #     # print ("      |         |                  |  -E_Rec |")
-    #     # print ("------+---------+------------------+---------+")  
-        
-        
-    #     # for i, rank_v in enumerate(self.omm_ranking):
-    #     #     print(" %8d %18d %8.1f" % (i+1, rank_v+1, self.pdb_and_score[rank_v][1][-1]))
+
             
     def clean_temp_files(self):
         # works as function name says
@@ -805,24 +966,19 @@ class ommTreatment:
         
     def read_pdb_files_and_combine_using_given_index(self):
         # works as function name says
-        out_file = open(self.output_file,"w+")        
-
+        out_file = open(self.output_file,"w+")
         self.myprint("-------+------+------+------------+")
         self.myprint (" Model | Rank | Rank | E_Complex  |")
         self.myprint(" #     |OpenMM| ADCP |-E_Receptor |")
         # print ("       |      |      |  (kJ/mol)  |")
-        self.myprint("-------+------+------+------------+")  
-        
-            
+        self.myprint("-------+------+------+------------+")            
         for model_num, arranged_line in enumerate(self.rearranged_data_as_per_asked):
             # file name and omm scores
-            omm_rank, adcp_rank, flnm, scores = arranged_line
-            
+            omm_rank, adcp_rank, flnm, scores = arranged_line            
             # flnm = self.pdb_and_score[rank][0]
             # scores = self.pdb_and_score[rank][1]
             score_string_to_write1 = "E_Complex = %9.2f; E_Receptor = %9.2f; E_Peptide  = %9.2f\n" % (scores[0],scores[1],scores[2])
-            score_string_to_write2 = "dE_Interaction = %9.2f; dE_Complex-Receptor = %9.2f\n" % (scores[3], scores[4])           
-                        
+            score_string_to_write2 = "dE_Interaction = %9.2f; dE_Complex-Receptor = %9.2f\n" % (scores[3], scores[4])                                  
             out_file.write("MODEL     %4d\n" % ( model_num+1 ))
             out_file.write("USER: OpenMM RESCORED SOLUTION %d\n" % (omm_rank+1))            
             out_file.write("USER: " + score_string_to_write1)
@@ -831,8 +987,7 @@ class ommTreatment:
             # writePDBStream(out_file, flnm_data._ag.select('not hydrogen')) 
             read_and_write_pdb_data_to_fid(out_file, flnm)
             out_file.write("ENDMDL\n")
-            self.myprint(" %6d %6d %6d %10.1f" %(model_num+1 , omm_rank+1, adcp_rank+1, scores[4] ))
-            
+            self.myprint(" %6d %6d %6d %10.1f" %(model_num+1 , omm_rank+1, adcp_rank+1, scores[4] ))            
         out_file.close()
         self.myprint("-------+------+------+------------+")
         
@@ -844,12 +999,10 @@ class ommTreatment:
         fixed_pdb = fix_my_pdb(pdb_fl, pdb_fl[:-4] +"_fixed.pdb",NonstandardResidueTreatment=self.NonstandardResidueTreatment,kw=self.kw)
         if verbose == 1:
             self.myprint("Minimizing ...")
-        
         omm_min_list = openmm_minimize(fixed_pdb,env, max_itr=self.minimization_steps, 
-                           cyclize=self.cyclize_by_backbone, SSbond=self.SSbond, amberparminit = amber_parm_init, myprint=self.myprint)
-        
-        enzs = return_comp_rec_pep_energies_from_omm_minimize_output(omm_min_list)
-        
+                           cyclize=self.cyclize_by_backbone, SSbond=self.SSbond, amberparminit = amber_parm_init, 
+                           loaded_ffxml_name=self.loaded_ffxml_name, myprint=self.myprint)        
+        enzs = return_comp_rec_pep_energies_from_omm_minimize_output(omm_min_list,self.loaded_ffxml_name)        
         enzs.append(enzs[0] - enzs[1] -enzs[2])   # interaction energy
         enzs.append(enzs[0] - enzs[1])            # complex - protein energy
         e_str=''
@@ -858,11 +1011,24 @@ class ommTreatment:
         if verbose == 1:
             self.myprint(' E_Complex E_Receptr E_Peptide dE_Interc dE_ComRes')   
             self.myprint (e_str)
-
         return enzs
     
- 
-
+    def load_pdb_file_to_openMM_engine(self,pdb_fl, amber_parm_init, verbose=0): 
+        ## Only for debugging the openMM support to NSTs    
+        env=self.minimization_env
+        if verbose == 1:
+            self.myprint('Working on:',pdb_fl.split("/")[-1])
+        fixed_pdb = fix_my_pdb(pdb_fl, pdb_fl[:-4] +"_fixed.pdb",NonstandardResidueTreatment=self.NonstandardResidueTreatment,kw=self.kw)        
+        try: openmm_create_system(fixed_pdb,env, max_itr=self.minimization_steps, 
+                           cyclize=self.cyclize_by_backbone, SSbond=self.SSbond, 
+                           amberparminit = amber_parm_init, 
+                           loaded_ffxml_name=self.loaded_ffxml_name, myprint=self.myprint)
+        except Exception as e:
+            self.myprint(str(e))
+            return 'FAILED'            
+        return 'PASSED'
+        
+        
           
 # In the next version, this class will be used, by either using tempfile for 
 # temprory file writing or, streamIO for keeping temp data in memory.

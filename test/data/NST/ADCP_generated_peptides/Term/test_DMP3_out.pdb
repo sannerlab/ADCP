@@ -1,0 +1,59 @@
+MODEL 1
+USER: ADCP SOLUTION 1
+USER: SCORE   8.201
+USER: ROTAMERS 39 2 0 2 21 
+REMARK Selection 'not deleted'
+
+ATOM      1  N   DMP3A   1      33.760   1.984 -52.876  0.00  0.00 REC       N
+ATOM      2  CA  DMP3A   1      33.760   1.596 -54.282  0.00  0.00 REC       C
+ATOM      3  C   DMP3A   1      32.525   2.246 -54.898  0.00  0.00 REC       C
+ATOM      4  O   DMP3A   1      32.255   3.418 -54.646  0.00  0.00 REC       O
+ATOM      5  CB  DMP3A   1      33.824   0.086 -54.496  0.00  0.00 REC       C
+ATOM      6  H   DMP3A   1      33.760   2.953 -52.639  0.00  0.00 REC       H
+ATOM      7  CG  DMP3A   1      34.199  -0.496 -55.816  0.00  0.00 REC       C
+ATOM      8  CD1 DMP3A   1      34.680   0.361 -56.810  0.00  0.00 REC       C
+ATOM      9  CD2 DMP3A   1      34.065  -1.862 -56.084  0.00  0.00 REC       C
+ATOM     10  CE1 DMP3A   1      35.028  -0.147 -58.058  0.00  0.00 REC       C
+ATOM     11  CE2 DMP3A   1      34.414  -2.367 -57.331  0.00  0.00 REC       C
+ATOM     12  CZ  DMP3A   1      34.895  -1.509 -58.319  0.00  0.00 REC       C
+ATOM     13  CJ  DMP3A   1      33.718  -4.575 -56.352  0.00  0.00 REC       C
+ATOM     14  CH  DMP3A   1      34.269  -3.875 -57.607  0.00  0.00 REC       C
+ATOM     15  N   VAL A   2      31.776   1.490 -55.704  0.00  0.00 REC       N
+ATOM     16  CA  VAL A   2      30.574   2.010 -56.345  0.00  0.00 REC       C
+ATOM     17  C   VAL A   2      29.509   1.000 -55.928  0.00  0.00 REC       C
+ATOM     18  O   VAL A   2      29.780  -0.198 -55.887  0.00  0.00 REC       O
+ATOM     19  CB  VAL A   2      30.685   2.269 -57.837  0.00  0.00 REC       C
+ATOM     20  H   VAL A   2      32.045   0.544 -55.871  0.00  0.00 REC       H
+ATOM     21  CG1 VAL A   2      31.887   3.246 -58.100  0.00  0.00 REC       C
+ATOM     22  CG2 VAL A   2      31.188   0.917 -58.525  0.00  0.00 REC       C
+ATOM     23  N   PRO A   3      28.301   1.478 -55.620  0.00  0.00 REC       N
+ATOM     24  CA  PRO A   3      27.211   0.601 -55.209  0.00  0.00 REC       C
+ATOM     25  C   PRO A   3      26.150   0.597 -56.305  0.00  0.00 REC       C
+ATOM     26  O   PRO A   3      25.985   1.593 -57.005  0.00  0.00 REC       O
+ATOM     27  CB  PRO A   3      26.631   1.006 -53.852  0.00  0.00 REC       C
+ATOM     28  CD  PRO A   3      28.442   2.610 -54.784  0.00  0.00 REC       C
+ATOM     29  CG  PRO A   3      27.176   2.641 -53.946  0.00  0.00 REC       C
+ATOM     30  N   ASP A   4      25.430  -0.518 -56.455  0.00  0.00 REC       N
+ATOM     31  CA  ASP A   4      24.390  -0.629 -57.471  0.00  0.00 REC       C
+ATOM     32  C   ASP A   4      23.173  -1.042 -56.650  0.00  0.00 REC       C
+ATOM     33  O   ASP A   4      23.266  -1.949 -55.825  0.00  0.00 REC       O
+ATOM     34  CB  ASP A   4      24.719  -1.517 -58.657  0.00  0.00 REC       C
+ATOM     35  H   ASP A   4      25.610  -1.295 -55.855  0.00  0.00 REC       H
+ATOM     36  OD2 ASP A   4      25.919  -3.146 -57.206  0.00  0.00 REC       O
+ATOM     37  OD1 ASP A   4      24.497  -3.899 -58.703  0.00  0.00 REC       O
+ATOM     38  CG  ASP A   4      25.106  -2.966 -58.139  0.00  0.00 REC       C
+ATOM     39  N   DMP3A   5      22.034  -0.383 -56.873  0.00  0.00 REC       N
+ATOM     40  CA  DMP3A   5      20.810  -0.698 -56.143  0.00  0.00 REC       C
+ATOM     41  C   DMP3A   5      19.821  -0.519 -57.290  0.00  0.00 REC       C
+ATOM     42  O   DMP3A   5      19.736   0.564 -57.866  0.00  0.00 REC       O
+ATOM     43  CB  DMP3A   5      20.543   0.012 -54.844  0.00  0.00 REC       C
+ATOM     44  H   DMP3A   5      22.019   0.344 -57.555  0.00  0.00 REC       H
+ATOM     45  CG  DMP3A   5      21.673  -0.256 -53.698  0.00  0.00 REC       C
+ATOM     46  CD1 DMP3A   5      22.468  -1.402 -53.801  0.00  0.00 REC       C
+ATOM     47  CD2 DMP3A   5      21.758   0.544 -52.554  0.00  0.00 REC       C
+ATOM     48  CE1 DMP3A   5      23.341  -1.739 -52.771  0.00  0.00 REC       C
+ATOM     49  CE2 DMP3A   5      22.633   0.206 -51.527  0.00  0.00 REC       C
+ATOM     50  CZ  DMP3A   5      23.424  -0.936 -51.636  0.00  0.00 REC       C
+ATOM     51  CJ  DMP3A   5      21.694   0.631 -49.233  0.00  0.00 REC       C
+ATOM     52  CH  DMP3A   5      22.720   1.103 -50.279  0.00  0.00 REC       C
+ENDMDL

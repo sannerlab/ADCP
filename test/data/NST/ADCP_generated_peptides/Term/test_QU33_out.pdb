@@ -1,0 +1,63 @@
+MODEL 1
+USER: ADCP SOLUTION 1
+USER: SCORE   7.354
+USER: ROTAMERS 3 0 1 4 6 
+REMARK Selection 'not deleted'
+
+ATOM      1  N   QU33A   1      32.158  -0.697 -62.646  0.00  0.00 REC       N
+ATOM      2  CA  QU33A   1      32.158  -0.309 -61.240  0.00  0.00 REC       C
+ATOM      3  C   QU33A   1      30.923  -0.958 -60.624  0.00  0.00 REC       C
+ATOM      4  O   QU33A   1      30.653  -2.130 -60.876  0.00  0.00 REC       O
+ATOM      5  CB  QU33A   1      32.221   1.202 -61.026  0.00  0.00 REC       C
+ATOM      6  H   QU33A   1      32.158  -1.666 -62.883  0.00  0.00 REC       H
+ATOM      7  NE1 QU33A   1      33.466   2.004 -57.591  0.00  0.00 REC       N
+ATOM      8  CG  QU33A   1      32.257   1.676 -59.646  0.00  0.00 REC       C
+ATOM      9  CD1 QU33A   1      33.442   1.584 -58.880  0.00  0.00 REC       C
+ATOM     10  CE2 QU33A   1      31.148   2.641 -57.675  0.00  0.00 REC       C
+ATOM     11  CZ  QU33A   1      32.378   2.528 -56.972  0.00  0.00 REC       C
+ATOM     12  CJ1 QU33A   1      31.361   3.540 -55.003  0.00  0.00 REC       C
+ATOM     13  CJ2 QU33A   1      30.138   3.653 -55.689  0.00  0.00 REC       C
+ATOM     14  CD2 QU33A   1      31.104   2.199 -59.016  0.00  0.00 REC       C
+ATOM     15  CH1 QU33A   1      32.476   2.972 -55.639  0.00  0.00 REC       C
+ATOM     16  CH2 QU33A   1      30.026   3.199 -57.018  0.00  0.00 REC       C
+ATOM     17  N   VAL A   2      30.173  -0.202 -59.818  0.00  0.00 REC       N
+ATOM     18  CA  VAL A   2      28.971  -0.723 -59.176  0.00  0.00 REC       C
+ATOM     19  C   VAL A   2      27.762   0.111 -59.590  0.00  0.00 REC       C
+ATOM     20  O   VAL A   2      27.802   1.336 -59.505  0.00  0.00 REC       O
+ATOM     21  CB  VAL A   2      29.126  -0.760 -57.653  0.00  0.00 REC       C
+ATOM     22  H   VAL A   2      30.442   0.744 -59.650  0.00  0.00 REC       H
+ATOM     23  CG1 VAL A   2      29.226   0.667 -57.095  0.00  0.00 REC       C
+ATOM     24  CG2 VAL A   2      27.907  -1.418 -57.006  0.00  0.00 REC       C
+ATOM     25  N   PRO A   3      26.690  -0.548 -60.036  0.00  0.00 REC       N
+ATOM     26  CA  PRO A   3      25.481   0.151 -60.457  0.00  0.00 REC       C
+ATOM     27  C   PRO A   3      24.346  -0.179 -59.492  0.00  0.00 REC       C
+ATOM     28  O   PRO A   3      24.155  -1.341 -59.142  0.00  0.00 REC       O
+ATOM     29  CB  PRO A   3      25.108  -0.191 -61.902  0.00  0.00 REC       C
+ATOM     30  CD  PRO A   3      27.291  -1.310 -61.088  0.00  0.00 REC       C
+ATOM     31  CG  PRO A   3      26.686  -0.711 -62.344  0.00  0.00 REC       C
+ATOM     32  N   ASP A   4      23.595   0.838 -59.062  0.00  0.00 REC       N
+ATOM     33  CA  ASP A   4      22.485   0.634 -58.138  0.00  0.00 REC       C
+ATOM     34  C   ASP A   4      21.484   1.388 -59.008  0.00  0.00 REC       C
+ATOM     35  O   ASP A   4      21.789   2.472 -59.499  0.00  0.00 REC       O
+ATOM     36  CB  ASP A   4      22.619   0.910 -56.682  0.00  0.00 REC       C
+ATOM     37  H   ASP A   4      23.799   1.761 -59.382  0.00  0.00 REC       H
+ATOM     38  OD2 ASP A   4      20.786   0.105 -56.084  0.00  0.00 REC       O
+ATOM     39  OD1 ASP A   4      22.085   0.860 -54.481  0.00  0.00 REC       O
+ATOM     40  CG  ASP A   4      21.849   0.627 -55.685  0.00  0.00 REC       C
+ATOM     41  N   QU33A   5      20.291   0.819 -59.199  0.00  0.00 REC       N
+ATOM     42  CA  QU33A   5      19.260   1.453 -60.012  0.00  0.00 REC       C
+ATOM     43  C   QU33A   5      18.009   1.451 -59.139  0.00  0.00 REC       C
+ATOM     44  O   QU33A   5      17.675   0.428 -58.545  0.00  0.00 REC       O
+ATOM     45  CB  QU33A   5      19.064   0.810 -61.381  0.00  0.00 REC       C
+ATOM     46  H   QU33A   5      20.101  -0.063 -58.774  0.00  0.00 REC       H
+ATOM     47  NE1 QU33A   5      21.451   0.490 -64.341  0.00  0.00 REC       N
+ATOM     48  CG  QU33A   5      20.274   0.968 -62.298  0.00  0.00 REC       C
+ATOM     49  CD1 QU33A   5      20.396   0.268 -63.520  0.00  0.00 REC       C
+ATOM     50  CE2 QU33A   5      22.385   2.112 -62.831  0.00  0.00 REC       C
+ATOM     51  CZ  QU33A   5      22.433   1.379 -64.048  0.00  0.00 REC       C
+ATOM     52  CJ1 QU33A   5      24.492   2.523 -64.671  0.00  0.00 REC       C
+ATOM     53  CJ2 QU33A   5      24.457   3.249 -63.467  0.00  0.00 REC       C
+ATOM     54  CD2 QU33A   5      21.297   1.885 -61.959  0.00  0.00 REC       C
+ATOM     55  CH1 QU33A   5      23.488   1.583 -64.958  0.00  0.00 REC       C
+ATOM     56  CH2 QU33A   5      23.412   3.041 -62.545  0.00  0.00 REC       C
+ENDMDL

@@ -1,0 +1,61 @@
+MODEL 1
+USER: ADCP SOLUTION 1
+USER: SCORE  79.088
+USER: ROTAMERS 3 1 0 2 0 
+REMARK Selection 'not deleted'
+
+ATOM      1  N   PPN A   1      29.321   5.052 -49.705  0.00  0.00 REC       N
+ATOM      2  CA  PPN A   1      29.321   4.664 -48.299  0.00  0.00 REC       C
+ATOM      3  C   PPN A   1      28.086   5.313 -47.683  0.00  0.00 REC       C
+ATOM      4  O   PPN A   1      27.816   6.485 -47.935  0.00  0.00 REC       O
+ATOM      5  CB  PPN A   1      30.618   5.012 -47.572  0.00  0.00 REC       C
+ATOM      6  H   PPN A   1      29.321   6.021 -49.942  0.00  0.00 REC       H
+ATOM      7  CG  PPN A   1      31.907   4.251 -48.049  0.00  0.00 REC       C
+ATOM      8  CD1 PPN A   1      31.761   3.130 -48.870  0.00  0.00 REC       C
+ATOM      9  CD2 PPN A   1      33.183   4.631 -47.620  0.00  0.00 REC       C
+ATOM     10  CE1 PPN A   1      32.877   2.393 -49.255  0.00  0.00 REC       C
+ATOM     11  CE2 PPN A   1      34.298   3.895 -48.006  0.00  0.00 REC       C
+ATOM     12  CZ  PPN A   1      34.145   2.776 -48.822  0.00  0.00 REC       C
+ATOM     13  NH  PPN A   1      35.205   2.016 -49.231  0.00  0.00 REC       N
+ATOM     14  OJ1 PPN A   1      35.028   1.087 -49.914  0.00  0.00 REC       O
+ATOM     15  OJ2 PPN A   1      36.297   2.301 -48.936  0.00  0.00 REC       O
+ATOM     16  N   VAL A   2      27.336   4.557 -46.877  0.00  0.00 REC       N
+ATOM     17  CA  VAL A   2      26.134   5.078 -46.235  0.00  0.00 REC       C
+ATOM     18  C   VAL A   2      26.354   4.911 -44.735  0.00  0.00 REC       C
+ATOM     19  O   VAL A   2      27.016   3.966 -44.312  0.00  0.00 REC       O
+ATOM     20  CB  VAL A   2      24.846   4.431 -46.738  0.00  0.00 REC       C
+ATOM     21  H   VAL A   2      27.606   3.611 -46.709  0.00  0.00 REC       H
+ATOM     22  CG1 VAL A   2      23.636   4.870 -46.012  0.00  0.00 REC       C
+ATOM     23  CG2 VAL A   2      24.674   4.685 -48.244  0.00  0.00 REC       C
+ATOM     24  N   PRO A   3      25.802   5.823 -43.932  0.00  0.00 REC       N
+ATOM     25  CA  PRO A   3      25.951   5.758 -42.482  0.00  0.00 REC       C
+ATOM     26  C   PRO A   3      24.761   5.140 -41.753  0.00  0.00 REC       C
+ATOM     27  O   PRO A   3      23.655   5.121 -42.287  0.00  0.00 REC       O
+ATOM     28  CB  PRO A   3      26.176   7.172 -41.946  0.00  0.00 REC       C
+ATOM     29  CD  PRO A   3      25.703   7.147 -44.416  0.00  0.00 REC       C
+ATOM     30  CG  PRO A   3      25.467   8.002 -43.183  0.00  0.00 REC       C
+ATOM     31  N   ASP A   4      24.985   4.637 -40.537  0.00  0.00 REC       N
+ATOM     32  CA  ASP A   4      23.919   4.023 -39.753  0.00  0.00 REC       C
+ATOM     33  C   ASP A   4      23.867   4.719 -38.397  0.00  0.00 REC       C
+ATOM     34  O   ASP A   4      24.903   4.920 -37.767  0.00  0.00 REC       O
+ATOM     35  CB  ASP A   4      24.096   2.509 -39.620  0.00  0.00 REC       C
+ATOM     36  H   ASP A   4      25.905   4.681 -40.155  0.00  0.00 REC       H
+ATOM     37  OD2 ASP A   4      26.495   2.625 -39.359  0.00  0.00 REC       O
+ATOM     38  OD1 ASP A   4      25.355   1.411 -37.926  0.00  0.00 REC       O
+ATOM     39  CG  ASP A   4      25.420   2.157 -38.925  0.00  0.00 REC       C
+ATOM     40  N   PPN A   5      22.665   5.087 -37.945  0.00  0.00 REC       N
+ATOM     41  CA  PPN A   5      22.501   5.760 -36.661  0.00  0.00 REC       C
+ATOM     42  C   PPN A   5      21.275   5.100 -36.038  0.00  0.00 REC       C
+ATOM     43  O   PPN A   5      20.160   5.299 -36.515  0.00  0.00 REC       O
+ATOM     44  CB  PPN A   5      22.421   7.278 -36.751  0.00  0.00 REC       C
+ATOM     45  H   PPN A   5      21.859   4.898 -38.501  0.00  0.00 REC       H
+ATOM     46  CG  PPN A   5      23.702   7.996 -37.355  0.00  0.00 REC       C
+ATOM     47  CD1 PPN A   5      23.817   8.333 -38.706  0.00  0.00 REC       C
+ATOM     48  CD2 PPN A   5      24.752   8.284 -36.478  0.00  0.00 REC       C
+ATOM     49  CE1 PPN A   5      24.973   8.949 -39.177  0.00  0.00 REC       C
+ATOM     50  CE2 PPN A   5      25.906   8.900 -36.950  0.00  0.00 REC       C
+ATOM     51  CZ  PPN A   5      26.017   9.231 -38.299  0.00  0.00 REC       C
+ATOM     52  NH  PPN A   5      27.128   9.835 -38.816  0.00  0.00 REC       N
+ATOM     53  OJ1 PPN A   5      27.177  10.093 -39.953  0.00  0.00 REC       O
+ATOM     54  OJ2 PPN A   5      28.024  10.133 -38.132  0.00  0.00 REC       O
+ENDMDL

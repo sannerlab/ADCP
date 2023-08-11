@@ -1,0 +1,218 @@
+#  Last update: August 11 2023, 15:27:37
+#  IN= Internal residue; NT= N-terminal residues; CT= C-terminal residues
+#                     Swiss params           Sannerlab params
+#  NSTname            IN   NT   CT               IN   NT   CT
+  1    004             Y    N    N                Y    Y    Y
+  2    0A1             Y    N    N                Y    Y    Y
+  3    0AF             Y    N    N                Y    Y    Y
+  4    200             Y    N    N                Y    Y    Y
+  5    26P             Y    N    N                Y    Y    Y
+  6    2AG             Y    N    N                Y    Y    Y
+  7    2AS             Y    N    N                Y    Y    Y
+  8    2FM             Y    N    N                Y    Y    Y
+  9    2HF             Y    N    N                Y    Y    Y
+ 10   2HF1             Y    N    N                Y    Y    Y
+ 11   2HF2             Y    N    N                Y    Y    Y
+ 12    2NP             Y    N    N                Y    Y    Y
+ 13    32T             Y    N    N                Y    Y    Y
+ 14    3CF             Y    N    N                Y    Y    Y
+ 15    3FG             Y    N    N                Y    Y    Y
+ 16    3GL             Y    N    N                Y    Y    Y
+ 17    3MY             Y    N    N                Y    Y    Y
+ 18    4BF             Y    N    N                Y    Y    Y
+ 19    4CF             Y    N    N                Y    Y    Y
+ 20    4CY             Y    N    N                Y    Y    Y
+ 21    4FW             Y    N    N                Y    Y    Y
+ 22    4HT             Y    N    N                Y    Y    Y
+ 23    4IN             Y    N    N                Y    Y    Y
+ 24    4PH             Y    N    N                Y    Y    Y
+ 25    6CL             Y    N    N                Y    Y    Y
+ 26    AA4             Y    N    N                Y    Y    Y
+ 27    ABA             Y    N    N                Y    Y    Y
+ 28    ACZ             Y    N    N                Y    Y    Y
+ 29   ADAM             Y    N    N                Y    Y    Y
+ 30    AHB             Y    N    N                Y    Y    Y
+ 31    AHP             Y    N    N                Y    Y    Y
+ 32    ALC             Y    N    N                Y    Y    Y
+ 33    ALN             Y    N    N                Y    Y    Y
+ 34    ALO             Y    N    N                Y    Y    Y
+ 35   ANTH             Y    N    N                Y    Y    Y
+ 36    APD             Y    N    N                Y    Y    Y
+ 37    APM             Y    N    N                Y    Y    Y
+ 38    ARO             Y    N    N                Y    Y    Y
+ 39    AS2             Y    N    N                Y    Y    Y
+ 40    BB8             Y    N    N                Y    Y    Y
+ 41    BCS             Y    N    N                Y    Y    Y
+ 42    BHD             Y    N    N                Y    Y    Y
+ 43    BIF             Y    N    N                Y    Y    Y
+ 44    BIU             Y    N    N                Y    Y    Y
+ 45    BTR             Y    N    N                Y    Y    Y
+ 46    BUG             Y    N    N                Y    Y    Y
+ 47    C2N             Y    N    N                Y    Y    Y
+ 48    CAN             Y    N    N                Y    Y    Y
+ 49    CHG             Y    N    N                Y    Y    Y
+ 50    CHP             Y    N    N                Y    Y    Y
+ 51   CNP2             Y    N    N                Y    Y    Y
+ 52   CP24             Y    N    N                Y    Y    Y
+ 53   CP34             Y    N    N                Y    Y    Y
+ 54   CPA3             Y    N    N                Y    Y    Y
+ 55   CPG2             Y    N    N                Y    Y    Y
+ 56   CPG3             Y    N    N                Y    Y    Y
+ 57   CPG4             Y    N    N                Y    Y    Y
+ 58   CPH2             Y    N    N                Y    Y    Y
+ 59    CSA             Y    N    N                Y    Y    Y
+ 60    CTE             Y    N    N                Y    Y    Y
+ 61    CTH             Y    N    N                Y    Y    Y
+ 62    D4P             Y    N    N                Y    Y    Y
+ 63    DAB             Y    N    N                Y    Y    Y
+ 64    DAH             Y    N    N                Y    Y    Y
+ 65    DBY             Y    N    N                Y    Y    Y
+ 66    DDZ             Y    N    N                Y    Y    Y
+ 67   DIPH             Y    N    N                Y    Y    Y
+ 68    DMK             Y    N    N                Y    Y    Y
+ 69   DMP3             Y    N    N                Y    Y    Y
+ 70    DPP             Y    N    N                Y    Y    Y
+ 71    ESC             Y    N    N                Y    Y    Y
+ 72    F2F             Y    N    N                Y    Y    Y
+ 73    FCL             Y    N    N                Y    Y    Y
+ 74   FGA4             Y    N    N                Y    Y    Y
+ 75    FGL             Y    N    N                Y    Y    Y
+ 76    FLA             Y    N    N                Y    Y    Y
+ 77   FPG2             Y    N    N                Y    Y    Y
+ 78   FPG3             Y    N    N                Y    Y    Y
+ 79   FPG4             Y    N    N                Y    Y    Y
+ 80   FPH2             Y    N    N                Y    Y    Y
+ 81   FPH3             Y    N    N                Y    Y    Y
+ 82   FUA2             Y    N    N                Y    Y    Y
+ 83   GBUT             Y    N    N                Y    Y    Y
+ 84   GDPR             Y    N    N                Y    Y    Y
+ 85    GGB             Y    N    N                Y    Y    Y
+ 86    GHG             Y    N    N                Y    Y    Y
+ 87    GME             Y    N    N                Y    Y    Y
+ 88    HCS             Y    N    N                Y    Y    Y
+ 89    HGA             Y    N    N                Y    Y    Y
+ 90    HHK             Y    N    N                Y    Y    Y
+ 91   HIL4             Y    N    N                Y    Y    Y
+ 92    HL2             Y    N    N                Y    Y    Y
+ 93    HLU             Y    N    N                Y    Y    Y
+ 94    HOX             Y    N    N                Y    Y    Y
+ 95    HPE             Y    N    N                Y    Y    Y
+ 96    HQA             Y    N    N                Y    Y    Y
+ 97    HRG             Y    N    N                Y    Y    Y
+ 98    HRP             Y    N    N                Y    Y    Y
+ 99    HTR             Y    N    N                Y    Y    Y
+100    HVA             Y    N    N                Y    Y    Y
+101    I2M             Y    N    N                Y    Y    Y
+102    IGL             Y    N    N                Y    Y    Y
+103    IIL             Y    N    N                Y    Y    Y
+104    ILX             Y    N    N                Y    Y    Y
+105    LDO             Y    N    N                Y    Y    Y
+106    LE1             Y    N    N                Y    Y    Y
+107    LED             Y    N    N                Y    Y    Y
+108    LEF             Y    N    N                Y    Y    Y
+109    LME             Y    N    N                Y    Y    Y
+110    LMQ             Y    N    N                Y    Y    Y
+111    LVG             Y    N    N                Y    Y    Y
+112    LVN             Y    N    N                Y    Y    Y
+113    ME0             Y    N    N                Y    Y    Y
+114    MEG             Y    N    N                Y    Y    Y
+115    MEN             Y    N    N                Y    Y    Y
+116    MEQ             Y    N    N                Y    Y    Y
+117   MOT5             Y    N    N                Y    Y    Y
+118   MP34             Y    N    N                Y    Y    Y
+119   MPH2             Y    N    N                Y    Y    Y
+120   MTR5             Y    N    N                Y    Y    Y
+121   MTR6             Y    N    N                Y    Y    Y
+122    MTY             Y    N    N                Y    Y    Y
+123   NAO1             Y    N    N                Y    Y    Y
+124   NAO2             Y    N    N                Y    Y    Y
+125    NLE             Y    N    N                Y    Y    Y
+126    NVA             Y    N    N                Y    Y    Y
+127    OAS             Y    N    N                Y    Y    Y
+128    OBF             Y    N    N                Y    Y    Y
+129    OCY             Y    N    N                Y    Y    Y
+130    OLT             Y    N    N                Y    Y    Y
+131    OMT             Y    N    N                Y    Y    Y
+132    OMX             Y    N    N                Y    Y    Y
+133    OMY             Y    N    N                Y    Y    Y
+134    ONL             Y    N    N                Y    Y    Y
+135    ORN             Y    N    N                Y    Y    Y
+136    PF5             Y    N    N                Y    Y    Y
+137    PFF             Y    N    N                Y    Y    Y
+138   PYR2             Y    N    N                Y    Y    Y
+139   PYR3             Y    N    N                Y    Y    Y
+140   PYR4             Y    N    N                Y    Y    Y
+141   PYZ1             Y    N    N                Y    Y    Y
+142   QU32             Y    N    N                Y    Y    Y
+143   QU34             Y    N    N                Y    Y    Y
+144   QU35             Y    N    N                Y    Y    Y
+145   QU36             Y    N    N                Y    Y    Y
+146    SEP             Y    N    N                Y    Y    Y
+147   TBP4             Y    N    N                Y    Y    Y
+148   TEZA             Y    N    N                Y    Y    Y
+149   TFG2             Y    N    N                Y    Y    Y
+150   TFG3             Y    N    N                Y    Y    Y
+151   TFG4             Y    N    N                Y    Y    Y
+152   TFLE             Y    N    N                Y    Y    Y
+153   TFP2             Y    N    N                Y    Y    Y
+154   TFP3             Y    N    N                Y    Y    Y
+155   TFP4             Y    N    N                Y    Y    Y
+156    TH6             Y    N    N                Y    Y    Y
+157   THA3             Y    N    N                Y    Y    Y
+158   THG2             Y    N    N                Y    Y    Y
+159   THG3             Y    N    N                Y    Y    Y
+160    TIH             Y    N    N                Y    Y    Y
+161    TPO             Y    N    N                Y    Y    Y
+162   TPO2             Y    N    N                Y    Y    Y
+163    TRX             Y    N    N                Y    Y    Y
+164   TRZ4             Y    N    N                Y    Y    Y
+165    TTQ             Y    N    N                Y    Y    Y
+166    TY2             Y    N    N                Y    Y    Y
+167    TYQ             Y    N    N                Y    Y    Y
+168   TZA4             Y    N    N                Y    Y    Y
+169    UN1             Y    N    N                Y    Y    Y
+170    VAH             Y    N    N                Y    Y    Y
+171    WFP             Y    N    N                Y    Y    Y
+172    YCM             Y    N    N                Y    Y    Y
+173    YOF             Y    N    N                Y    Y    Y
+#  
+174    0BN             Y    N    N                N    N    N
+175   4HMP             Y    N    N                N    N    N
+176    6CW             Y    N    N                N    N    N
+177    AGM             Y    N    N                N    N    N
+178   AZDA             Y    N    N                N    N    N
+179   BTH3             Y    N    N                N    N    N
+180    CCS             Y    N    N                N    N    N
+181    CIR             Y    N    N                N    N    N
+182    CSE             N    N    N                N    N    N
+183   DILE             Y    N    N                N    N    N
+184    FT6             N    N    N                N    N    N
+185    FTR             N    N    N                N    N    N
+186   FVAL             N    N    N                N    N    N
+187   HLEU             Y    N    N                N    N    N
+188   HSER             Y    N    N                N    N    N
+189    IYR             N    N    N                N    N    N
+190    KYN             Y    N    N                N    N    N
+191    M2S             Y    N    N                N    N    N
+192    MHO             Y    N    N                N    N    N
+193    NAL             Y    N    N                N    N    N
+194    NIY             Y    N    N                N    N    N
+195   OTYR             Y    N    N                N    N    N
+196    PBF             N    N    N                N    N    N
+197    PHI             N    N    N                N    N    N
+198    PPN             Y    N    N                N    N    N
+199    PTR             Y    N    N                N    N    N
+200   PTR2             Y    N    N                N    N    N
+201   QU33             Y    N    N                N    N    N
+202   QX32             Y    N    N                N    N    N
+203   SEP2             Y    N    N                N    N    N
+204    SLZ             Y    N    N                N    N    N
+205    SME             Y    N    N                N    N    N
+206   STYA             Y    N    N                N    N    N
+207    SYM             Y    N    N                N    N    N
+208   THIC             Y    N    N                N    N    N
+209    TRO             Y    N    N                N    N    N
+210    TYI             N    N    N                N    N    N
+#  -----------------------------------------------------------
+#  Total             202    0    0              2173  173  173
+#  Remaining           8  210  210                37   37   37

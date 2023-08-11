@@ -1,0 +1,55 @@
+MODEL 1
+USER: ADCP SOLUTION 1
+USER: SCORE  56.370
+USER: ROTAMERS 1 2 0 7 1 
+REMARK Selection 'not deleted'
+
+ATOM      1  N   CPG3A   1      32.871  -1.758 -44.800  0.00  0.00 REC       N
+ATOM      2  CA  CPG3A   1      32.871  -1.370 -43.394  0.00  0.00 REC       C
+ATOM      3  C   CPG3A   1      31.636  -2.019 -42.778  0.00  0.00 REC       C
+ATOM      4  O   CPG3A   1      31.366  -3.191 -43.030  0.00  0.00 REC       O
+ATOM      5  CB  CPG3A   1      32.935   0.141 -43.180  0.00  0.00 REC       C
+ATOM      6  H   CPG3A   1      32.871  -2.727 -45.037  0.00  0.00 REC       H
+ATOM      7  CG1 CPG3A   1      32.008   0.979 -43.942  0.00  0.00 REC       C
+ATOM      8  CG2 CPG3A   1      33.983   0.734 -42.554  0.00  0.00 REC       C
+ATOM      9  CD1 CPG3A   1      32.088   2.376 -43.809  0.00  0.00 REC       C
+ATOM     10  CD2 CPG3A   1      34.077   2.134 -42.437  0.00  0.00 REC       C
+ATOM     11  CE  CPG3A   1      33.124   2.956 -43.058  0.00  0.00 REC       C
+ATOM     12 CLD  CPG3A   1      35.397   2.855 -41.507  0.00  0.00 REC      CL
+ATOM     13  N   VAL A   2      30.887  -1.263 -41.972  0.00  0.00 REC       N
+ATOM     14  CA  VAL A   2      29.685  -1.784 -41.331  0.00  0.00 REC       C
+ATOM     15  C   VAL A   2      28.634  -0.702 -41.558  0.00  0.00 REC       C
+ATOM     16  O   VAL A   2      28.825   0.439 -41.141  0.00  0.00 REC       O
+ATOM     17  CB  VAL A   2      29.871  -2.187 -39.874  0.00  0.00 REC       C
+ATOM     18  H   VAL A   2      31.156  -0.317 -41.805  0.00  0.00 REC       H
+ATOM     19  CG1 VAL A   2      30.997  -3.251 -39.764  0.00  0.00 REC       C
+ATOM     20  CG2 VAL A   2      30.444  -0.943 -39.085  0.00  0.00 REC       C
+ATOM     21  N   PRO A   3      27.527  -1.054 -42.216  0.00  0.00 REC       N
+ATOM     22  CA  PRO A   3      26.459  -0.098 -42.487  0.00  0.00 REC       C
+ATOM     23  C   PRO A   3      25.146  -0.423 -41.782  0.00  0.00 REC       C
+ATOM     24  O   PRO A   3      24.796  -1.593 -41.642  0.00  0.00 REC       O
+ATOM     25  CB  PRO A   3      26.214  -0.036 -43.996  0.00  0.00 REC       C
+ATOM     26  CD  PRO A   3      27.901  -1.799 -43.357  0.00  0.00 REC       C
+ATOM     27  CG  PRO A   3      26.808  -1.534 -44.378  0.00  0.00 REC       C
+ATOM     28  N   ASP A   4      24.419   0.606 -41.339  0.00  0.00 REC       N
+ATOM     29  CA  ASP A   4      23.148   0.407 -40.651  0.00  0.00 REC       C
+ATOM     30  C   ASP A   4      22.222   1.270 -41.504  0.00  0.00 REC       C
+ATOM     31  O   ASP A   4      22.573   2.397 -41.846  0.00  0.00 REC       O
+ATOM     32  CB  ASP A   4      23.133   0.660 -39.160  0.00  0.00 REC       C
+ATOM     33  H   ASP A   4      24.755   1.534 -41.482  0.00  0.00 REC       H
+ATOM     34  OD2 ASP A   4      24.311  -1.447 -39.017  0.00  0.00 REC       O
+ATOM     35  OD1 ASP A   4      24.478  -0.129 -37.267  0.00  0.00 REC       O
+ATOM     36  CG  ASP A   4      24.085  -0.368 -38.428  0.00  0.00 REC       C
+ATOM     37  N   CPG3A   5      21.043   0.745 -41.847  0.00  0.00 REC       N
+ATOM     38  CA  CPG3A   5      20.083   1.483 -42.660  0.00  0.00 REC       C
+ATOM     39  C   CPG3A   5      18.894   1.467 -41.705  0.00  0.00 REC       C
+ATOM     40  O   CPG3A   5      18.471   0.400 -41.266  0.00  0.00 REC       O
+ATOM     41  CB  CPG3A   5      19.857   1.024 -44.077  0.00  0.00 REC       C
+ATOM     42  H   CPG3A   5      20.814  -0.176 -41.539  0.00  0.00 REC       H
+ATOM     43  CG1 CPG3A   5      19.734  -0.510 -44.230  0.00  0.00 REC       C
+ATOM     44  CG2 CPG3A   5      20.265   1.663 -45.170  0.00  0.00 REC       C
+ATOM     45  CD1 CPG3A   5      19.655  -1.051 -45.526  0.00  0.00 REC       C
+ATOM     46  CD2 CPG3A   5      20.207   1.118 -46.467  0.00  0.00 REC       C
+ATOM     47  CE  CPG3A   5      19.894  -0.238 -46.646  0.00  0.00 REC       C
+ATOM     48 CLD  CPG3A   5      20.532   2.145 -47.871  0.00  0.00 REC      CL
+ENDMDL

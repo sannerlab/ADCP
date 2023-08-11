@@ -1,0 +1,65 @@
+MODEL 1
+USER: ADCP SOLUTION 1
+USER: SCORE  39.385
+USER: ROTAMERS 17 2 0 0 29 
+REMARK Selection 'not deleted'
+
+ATOM      1  N   PTR2A   1      27.811  -0.689 -57.517  0.00  0.00 REC       N
+ATOM      2  CA  PTR2A   1      27.811  -1.077 -56.111  0.00  0.00 REC       C
+ATOM      3  C   PTR2A   1      26.576  -0.428 -55.495  0.00  0.00 REC       C
+ATOM      4  O   PTR2A   1      26.307   0.744 -55.747  0.00  0.00 REC       O
+ATOM      5  CB  PTR2A   1      29.108  -0.729 -55.384  0.00  0.00 REC       C
+ATOM      6  H   PTR2A   1      27.811   0.280 -57.754  0.00  0.00 REC       H
+ATOM      7  CG  PTR2A   1      29.316   0.809 -55.542  0.00  0.00 REC       C
+ATOM      8  CD1 PTR2A   1      28.996   1.588 -54.446  0.00  0.00 REC       C
+ATOM      9  CD2 PTR2A   1      29.798   1.396 -56.695  0.00  0.00 REC       C
+ATOM     10  CE1 PTR2A   1      29.152   2.958 -54.504  0.00  0.00 REC       C
+ATOM     11  CE2 PTR2A   1      29.950   2.769 -56.760  0.00  0.00 REC       C
+ATOM     12  CZ  PTR2A   1      29.630   3.553 -55.662  0.00  0.00 REC       C
+ATOM     13  OH  PTR2A   1      29.784   4.902 -55.721  0.00  0.00 REC       O
+ATOM     14  P   PTR2A   1      31.310   5.215 -55.321  0.00  0.00 REC       P
+ATOM     15  O1P PTR2A   1      31.573   4.714 -53.952  0.00  0.00 REC       O
+ATOM     16  O2P PTR2A   1      32.301   4.480 -56.356  0.00  0.00 REC       O
+ATOM     17  O3P PTR2A   1      31.565   6.801 -55.368  0.00  0.00 REC       O
+ATOM     18  N   VAL A   2      25.827  -1.184 -54.689  0.00  0.00 REC       N
+ATOM     19  CA  VAL A   2      24.625  -0.663 -54.048  0.00  0.00 REC       C
+ATOM     20  C   VAL A   2      24.926  -0.742 -52.554  0.00  0.00 REC       C
+ATOM     21  O   VAL A   2      25.477  -1.737 -52.089  0.00  0.00 REC       O
+ATOM     22  CB  VAL A   2      23.335  -1.357 -54.468  0.00  0.00 REC       C
+ATOM     23  H   VAL A   2      26.096  -2.130 -54.522  0.00  0.00 REC       H
+ATOM     24  CG1 VAL A   2      23.163  -1.255 -56.008  0.00  0.00 REC       C
+ATOM     25  CG2 VAL A   2      23.495  -2.905 -54.203  0.00  0.00 REC       C
+ATOM     26  N   PRO A   3      24.568   0.303 -51.803  0.00  0.00 REC       N
+ATOM     27  CA  PRO A   3      24.809   0.332 -50.365  0.00  0.00 REC       C
+ATOM     28  C   PRO A   3      23.508   0.388 -49.571  0.00  0.00 REC       C
+ATOM     29  O   PRO A   3      22.562   1.054 -49.985  0.00  0.00 REC       O
+ATOM     30  CB  PRO A   3      25.698   1.526 -50.004  0.00  0.00 REC       C
+ATOM     31  CD  PRO A   3      25.030   1.465 -52.463  0.00  0.00 REC       C
+ATOM     32  CG  PRO A   3      25.323   2.458 -51.352  0.00  0.00 REC       C
+ATOM     33  N   ASP A   4      23.457  -0.308 -48.433  0.00  0.00 REC       N
+ATOM     34  CA  ASP A   4      22.262  -0.324 -47.596  0.00  0.00 REC       C
+ATOM     35  C   ASP A   4      22.810   0.059 -46.225  0.00  0.00 REC       C
+ATOM     36  O   ASP A   4      23.848  -0.454 -45.813  0.00  0.00 REC       O
+ATOM     37  CB  ASP A   4      21.445  -1.603 -47.643  0.00  0.00 REC       C
+ATOM     38  H   ASP A   4      24.257  -0.831 -48.147  0.00  0.00 REC       H
+ATOM     39  OD2 ASP A   4      22.982  -2.855 -46.271  0.00  0.00 REC       O
+ATOM     40  OD1 ASP A   4      22.530  -3.764 -48.219  0.00  0.00 REC       O
+ATOM     41  CG  ASP A   4      22.411  -2.846 -47.383  0.00  0.00 REC       C
+ATOM     42  N   PTR2A   5      22.118   0.956 -45.520  0.00  0.00 REC       N
+ATOM     43  CA  PTR2A   5      22.552   1.393 -44.198  0.00  0.00 REC       C
+ATOM     44  C   PTR2A   5      21.301   1.328 -43.328  0.00  0.00 REC       C
+ATOM     45  O   PTR2A   5      20.275   1.905 -43.680  0.00  0.00 REC       O
+ATOM     46  CB  PTR2A   5      23.246   2.751 -44.189  0.00  0.00 REC       C
+ATOM     47  H   PTR2A   5      21.282   1.338 -45.907  0.00  0.00 REC       H
+ATOM     48  CG  PTR2A   5      23.993   3.047 -43.042  0.00  0.00 REC       C
+ATOM     49  CD1 PTR2A   5      24.252   2.027 -42.146  0.00  0.00 REC       C
+ATOM     50  CD2 PTR2A   5      24.439   4.329 -42.782  0.00  0.00 REC       C
+ATOM     51  CE1 PTR2A   5      24.950   2.287 -40.984  0.00  0.00 REC       C
+ATOM     52  CE2 PTR2A   5      25.132   4.597 -41.617  0.00  0.00 REC       C
+ATOM     53  CZ  PTR2A   5      25.393   3.574 -40.717  0.00  0.00 REC       C
+ATOM     54  OH  PTR2A   5      26.082   3.834 -39.574  0.00  0.00 REC       O
+ATOM     55  P   PTR2A   5      27.643   3.673 -39.923  0.00  0.00 REC       P
+ATOM     56  O1P PTR2A   5      27.899   2.298 -40.410  0.00  0.00 REC       O
+ATOM     57  O2P PTR2A   5      28.050   4.729 -41.068  0.00  0.00 REC       O
+ATOM     58  O3P PTR2A   5      28.521   3.946 -38.604  0.00  0.00 REC       O
+ENDMDL

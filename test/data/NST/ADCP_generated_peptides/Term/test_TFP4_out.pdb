@@ -1,0 +1,63 @@
+MODEL 1
+USER: ADCP SOLUTION 1
+USER: SCORE  29.350
+USER: ROTAMERS 11 1 0 3 8 
+REMARK Selection 'not deleted'
+
+ATOM      1  N   TFP4A   1      19.513  -0.805 -34.287  0.00  0.00 REC       N
+ATOM      2  CA  TFP4A   1      19.513  -1.193 -35.693  0.00  0.00 REC       C
+ATOM      3  C   TFP4A   1      20.748  -0.544 -36.309  0.00  0.00 REC       C
+ATOM      4  O   TFP4A   1      21.018   0.628 -36.057  0.00  0.00 REC       O
+ATOM      5  CB  TFP4A   1      18.216  -0.845 -36.420  0.00  0.00 REC       C
+ATOM      6  H   TFP4A   1      19.513   0.164 -34.050  0.00  0.00 REC       H
+ATOM      7  CG  TFP4A   1      17.802   0.680 -36.391  0.00  0.00 REC       C
+ATOM      8  CD1 TFP4A   1      18.696   1.618 -35.867  0.00  0.00 REC       C
+ATOM      9  CD2 TFP4A   1      16.580   1.109 -36.918  0.00  0.00 REC       C
+ATOM     10  CE1 TFP4A   1      18.369   2.970 -35.865  0.00  0.00 REC       C
+ATOM     11  CE2 TFP4A   1      16.256   2.461 -36.916  0.00  0.00 REC       C
+ATOM     12  CZ  TFP4A   1      17.149   3.392 -36.390  0.00  0.00 REC       C
+ATOM     13  CH1 TFP4A   1      16.789   4.888 -36.387  0.00  0.00 REC       C
+ATOM     14  FH1 TFP4A   1      17.902   5.621 -36.603  0.00  0.00 REC       F
+ATOM     15  FH2 TFP4A   1      16.259   5.221 -35.189  0.00  0.00 REC       F
+ATOM     16  FH3 TFP4A   1      15.888   5.138 -37.362  0.00  0.00 REC       F
+ATOM     17  N   VAL A   2      21.498  -1.300 -37.115  0.00  0.00 REC       N
+ATOM     18  CA  VAL A   2      22.700  -0.779 -37.756  0.00  0.00 REC       C
+ATOM     19  C   VAL A   2      22.324  -0.863 -39.232  0.00  0.00 REC       C
+ATOM     20  O   VAL A   2      21.601  -1.773 -39.633  0.00  0.00 REC       O
+ATOM     21  CB  VAL A   2      24.008  -1.435 -37.360  0.00  0.00 REC       C
+ATOM     22  H   VAL A   2      21.228  -2.246 -37.282  0.00  0.00 REC       H
+ATOM     23  CG1 VAL A   2      25.186  -1.040 -38.044  0.00  0.00 REC       C
+ATOM     24  CG2 VAL A   2      24.190  -1.307 -35.801  0.00  0.00 REC       C
+ATOM     25  N   PRO A   3      22.810   0.082 -40.041  0.00  0.00 REC       N
+ATOM     26  CA  PRO A   3      22.514   0.097 -41.469  0.00  0.00 REC       C
+ATOM     27  C   PRO A   3      23.814  -0.040 -42.255  0.00  0.00 REC       C
+ATOM     28  O   PRO A   3      24.765   0.698 -42.005  0.00  0.00 REC       O
+ATOM     29  CB  PRO A   3      21.743   1.358 -41.870  0.00  0.00 REC       C
+ATOM     30  CD  PRO A   3      22.505   1.305 -39.402  0.00  0.00 REC       C
+ATOM     31  CG  PRO A   3      22.273   2.293 -40.532  0.00  0.00 REC       C
+ATOM     32  N   ASP A   4      23.858  -0.979 -43.203  0.00  0.00 REC       N
+ATOM     33  CA  ASP A   4      25.051  -1.194 -44.014  0.00  0.00 REC       C
+ATOM     34  C   ASP A   4      24.627  -1.057 -45.473  0.00  0.00 REC       C
+ATOM     35  O   ASP A   4      23.660  -1.688 -45.894  0.00  0.00 REC       O
+ATOM     36  CB  ASP A   4      25.742  -2.525 -43.717  0.00  0.00 REC       C
+ATOM     37  H   ASP A   4      23.054  -1.548 -43.361  0.00  0.00 REC       H
+ATOM     38  OD2 ASP A   4      27.936  -1.914 -44.176  0.00  0.00 REC       O
+ATOM     39  OD1 ASP A   4      27.154  -3.734 -45.122  0.00  0.00 REC       O
+ATOM     40  CG  ASP A   4      27.024  -2.744 -44.374  0.00  0.00 REC       C
+ATOM     41  N   TFP4A   5      25.344  -0.235 -46.243  0.00  0.00 REC       N
+ATOM     42  CA  TFP4A   5      25.025  -0.030 -47.651  0.00  0.00 REC       C
+ATOM     43  C   TFP4A   5      26.346  -0.405 -48.316  0.00  0.00 REC       C
+ATOM     44  O   TFP4A   5      27.408  -0.016 -47.835  0.00  0.00 REC       O
+ATOM     45  CB  TFP4A   5      24.441   1.317 -48.022  0.00  0.00 REC       C
+ATOM     46  H   TFP4A   5      26.119   0.251 -45.844  0.00  0.00 REC       H
+ATOM     47  CG  TFP4A   5      23.699   1.622 -49.210  0.00  0.00 REC       C
+ATOM     48  CD1 TFP4A   5      23.381   0.532 -50.026  0.00  0.00 REC       C
+ATOM     49  CD2 TFP4A   5      23.351   2.914 -49.617  0.00  0.00 REC       C
+ATOM     50  CE1 TFP4A   5      22.726   0.732 -51.238  0.00  0.00 REC       C
+ATOM     51  CE2 TFP4A   5      22.695   3.111 -50.828  0.00  0.00 REC       C
+ATOM     52  CZ  TFP4A   5      22.384   2.022 -51.638  0.00  0.00 REC       C
+ATOM     53  CH1 TFP4A   5      21.659   2.242 -52.979  0.00  0.00 REC       C
+ATOM     54  FH1 TFP4A   5      20.330   2.079 -52.805  0.00  0.00 REC       F
+ATOM     55  FH2 TFP4A   5      22.107   1.345 -53.884  0.00  0.00 REC       F
+ATOM     56  FH3 TFP4A   5      21.905   3.492 -53.425  0.00  0.00 REC       F
+ENDMDL

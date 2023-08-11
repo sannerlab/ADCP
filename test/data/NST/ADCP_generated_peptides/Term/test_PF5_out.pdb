@@ -1,0 +1,65 @@
+MODEL 1
+USER: ADCP SOLUTION 1
+USER: SCORE  39.585
+USER: ROTAMERS 2 2 0 5 2 
+REMARK Selection 'not deleted'
+
+ATOM      1  N   PF5 A   1      36.987  -3.851 -42.114  0.00  0.00 REC       N
+ATOM      2  CA  PF5 A   1      35.922  -3.102 -42.772  0.00  0.00 REC       C
+ATOM      3  C   PF5 A   1      34.766  -2.202 -43.198  0.00  0.00 REC       C
+ATOM      4  O   PF5 A   1      34.740  -1.025 -42.846  0.00  0.00 REC       O
+ATOM      5  CB  PF5 A   1      35.698  -3.443 -42.831  0.00  0.00 REC       C
+ATOM      6  H   PF5 A   1      36.969  -4.848 -42.140  0.00  0.00 REC       H
+ATOM      7  CG  PF5 A   1      34.161  -4.945 -42.118  0.00  0.00 REC       C
+ATOM      8  CD1 PF5 A   1      33.122  -4.459 -41.319  0.00  0.00 REC       C
+ATOM      9  CD2 PF5 A   1      34.646  -6.239 -41.909  0.00  0.00 REC       C
+ATOM     10  CE1 PF5 A   1      32.576  -5.256 -40.318  0.00  0.00 REC       C
+ATOM     11  CE2 PF5 A   1      34.099  -7.036 -40.907  0.00  0.00 REC       C
+ATOM     12  CZ  PF5 A   1      33.066  -6.545 -40.114  0.00  0.00 REC       C
+ATOM     13  FD2 PF5 A   1      35.653  -6.723 -42.667  0.00  0.00 REC       F
+ATOM     14  FE2 PF5 A   1      34.570  -8.285 -40.705  0.00  0.00 REC       F
+ATOM     15  FZ  PF5 A   1      32.536  -7.320 -39.142  0.00  0.00 REC       F
+ATOM     16  FE1 PF5 A   1      31.575  -4.783 -39.547  0.00  0.00 REC       F
+ATOM     17  FD1 PF5 A   1      32.595  -3.232 -41.517  0.00  0.00 REC       F
+ATOM     18  N   VAL A   2      33.812  -2.751 -43.955  0.00  0.00 REC       N
+ATOM     19  CA  VAL A   2      32.663  -1.980 -44.418  0.00  0.00 REC       C
+ATOM     20  C   VAL A   2      31.294  -2.651 -44.419  0.00  0.00 REC       C
+ATOM     21  O   VAL A   2      31.116  -3.689 -45.054  0.00  0.00 REC       O
+ATOM     22  CB  VAL A   2      32.955  -1.572 -45.850  0.00  0.00 REC       C
+ATOM     23  H   VAL A   2      33.888  -3.712 -44.209  0.00  0.00 REC       H
+ATOM     24  CG1 VAL A   2      34.055  -0.611 -46.005  0.00  0.00 REC       C
+ATOM     25  CG2 VAL A   2      33.045  -2.721 -46.791  0.00  0.00 REC       C
+ATOM     26  N   PRO A   3      30.326  -2.064 -43.711  0.00  0.00 REC       N
+ATOM     27  CA  PRO A   3      28.979  -2.621 -43.643  0.00  0.00 REC       C
+ATOM     28  C   PRO A   3      27.950  -1.879 -44.490  0.00  0.00 REC       C
+ATOM     29  O   PRO A   3      28.038  -0.662 -44.640  0.00  0.00 REC       O
+ATOM     30  CB  PRO A   3      28.515  -2.617 -42.186  0.00  0.00 REC       C
+ATOM     31  CD  PRO A   3      30.749  -1.498 -42.487  0.00  0.00 REC       C
+ATOM     32  CG  PRO A   3      29.493  -1.403 -41.639  0.00  0.00 REC       C
+ATOM     33  N   ASP A   4      26.977  -2.606 -45.045  0.00  0.00 REC       N
+ATOM     34  CA  ASP A   4      25.942  -1.998 -45.873  0.00  0.00 REC       C
+ATOM     35  C   ASP A   4      24.605  -2.301 -45.204  0.00  0.00 REC       C
+ATOM     36  O   ASP A   4      24.303  -3.461 -44.930  0.00  0.00 REC       O
+ATOM     37  CB  ASP A   4      25.998  -2.457 -47.330  0.00  0.00 REC       C
+ATOM     38  H   ASP A   4      26.958  -3.591 -44.888  0.00  0.00 REC       H
+ATOM     39  OD2 ASP A   4      23.976  -1.579 -48.041  0.00  0.00 REC       O
+ATOM     40  OD1 ASP A   4      25.753  -1.161 -49.264  0.00  0.00 REC       O
+ATOM     41  CG  ASP A   4      25.199  -1.687 -48.277  0.00  0.00 REC       C
+ATOM     42  N   PF5 A   5      23.805  -1.266 -44.941  0.00  0.00 REC       N
+ATOM     43  CA  PF5 A   5      22.505  -1.443 -44.303  0.00  0.00 REC       C
+ATOM     44  C   PF5 A   5      21.563  -0.949 -45.396  0.00  0.00 REC       C
+ATOM     45  O   PF5 A   5      21.753   0.145 -45.924  0.00  0.00 REC       O
+ATOM     46  CB  PF5 A   5      22.335  -0.819 -42.934  0.00  0.00 REC       C
+ATOM     47  H   PF5 A   5      24.105  -0.346 -45.186  0.00  0.00 REC       H
+ATOM     48  CG  PF5 A   5      22.864   0.730 -42.864  0.00  0.00 REC       C
+ATOM     49  CD1 PF5 A   5      21.892   1.710 -43.090  0.00  0.00 REC       C
+ATOM     50  CD2 PF5 A   5      24.184   1.112 -42.611  0.00  0.00 REC       C
+ATOM     51  CE1 PF5 A   5      22.237   3.058 -43.068  0.00  0.00 REC       C
+ATOM     52  CE2 PF5 A   5      24.528   2.461 -42.588  0.00  0.00 REC       C
+ATOM     53  CZ  PF5 A   5      23.556   3.431 -42.816  0.00  0.00 REC       C
+ATOM     54  FD2 PF5 A   5      25.136   0.180 -42.396  0.00  0.00 REC       F
+ATOM     55  FE2 PF5 A   5      25.804   2.827 -42.345  0.00  0.00 REC       F
+ATOM     56  FZ  PF5 A   5      23.892   4.739 -42.794  0.00  0.00 REC       F
+ATOM     57  FE1 PF5 A   5      21.298   4.000 -43.289  0.00  0.00 REC       F
+ATOM     58  FD1 PF5 A   5      20.597   1.385 -43.294  0.00  0.00 REC       F
+ENDMDL

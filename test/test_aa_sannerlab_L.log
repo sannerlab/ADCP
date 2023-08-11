@@ -1,0 +1,297 @@
+
+EVALUATING PEPTIDE WITH 0BN
+NO OpenMm parameters for 0BN
+
+EVALUATING PEPTIDE WITH 2FM
+Rescoring clustered poses using OpenMM ..
+OpenMM minimization settings: Environment="in-vacuo"; Max_itr=2
+2FM PASSED
+
+
+
+EVALUATING PEPTIDE WITH 4FW
+Rescoring clustered poses using OpenMM ..
+OpenMM minimization settings: Environment="in-vacuo"; Max_itr=2
+4FW PASSED
+
+
+
+EVALUATING PEPTIDE WITH 4HMP
+NO OpenMm parameters for 4HMP
+
+EVALUATING PEPTIDE WITH 6CW
+NO OpenMm parameters for 6CW
+
+EVALUATING PEPTIDE WITH AGM
+NO OpenMm parameters for AGM
+
+EVALUATING PEPTIDE WITH ALO
+Rescoring clustered poses using OpenMM ..
+OpenMM minimization settings: Environment="in-vacuo"; Max_itr=2
+ALO PASSED
+
+
+
+EVALUATING PEPTIDE WITH APM
+Rescoring clustered poses using OpenMM ..
+OpenMM minimization settings: Environment="in-vacuo"; Max_itr=2
+APM PASSED
+
+
+
+EVALUATING PEPTIDE WITH AZDA
+NO OpenMm parameters for AZDA
+
+EVALUATING PEPTIDE WITH BTH3
+NO OpenMm parameters for BTH3
+
+EVALUATING PEPTIDE WITH BTR
+Rescoring clustered poses using OpenMM ..
+OpenMM minimization settings: Environment="in-vacuo"; Max_itr=2
+BTR PASSED
+
+
+
+EVALUATING PEPTIDE WITH CCS
+NO OpenMm parameters for CCS
+
+EVALUATING PEPTIDE WITH CIR
+NO OpenMm parameters for CIR
+
+EVALUATING PEPTIDE WITH CTE
+Rescoring clustered poses using OpenMM ..
+OpenMM minimization settings: Environment="in-vacuo"; Max_itr=2
+CTE PASSED
+
+
+
+EVALUATING PEPTIDE WITH DILE
+NO OpenMm parameters for DILE
+
+EVALUATING PEPTIDE WITH F2F
+Rescoring clustered poses using OpenMM ..
+OpenMM minimization settings: Environment="in-vacuo"; Max_itr=2
+F2F PASSED
+
+
+
+EVALUATING PEPTIDE WITH FGA4
+Rescoring clustered poses using OpenMM ..
+OpenMM minimization settings: Environment="in-vacuo"; Max_itr=2
+FGA4 PASSED
+
+
+
+EVALUATING PEPTIDE WITH FLA
+Rescoring clustered poses using OpenMM ..
+OpenMM minimization settings: Environment="in-vacuo"; Max_itr=2
+FLA PASSED
+
+
+
+EVALUATING PEPTIDE WITH FPG2
+Rescoring clustered poses using OpenMM ..
+OpenMM minimization settings: Environment="in-vacuo"; Max_itr=2
+FPG2 PASSED
+
+
+
+EVALUATING PEPTIDE WITH FPG3
+Rescoring clustered poses using OpenMM ..
+OpenMM minimization settings: Environment="in-vacuo"; Max_itr=2
+FPG3 PASSED
+
+
+
+EVALUATING PEPTIDE WITH FPG4
+Rescoring clustered poses using OpenMM ..
+OpenMM minimization settings: Environment="in-vacuo"; Max_itr=2
+FPG4 PASSED
+
+
+
+EVALUATING PEPTIDE WITH FPH2
+Rescoring clustered poses using OpenMM ..
+OpenMM minimization settings: Environment="in-vacuo"; Max_itr=2
+FPH2 PASSED
+
+
+
+EVALUATING PEPTIDE WITH FPH3
+Rescoring clustered poses using OpenMM ..
+OpenMM minimization settings: Environment="in-vacuo"; Max_itr=2
+FPH3 PASSED
+
+
+
+EVALUATING PEPTIDE WITH FT6
+NO OpenMm parameters for FT6
+
+EVALUATING PEPTIDE WITH FTR
+NO OpenMm parameters for FTR
+
+EVALUATING PEPTIDE WITH FVAL
+NO OpenMm parameters for FVAL
+
+EVALUATING PEPTIDE WITH HLEU
+NO OpenMm parameters for HLEU
+
+EVALUATING PEPTIDE WITH HSER
+NO OpenMm parameters for HSER
+
+EVALUATING PEPTIDE WITH IIL
+Rescoring clustered poses using OpenMM ..
+OpenMM minimization settings: Environment="in-vacuo"; Max_itr=2
+IIL PASSED
+
+
+
+EVALUATING PEPTIDE WITH IYR
+NO OpenMm parameters for IYR
+
+EVALUATING PEPTIDE WITH KYN
+NO OpenMm parameters for KYN
+
+EVALUATING PEPTIDE WITH M2S
+NO OpenMm parameters for M2S
+
+EVALUATING PEPTIDE WITH MHO
+NO OpenMm parameters for MHO
+
+EVALUATING PEPTIDE WITH MOT5
+Rescoring clustered poses using OpenMM ..
+OpenMM minimization settings: Environment="in-vacuo"; Max_itr=2
+MOT5 PASSED
+
+
+
+EVALUATING PEPTIDE WITH NAL
+NO OpenMm parameters for NAL
+
+EVALUATING PEPTIDE WITH NIY
+NO OpenMm parameters for NIY
+
+EVALUATING PEPTIDE WITH OBF
+Rescoring clustered poses using OpenMM ..
+OpenMM minimization settings: Environment="in-vacuo"; Max_itr=2
+OBF PASSED
+
+
+
+EVALUATING PEPTIDE WITH OTYR
+NO OpenMm parameters for OTYR
+
+EVALUATING PEPTIDE WITH PBF
+NO OpenMm parameters for PBF
+
+EVALUATING PEPTIDE WITH PF5
+Rescoring clustered poses using OpenMM ..
+OpenMM minimization settings: Environment="in-vacuo"; Max_itr=2
+PF5 PASSED
+
+
+
+EVALUATING PEPTIDE WITH PFF
+Rescoring clustered poses using OpenMM ..
+OpenMM minimization settings: Environment="in-vacuo"; Max_itr=2
+PFF PASSED
+
+
+
+EVALUATING PEPTIDE WITH PHI
+NO OpenMm parameters for PHI
+
+EVALUATING PEPTIDE WITH PPN
+NO OpenMm parameters for PPN
+
+EVALUATING PEPTIDE WITH PTR2
+NO OpenMm parameters for PTR2
+
+EVALUATING PEPTIDE WITH PTR
+NO OpenMm parameters for PTR
+
+EVALUATING PEPTIDE WITH QU33
+NO OpenMm parameters for QU33
+
+EVALUATING PEPTIDE WITH QX32
+NO OpenMm parameters for QX32
+
+EVALUATING PEPTIDE WITH SEP2
+NO OpenMm parameters for SEP2
+
+EVALUATING PEPTIDE WITH SLZ
+NO OpenMm parameters for SLZ
+
+EVALUATING PEPTIDE WITH SME
+NO OpenMm parameters for SME
+
+EVALUATING PEPTIDE WITH STYA
+NO OpenMm parameters for STYA
+
+EVALUATING PEPTIDE WITH SYM
+NO OpenMm parameters for SYM
+
+EVALUATING PEPTIDE WITH TFG2
+Rescoring clustered poses using OpenMM ..
+OpenMM minimization settings: Environment="in-vacuo"; Max_itr=2
+TFG2 PASSED
+
+
+
+EVALUATING PEPTIDE WITH TFG3
+Rescoring clustered poses using OpenMM ..
+OpenMM minimization settings: Environment="in-vacuo"; Max_itr=2
+TFG3 PASSED
+
+
+
+EVALUATING PEPTIDE WITH TFG4
+Rescoring clustered poses using OpenMM ..
+OpenMM minimization settings: Environment="in-vacuo"; Max_itr=2
+TFG4 PASSED
+
+
+
+EVALUATING PEPTIDE WITH TFLE
+Rescoring clustered poses using OpenMM ..
+OpenMM minimization settings: Environment="in-vacuo"; Max_itr=2
+TFLE PASSED
+
+
+
+EVALUATING PEPTIDE WITH TFP2
+Rescoring clustered poses using OpenMM ..
+OpenMM minimization settings: Environment="in-vacuo"; Max_itr=2
+TFP2 PASSED
+
+
+
+EVALUATING PEPTIDE WITH TFP3
+Rescoring clustered poses using OpenMM ..
+OpenMM minimization settings: Environment="in-vacuo"; Max_itr=2
+TFP3 PASSED
+
+
+
+EVALUATING PEPTIDE WITH TFP4
+Rescoring clustered poses using OpenMM ..
+OpenMM minimization settings: Environment="in-vacuo"; Max_itr=2
+TFP4 PASSED
+
+
+
+EVALUATING PEPTIDE WITH THIC
+NO OpenMm parameters for THIC
+
+EVALUATING PEPTIDE WITH TRO
+NO OpenMm parameters for TRO
+
+EVALUATING PEPTIDE WITH TYI
+NO OpenMm parameters for TYI
+
+EVALUATING PEPTIDE WITH WFP
+Rescoring clustered poses using OpenMM ..
+OpenMM minimization settings: Environment="in-vacuo"; Max_itr=2
+WFP PASSED
+
+

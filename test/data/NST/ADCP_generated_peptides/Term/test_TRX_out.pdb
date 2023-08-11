@@ -1,0 +1,63 @@
+MODEL 1
+USER: ADCP SOLUTION 1
+USER: SCORE  28.966
+USER: ROTAMERS 5 2 0 3 0 
+REMARK Selection 'not deleted'
+
+ATOM      1  N   TRX A   1      34.008   3.846 -51.430  0.00  0.00 REC       N
+ATOM      2  CA  TRX A   1      34.008   3.458 -52.836  0.00  0.00 REC       C
+ATOM      3  C   TRX A   1      32.773   4.107 -53.453  0.00  0.00 REC       C
+ATOM      4  O   TRX A   1      32.503   5.279 -53.200  0.00  0.00 REC       O
+ATOM      5  CB  TRX A   1      34.072   1.947 -53.050  0.00  0.00 REC       C
+ATOM      6  H   TRX A   1      34.008   4.815 -51.193  0.00  0.00 REC       H
+ATOM      7  CG  TRX A   1      34.178   1.445 -54.373  0.00  0.00 REC       C
+ATOM      8  CD1 TRX A   1      34.585   2.202 -55.449  0.00  0.00 REC       C
+ATOM      9  CD2 TRX A   1      33.879   0.138 -54.851  0.00  0.00 REC       C
+ATOM     10  CE2 TRX A   1      34.120   0.140 -56.227  0.00  0.00 REC       C
+ATOM     11  CE3 TRX A   1      33.429  -1.049 -54.241  0.00  0.00 REC       C
+ATOM     12  NE1 TRX A   1      34.545   1.406 -56.563  0.00  0.00 REC       N
+ATOM     13  CZ2 TRX A   1      33.927  -0.990 -57.027  0.00  0.00 REC       C
+ATOM     14  CZ3 TRX A   1      33.233  -2.190 -55.030  0.00  0.00 REC       C
+ATOM     15  CH2 TRX A   1      33.479  -2.158 -56.401  0.00  0.00 REC       C
+ATOM     16  OH2 TRX A   1      33.283  -3.283 -57.144  0.00  0.00 REC       O
+ATOM     17  N   VAL A   2      32.023   3.351 -54.258  0.00  0.00 REC       N
+ATOM     18  CA  VAL A   2      30.821   3.872 -54.900  0.00  0.00 REC       C
+ATOM     19  C   VAL A   2      29.834   2.756 -54.572  0.00  0.00 REC       C
+ATOM     20  O   VAL A   2      30.105   1.591 -54.858  0.00  0.00 REC       O
+ATOM     21  CB  VAL A   2      30.936   4.289 -56.347  0.00  0.00 REC       C
+ATOM     22  H   VAL A   2      32.293   2.405 -54.426  0.00  0.00 REC       H
+ATOM     23  CG1 VAL A   2      32.134   5.337 -56.468  0.00  0.00 REC       C
+ATOM     24  CG2 VAL A   2      31.579   3.030 -57.145  0.00  0.00 REC       C
+ATOM     25  N   PRO A   3      28.693   3.106 -53.974  0.00  0.00 REC       N
+ATOM     26  CA  PRO A   3      27.680   2.119 -53.617  0.00  0.00 REC       C
+ATOM     27  C   PRO A   3      26.658   2.196 -54.747  0.00  0.00 REC       C
+ATOM     28  O   PRO A   3      26.258   3.289 -55.142  0.00  0.00 REC       O
+ATOM     29  CB  PRO A   3      27.092   2.295 -52.223  0.00  0.00 REC       C
+ATOM     30  CD  PRO A   3      28.792   4.157 -53.035  0.00  0.00 REC       C
+ATOM     31  CG  PRO A   3      27.562   4.020 -52.156  0.00  0.00 REC       C
+ATOM     32  N   ASP A   4      26.234   1.041 -55.267  0.00  0.00 REC       N
+ATOM     33  CA  ASP A   4      25.258   1.000 -56.350  0.00  0.00 REC       C
+ATOM     34  C   ASP A   4      24.204   0.058 -55.777  0.00  0.00 REC       C
+ATOM     35  O   ASP A   4      24.542  -0.881 -55.060  0.00  0.00 REC       O
+ATOM     36  CB  ASP A   4      25.795   0.651 -57.724  0.00  0.00 REC       C
+ATOM     37  H   ASP A   4      26.595   0.185 -54.904  0.00  0.00 REC       H
+ATOM     38  OD2 ASP A   4      24.448   1.828 -59.093  0.00  0.00 REC       O
+ATOM     39  OD1 ASP A   4      24.813  -0.289 -59.550  0.00  0.00 REC       O
+ATOM     40  CG  ASP A   4      24.999   0.732 -58.857  0.00  0.00 REC       C
+ATOM     41  N   TRX A   5      22.930   0.305 -56.091  0.00  0.00 REC       N
+ATOM     42  CA  TRX A   5      21.842  -0.533 -55.598  0.00  0.00 REC       C
+ATOM     43  C   TRX A   5      21.091  -0.808 -56.897  0.00  0.00 REC       C
+ATOM     44  O   TRX A   5      20.746   0.126 -57.618  0.00  0.00 REC       O
+ATOM     45  CB  TRX A   5      21.034   0.003 -54.438  0.00  0.00 REC       C
+ATOM     46  H   TRX A   5      22.716   1.082 -56.678  0.00  0.00 REC       H
+ATOM     47  CG  TRX A   5      21.941   0.281 -53.196  0.00  0.00 REC       C
+ATOM     48  CD1 TRX A   5      22.614   1.413 -52.797  0.00  0.00 REC       C
+ATOM     49  CD2 TRX A   5      22.183  -0.731 -52.226  0.00  0.00 REC       C
+ATOM     50  CE2 TRX A   5      23.010  -0.175 -51.249  0.00  0.00 REC       C
+ATOM     51  CE3 TRX A   5      21.772  -2.072 -52.085  0.00  0.00 REC       C
+ATOM     52  NE1 TRX A   5      23.257   1.127 -51.622  0.00  0.00 REC       N
+ATOM     53  CZ2 TRX A   5      23.453  -0.894 -50.135  0.00  0.00 REC       C
+ATOM     54  CZ3 TRX A   5      22.207  -2.806 -50.974  0.00  0.00 REC       C
+ATOM     55  CH2 TRX A   5      23.035  -2.224 -50.016  0.00  0.00 REC       C
+ATOM     56  OH2 TRX A   5      23.441  -2.961 -48.943  0.00  0.00 REC       O
+ENDMDL

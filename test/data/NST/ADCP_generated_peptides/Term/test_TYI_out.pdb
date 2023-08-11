@@ -1,0 +1,61 @@
+MODEL 1
+USER: ADCP SOLUTION 1
+USER: SCORE  95.468
+USER: ROTAMERS 4 2 0 2 3 
+REMARK Selection 'not deleted'
+
+ATOM      1  N   TYI A   1      33.354   0.003 -47.237  0.00  0.00 REC       N
+ATOM      2  CA  TYI A   1      33.354  -0.385 -48.643  0.00  0.00 REC       C
+ATOM      3  C   TYI A   1      32.119   0.264 -49.259  0.00  0.00 REC       C
+ATOM      4  O   TYI A   1      31.849   1.437 -49.007  0.00  0.00 REC       O
+ATOM      5  CB  TYI A   1      33.418  -1.895 -48.857  0.00  0.00 REC       C
+ATOM      6  H   TYI A   1      33.354   0.972 -47.000  0.00  0.00 REC       H
+ATOM      7  CG  TYI A   1      33.642  -2.299 -50.191  0.00  0.00 REC       C
+ATOM      8  CD1 TYI A   1      33.959  -1.335 -51.128  0.00  0.00 REC       C
+ATOM      9  CE1 TYI A   1      34.165  -1.690 -52.446  0.00  0.00 REC       C
+ATOM     10  CD2 TYI A   1      33.535  -3.626 -50.570  0.00  0.00 REC       C
+ATOM     11  CE2 TYI A   1      33.732  -3.986 -51.889  0.00  0.00 REC       C
+ATOM     12  CZ  TYI A   1      34.051  -3.019 -52.830  0.00  0.00 REC       C
+ATOM     13  OH  TYI A   1      34.253  -3.372 -54.127  0.00  0.00 REC       O
+ATOM     14  IE1 TYI A   1      34.647  -0.226 -53.864  0.00  0.00 REC       I
+ATOM     15  IE2 TYI A   1      33.562  -5.992 -52.464  0.00  0.00 REC       I
+ATOM     16  N   VAL A   2      31.369  -0.492 -50.065  0.00  0.00 REC       N
+ATOM     17  CA  VAL A   2      30.167   0.029 -50.706  0.00  0.00 REC       C
+ATOM     18  C   VAL A   2      28.887  -0.759 -50.450  0.00  0.00 REC       C
+ATOM     19  O   VAL A   2      28.916  -1.988 -50.422  0.00  0.00 REC       O
+ATOM     20  CB  VAL A   2      30.410   0.067 -52.213  0.00  0.00 REC       C
+ATOM     21  H   VAL A   2      31.639  -1.437 -50.232  0.00  0.00 REC       H
+ATOM     22  CG1 VAL A   2      31.461   1.022 -52.623  0.00  0.00 REC       C
+ATOM     23  CG2 VAL A   2      30.631  -1.296 -52.793  0.00  0.00 REC       C
+ATOM     24  N   PRO A   3      27.765  -0.059 -50.264  0.00  0.00 REC       N
+ATOM     25  CA  PRO A   3      26.486  -0.713 -50.012  0.00  0.00 REC       C
+ATOM     26  C   PRO A   3      25.374  -0.274 -50.960  0.00  0.00 REC       C
+ATOM     27  O   PRO A   3      25.299   0.898 -51.321  0.00  0.00 REC       O
+ATOM     28  CB  PRO A   3      26.055  -0.432 -48.571  0.00  0.00 REC       C
+ATOM     29  CD  PRO A   3      28.159   0.803 -49.215  0.00  0.00 REC       C
+ATOM     30  CG  PRO A   3      26.922   0.964 -48.350  0.00  0.00 REC       C
+ATOM     31  N   ASP A   4      24.512  -1.210 -51.364  0.00  0.00 REC       N
+ATOM     32  CA  ASP A   4      23.412  -0.900 -52.270  0.00  0.00 REC       C
+ATOM     33  C   ASP A   4      22.089  -0.994 -51.515  0.00  0.00 REC       C
+ATOM     34  O   ASP A   4      21.841  -1.984 -50.831  0.00  0.00 REC       O
+ATOM     35  CB  ASP A   4      23.422  -1.815 -53.498  0.00  0.00 REC       C
+ATOM     36  H   ASP A   4      24.623  -2.146 -51.037  0.00  0.00 REC       H
+ATOM     37  OD2 ASP A   4      24.043  -3.789 -52.283  0.00  0.00 REC       O
+ATOM     38  OD1 ASP A   4      22.333  -3.923 -53.656  0.00  0.00 REC       O
+ATOM     39  CG  ASP A   4      23.260  -3.284 -53.116  0.00  0.00 REC       C
+ATOM     40  N   TYI A   5      21.242   0.030 -51.637  0.00  0.00 REC       N
+ATOM     41  CA  TYI A   5      19.951   0.043 -50.959  0.00  0.00 REC       C
+ATOM     42  C   TYI A   5      18.942   0.215 -52.090  0.00  0.00 REC       C
+ATOM     43  O   TYI A   5      19.140   1.050 -52.970  0.00  0.00 REC       O
+ATOM     44  CB  TYI A   5      19.831   1.065 -49.838  0.00  0.00 REC       C
+ATOM     45  H   TYI A   5      21.500   0.807 -52.208  0.00  0.00 REC       H
+ATOM     46  CG  TYI A   5      20.880   0.674 -48.749  0.00  0.00 REC       C
+ATOM     47  CD1 TYI A   5      21.415  -0.600 -48.753  0.00  0.00 REC       C
+ATOM     48  CE1 TYI A   5      22.259  -0.999 -47.736  0.00  0.00 REC       C
+ATOM     49  CD2 TYI A   5      21.193   1.556 -47.731  0.00  0.00 REC       C
+ATOM     50  CE2 TYI A   5      22.032   1.159 -46.706  0.00  0.00 REC       C
+ATOM     51  CZ  TYI A   5      22.569  -0.119 -46.707  0.00  0.00 REC       C
+ATOM     52  OH  TYI A   5      23.400  -0.510 -45.705  0.00  0.00 REC       O
+ATOM     53  IE1 TYI A   5      23.069  -2.931 -47.742  0.00  0.00 REC       I
+ATOM     54  IE2 TYI A   5      22.500   2.491 -45.160  0.00  0.00 REC       I
+ENDMDL

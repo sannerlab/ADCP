@@ -1,0 +1,57 @@
+MODEL 1
+USER: ADCP SOLUTION 1
+USER: SCORE  -1.330
+USER: ROTAMERS 3 0 0 6 8 
+REMARK Selection 'not deleted'
+
+ATOM      1  N   FCL A   1      31.403   7.030 -33.218  0.00  0.00 REC       N
+ATOM      2  CA  FCL A   1      31.403   7.418 -34.624  0.00  0.00 REC       C
+ATOM      3  C   FCL A   1      30.167   6.769 -35.241  0.00  0.00 REC       C
+ATOM      4  O   FCL A   1      29.898   5.596 -34.988  0.00  0.00 REC       O
+ATOM      5  CB  FCL A   1      32.699   7.069 -35.351  0.00  0.00 REC       C
+ATOM      6  H   FCL A   1      31.403   6.061 -32.981  0.00  0.00 REC       H
+ATOM      7  CG  FCL A   1      32.905   7.413 -36.783  0.00  0.00 REC       C
+ATOM      8  CD1 FCL A   1      33.185   8.737 -37.136  0.00  0.00 REC       C
+ATOM      9  CD2 FCL A   1      32.761   6.447 -37.784  0.00  0.00 REC       C
+ATOM     10  CE1 FCL A   1      33.312   9.093 -38.476  0.00  0.00 REC       C
+ATOM     11  CE2 FCL A   1      32.891   6.806 -39.123  0.00  0.00 REC       C
+ATOM     12  CZ  FCL A   1      33.165   8.126 -39.468  0.00  0.00 REC       C
+ATOM     13 CLE  FCL A   1      33.662  10.771 -38.917  0.00  0.00 REC      CL
+ATOM     14  N   VAL A   2      29.418   7.525 -36.046  0.00  0.00 REC       N
+ATOM     15  CA  VAL A   2      28.216   7.004 -36.688  0.00  0.00 REC       C
+ATOM     16  C   VAL A   2      28.241   7.092 -38.210  0.00  0.00 REC       C
+ATOM     17  O   VAL A   2      28.627   8.120 -38.761  0.00  0.00 REC       O
+ATOM     18  CB  VAL A   2      26.998   7.767 -36.163  0.00  0.00 REC       C
+ATOM     19  H   VAL A   2      29.687   8.470 -36.214  0.00  0.00 REC       H
+ATOM     20  CG1 VAL A   2      26.991   9.201 -36.652  0.00  0.00 REC       C
+ATOM     21  CG2 VAL A   2      25.705   7.099 -36.787  0.00  0.00 REC       C
+ATOM     22  N   PRO A   3      27.831   6.019 -38.891  0.00  0.00 REC       N
+ATOM     23  CA  PRO A   3      27.814   5.996 -40.349  0.00  0.00 REC       C
+ATOM     24  C   PRO A   3      26.407   5.896 -40.929  0.00  0.00 REC       C
+ATOM     25  O   PRO A   3      25.579   5.149 -40.412  0.00  0.00 REC       O
+ATOM     26  CB  PRO A   3      28.658   4.821 -40.851  0.00  0.00 REC       C
+ATOM     27  CD  PRO A   3      28.431   4.869 -38.329  0.00  0.00 REC       C
+ATOM     28  CG  PRO A   3      28.549   3.883 -39.478  0.00  0.00 REC       C
+ATOM     29  N   ASP A   4      26.133   6.645 -42.000  0.00  0.00 REC       N
+ATOM     30  CA  ASP A   4      24.820   6.627 -42.634  0.00  0.00 REC       C
+ATOM     31  C   ASP A   4      24.624   6.453 -44.137  0.00  0.00 REC       C
+ATOM     32  O   ASP A   4      25.150   7.241 -44.920  0.00  0.00 REC       O
+ATOM     33  CB  ASP A   4      24.225   7.960 -42.322  0.00  0.00 REC       C
+ATOM     34  H   ASP A   4      26.846   7.233 -42.376  0.00  0.00 REC       H
+ATOM     35  OD2 ASP A   4      24.578   8.241 -40.082  0.00  0.00 REC       O
+ATOM     36  OD1 ASP A   4      22.463   8.171 -40.670  0.00  0.00 REC       O
+ATOM     37  CG  ASP A   4      23.680   8.133 -40.945  0.00  0.00 REC       C
+ATOM     38  N   FCL A   5      23.872   5.427 -44.541  0.00  0.00 REC       N
+ATOM     39  CA  FCL A   5      23.621   5.169 -45.954  0.00  0.00 REC       C
+ATOM     40  C   FCL A   5      22.140   5.439 -46.199  0.00  0.00 REC       C
+ATOM     41  O   FCL A   5      21.302   5.052 -45.387  0.00  0.00 REC       O
+ATOM     42  CB  FCL A   5      24.051   3.769 -46.390  0.00  0.00 REC       C
+ATOM     43  H   FCL A   5      23.472   4.820 -43.857  0.00  0.00 REC       H
+ATOM     44  CG  FCL A   5      24.073   3.393 -47.842  0.00  0.00 REC       C
+ATOM     45  CD1 FCL A   5      24.261   2.070 -48.253  0.00  0.00 REC       C
+ATOM     46  CD2 FCL A   5      23.890   4.396 -48.799  0.00  0.00 REC       C
+ATOM     47  CE1 FCL A   5      24.275   1.754 -49.609  0.00  0.00 REC       C
+ATOM     48  CE2 FCL A   5      23.903   4.077 -50.154  0.00  0.00 REC       C
+ATOM     49  CZ  FCL A   5      24.095   2.759 -50.557  0.00  0.00 REC       C
+ATOM     50 CLE  FCL A   5      24.519   0.079 -50.126  0.00  0.00 REC      CL
+ENDMDL

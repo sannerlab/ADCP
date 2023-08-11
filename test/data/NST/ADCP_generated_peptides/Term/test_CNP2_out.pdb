@@ -1,0 +1,59 @@
+MODEL 1
+USER: ADCP SOLUTION 1
+USER: SCORE  57.976
+USER: ROTAMERS 8 2 1 2 3 
+REMARK Selection 'not deleted'
+
+ATOM      1  N   CNP2A   1      19.421  -3.498 -45.541  0.00  0.00 REC       N
+ATOM      2  CA  CNP2A   1      20.637  -3.236 -46.304  0.00  0.00 REC       C
+ATOM      3  C   CNP2A   1      21.933  -2.975 -47.064  0.00  0.00 REC       C
+ATOM      4  O   CNP2A   1      22.473  -1.873 -47.000  0.00  0.00 REC       O
+ATOM      5  CB  CNP2A   1      20.622  -3.170 -46.305  0.00  0.00 REC       C
+ATOM      6  H   CNP2A   1      18.953  -4.371 -45.656  0.00  0.00 REC       H
+ATOM      7  CG  CNP2A   1      20.953  -0.786 -45.399  0.00  0.00 REC       C
+ATOM      8  CD1 CNP2A   1      21.490   0.491 -45.575  0.00  0.00 REC       C
+ATOM      9  CD2 CNP2A   1      20.580  -1.209 -44.118  0.00  0.00 REC       C
+ATOM     10  CE1 CNP2A   1      21.660   1.337 -44.483  0.00  0.00 REC       C
+ATOM     11  CE2 CNP2A   1      20.750  -0.362 -43.027  0.00  0.00 REC       C
+ATOM     12  CZ  CNP2A   1      21.290   0.909 -43.210  0.00  0.00 REC       C
+ATOM     13  NJ  CNP2A   1      22.105   1.303 -47.818  0.00  0.00 REC       N
+ATOM     14  CH  CNP2A   1      21.811   0.944 -46.768  0.00  0.00 REC       C
+ATOM     15  N   VAL A   2      22.433  -3.983 -47.783  0.00  0.00 REC       N
+ATOM     16  CA  VAL A   2      23.667  -3.842 -48.548  0.00  0.00 REC       C
+ATOM     17  C   VAL A   2      23.034  -3.981 -49.928  0.00  0.00 REC       C
+ATOM     18  O   VAL A   2      22.275  -4.918 -50.166  0.00  0.00 REC       O
+ATOM     19  CB  VAL A   2      24.863  -4.670 -48.190  0.00  0.00 REC       C
+ATOM     20  H   VAL A   2      21.950  -4.856 -47.797  0.00  0.00 REC       H
+ATOM     21  CG1 VAL A   2      25.111  -4.466 -46.584  0.00  0.00 REC       C
+ATOM     22  CG2 VAL A   2      24.294  -6.235 -48.098  0.00  0.00 REC       C
+ATOM     23  N   PRO A   3      23.343  -3.054 -50.838  0.00  0.00 REC       N
+ATOM     24  CA  PRO A   3      22.794  -3.092 -52.189  0.00  0.00 REC       C
+ATOM     25  C   PRO A   3      23.856  -3.399 -53.240  0.00  0.00 REC       C
+ATOM     26  O   PRO A   3      25.046  -3.386 -52.935  0.00  0.00 REC       O
+ATOM     27  CB  PRO A   3      22.114  -1.758 -52.511  0.00  0.00 REC       C
+ATOM     28  CD  PRO A   3      23.033  -1.843 -50.142  0.00  0.00 REC       C
+ATOM     29  CG  PRO A   3      21.861  -1.279 -50.925  0.00  0.00 REC       C
+ATOM     30  N   ASP A   4      23.430  -3.675 -54.476  0.00  0.00 REC       N
+ATOM     31  CA  ASP A   4      24.360  -3.982 -55.556  0.00  0.00 REC       C
+ATOM     32  C   ASP A   4      23.606  -3.247 -56.660  0.00  0.00 REC       C
+ATOM     33  O   ASP A   4      22.547  -3.699 -57.088  0.00  0.00 REC       O
+ATOM     34  CB  ASP A   4      24.797  -5.399 -55.776  0.00  0.00 REC       C
+ATOM     35  H   ASP A   4      22.451  -3.671 -54.664  0.00  0.00 REC       H
+ATOM     36  OD2 ASP A   4      22.440  -6.188 -55.119  0.00  0.00 REC       O
+ATOM     37  OD1 ASP A   4      23.452  -7.105 -56.840  0.00  0.00 REC       O
+ATOM     38  CG  ASP A   4      23.430  -6.319 -55.871  0.00  0.00 REC       C
+ATOM     39  N   CNP2A   5      24.148  -2.117 -57.121  0.00  0.00 REC       N
+ATOM     40  CA  CNP2A   5      23.510  -1.335 -58.174  0.00  0.00 REC       C
+ATOM     41  C   CNP2A   5      24.407  -0.994 -59.360  0.00  0.00 REC       C
+ATOM     42  O   CNP2A   5      25.470  -0.404 -59.178  0.00  0.00 REC       O
+ATOM     43  CB  CNP2A   5      22.997  -0.031 -57.565  0.00  0.00 REC       C
+ATOM     44  H   CNP2A   5      25.010  -1.799 -56.734  0.00  0.00 REC       H
+ATOM     45  CG  CNP2A   5      21.773   0.633 -58.354  0.00  0.00 REC       C
+ATOM     46  CD1 CNP2A   5      20.479   0.177 -58.088  0.00  0.00 REC       C
+ATOM     47  CD2 CNP2A   5      21.971   1.645 -59.297  0.00  0.00 REC       C
+ATOM     48  CE1 CNP2A   5      19.392   0.724 -58.766  0.00  0.00 REC       C
+ATOM     49  CE2 CNP2A   5      20.883   2.192 -59.972  0.00  0.00 REC       C
+ATOM     50  CZ  CNP2A   5      19.595   1.732 -59.707  0.00  0.00 REC       C
+ATOM     51  NJ  CNP2A   5      20.073  -1.562 -56.391  0.00  0.00 REC       N
+ATOM     52  CH  CNP2A   5      20.246  -0.742 -57.176  0.00  0.00 REC       C
+ENDMDL

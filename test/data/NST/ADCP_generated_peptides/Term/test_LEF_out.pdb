@@ -1,0 +1,51 @@
+MODEL 1
+USER: ADCP SOLUTION 1
+USER: SCORE  11.731
+USER: ROTAMERS 22 1 0 0 0 
+REMARK Selection 'not deleted'
+
+ATOM      1  N   LEF A   1      27.249  -0.334 -43.539  0.00  0.00 REC       N
+ATOM      2  CA  LEF A   1      26.460  -1.128 -44.474  0.00  0.00 REC       C
+ATOM      3  C   LEF A   1      25.209  -1.482 -45.271  0.00  0.00 REC       C
+ATOM      4  O   LEF A   1      24.412  -2.309 -44.831  0.00  0.00 REC       O
+ATOM      5  CB  LEF A   1      26.434  -1.858 -43.956  0.00  0.00 REC       C
+ATOM      6  H   LEF A   1      27.470   0.611 -43.769  0.00  0.00 REC       H
+ATOM      7  CD1 LEF A   1      27.153  -3.900 -45.736  0.00  0.00 REC       C
+ATOM      8  CD2 LEF A   1      28.686  -2.720 -44.159  0.00  0.00 REC       C
+ATOM      9  CG  LEF A   1      27.350  -3.453 -44.287  0.00  0.00 REC       C
+ATOM     10  F1  LEF A   1      27.399  -2.824 -46.594  0.00  0.00 REC       F
+ATOM     11  N   VAL A   2      25.032  -0.860 -46.439  0.00  0.00 REC       N
+ATOM     12  CA  VAL A   2      23.870  -1.123 -47.280  0.00  0.00 REC       C
+ATOM     13  C   VAL A   2      24.661  -1.302 -48.573  0.00  0.00 REC       C
+ATOM     14  O   VAL A   2      25.646  -0.601 -48.794  0.00  0.00 REC       O
+ATOM     15  CB  VAL A   2      22.682  -0.218 -47.237  0.00  0.00 REC       C
+ATOM     16  H   VAL A   2      25.713  -0.197 -46.743  0.00  0.00 REC       H
+ATOM     17  CG1 VAL A   2      21.620  -0.294 -48.041  0.00  0.00 REC       C
+ATOM     18  CG2 VAL A   2      22.240  -0.105 -45.660  0.00  0.00 REC       C
+ATOM     19  N   PRO A   3      24.233  -2.236 -49.426  0.00  0.00 REC       N
+ATOM     20  CA  PRO A   3      24.915  -2.490 -50.690  0.00  0.00 REC       C
+ATOM     21  C   PRO A   3      23.964  -1.845 -51.693  0.00  0.00 REC       C
+ATOM     22  O   PRO A   3      22.758  -2.074 -51.632  0.00  0.00 REC       O
+ATOM     23  CB  PRO A   3      25.298  -3.931 -50.965  0.00  0.00 REC       C
+ATOM     24  CD  PRO A   3      23.865  -3.422 -48.751  0.00  0.00 REC       C
+ATOM     25  CG  PRO A   3      24.044  -4.530 -49.774  0.00  0.00 REC       C
+ATOM     26  N   ASP A   4      24.500  -1.040 -52.613  0.00  0.00 REC       N
+ATOM     27  CA  ASP A   4      23.682  -0.372 -53.619  0.00  0.00 REC       C
+ATOM     28  C   ASP A   4      23.944  -1.082 -54.944  0.00  0.00 REC       C
+ATOM     29  O   ASP A   4      25.097  -1.239 -55.341  0.00  0.00 REC       O
+ATOM     30  CB  ASP A   4      23.933   1.134 -53.690  0.00  0.00 REC       C
+ATOM     31  H   ASP A   4      25.487  -0.892 -52.613  0.00  0.00 REC       H
+ATOM     32  OD2 ASP A   4      25.984   0.938 -54.909  0.00  0.00 REC       O
+ATOM     33  OD1 ASP A   4      26.049   2.158 -53.083  0.00  0.00 REC       O
+ATOM     34  CG  ASP A   4      25.442   1.431 -53.895  0.00  0.00 REC       C
+ATOM     35  N   LEF A   5      22.881  -1.511 -55.628  0.00  0.00 REC       N
+ATOM     36  CA  LEF A   5      23.017  -2.202 -56.905  0.00  0.00 REC       C
+ATOM     37  C   LEF A   5      21.719  -1.636 -57.470  0.00  0.00 REC       C
+ATOM     38  O   LEF A   5      20.664  -1.784 -56.856  0.00  0.00 REC       O
+ATOM     39  CB  LEF A   5      23.336  -3.653 -56.979  0.00  0.00 REC       C
+ATOM     40  H   LEF A   5      21.969  -1.355 -55.255  0.00  0.00 REC       H
+ATOM     41  CD1 LEF A   5      24.978  -5.239 -55.595  0.00  0.00 REC       C
+ATOM     42  CD2 LEF A   5      25.796  -3.343 -56.999  0.00  0.00 REC       C
+ATOM     43  CG  LEF A   5      24.723  -3.787 -56.004  0.00  0.00 REC       C
+ATOM     44  F1  LEF A   5      24.044  -5.623 -54.628  0.00  0.00 REC       F
+ENDMDL

@@ -1,0 +1,18 @@
+only for development:
+This directory is not provided in the pip package
+
+L: L type NST
+D: D type NST
+Term: C and N terminal L NST
+
+
+Analyze log file:
+
+	To see Failed cases:
+	grep FAILED <xxx>.log 
+
+	To see Passed cases:
+	grep PASSED <xxx>.log
+
+	To see No paramater cases:
+	grep "NO Open" <xxx>.log

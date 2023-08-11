@@ -1,0 +1,55 @@
+MODEL 1
+USER: ADCP SOLUTION 1
+USER: SCORE  -3.223
+USER: ROTAMERS 7 2 1 1 1 
+REMARK Selection 'not deleted'
+
+ATOM      1  N   TFLEA   1      28.842   1.754 -34.939  0.00  0.00 REC       N
+ATOM      2  CA  TFLEA   1      28.842   2.142 -36.345  0.00  0.00 REC       C
+ATOM      3  C   TFLEA   1      27.607   1.493 -36.961  0.00  0.00 REC       C
+ATOM      4  O   TFLEA   1      27.337   0.321 -36.709  0.00  0.00 REC       O
+ATOM      5  CB  TFLEA   1      30.138   1.794 -37.072  0.00  0.00 REC       C
+ATOM      6  H   TFLEA   1      28.842   0.785 -34.702  0.00  0.00 REC       H
+ATOM      7  CG  TFLEA   1      30.733   0.320 -36.795  0.00  0.00 REC       C
+ATOM      8  CD1 TFLEA   1      30.221  -0.616 -37.900  0.00  0.00 REC       C
+ATOM      9  CD2 TFLEA   1      32.269   0.266 -36.743  0.00  0.00 REC       C
+ATOM     10  FD1 TFLEA   1      30.657  -0.249 -39.124  0.00  0.00 REC       F
+ATOM     11  FD2 TFLEA   1      28.872  -0.642 -37.948  0.00  0.00 REC       F
+ATOM     12  FD3 TFLEA   1      30.622  -1.889 -37.699  0.00  0.00 REC       F
+ATOM     13  N   VAL A   2      26.857   2.249 -37.767  0.00  0.00 REC       N
+ATOM     14  CA  VAL A   2      25.655   1.728 -38.409  0.00  0.00 REC       C
+ATOM     15  C   VAL A   2      25.741   2.113 -39.882  0.00  0.00 REC       C
+ATOM     16  O   VAL A   2      25.937   3.283 -40.202  0.00  0.00 REC       O
+ATOM     17  CB  VAL A   2      24.366   2.205 -37.741  0.00  0.00 REC       C
+ATOM     18  H   VAL A   2      27.126   3.195 -37.935  0.00  0.00 REC       H
+ATOM     19  CG1 VAL A   2      24.332   1.779 -36.269  0.00  0.00 REC       C
+ATOM     20  CG2 VAL A   2      24.339   3.763 -37.736  0.00  0.00 REC       C
+ATOM     21  N   PRO A   3      25.597   1.133 -40.778  0.00  0.00 REC       N
+ATOM     22  CA  PRO A   3      25.662   1.391 -42.213  0.00  0.00 REC       C
+ATOM     23  C   PRO A   3      24.283   1.182 -42.831  0.00  0.00 REC       C
+ATOM     24  O   PRO A   3      23.531   0.319 -42.382  0.00  0.00 REC       O
+ATOM     25  CB  PRO A   3      26.718   0.513 -42.891  0.00  0.00 REC       C
+ATOM     26  CD  PRO A   3      26.585   0.200 -40.332  0.00  0.00 REC       C
+ATOM     27  CG  PRO A   3      27.606   0.206 -41.455  0.00  0.00 REC       C
+ATOM     28  N   ASP A   4      23.950   1.966 -43.859  0.00  0.00 REC       N
+ATOM     29  CA  ASP A   4      22.657   1.851 -44.524  0.00  0.00 REC       C
+ATOM     30  C   ASP A   4      22.890   1.649 -46.018  0.00  0.00 REC       C
+ATOM     31  O   ASP A   4      23.666   2.384 -46.625  0.00  0.00 REC       O
+ATOM     32  CB  ASP A   4      21.763   3.062 -44.246  0.00  0.00 REC       C
+ATOM     33  H   ASP A   4      24.603   2.649 -44.180  0.00  0.00 REC       H
+ATOM     34  OD2 ASP A   4      23.482   4.299 -45.367  0.00  0.00 REC       O
+ATOM     35  OD1 ASP A   4      21.789   5.432 -44.543  0.00  0.00 REC       O
+ATOM     36  CG  ASP A   4      22.396   4.362 -44.749  0.00  0.00 REC       C
+ATOM     37  N   TFLEA   5      22.223   0.656 -46.612  0.00  0.00 REC       N
+ATOM     38  CA  TFLEA   5      22.371   0.376 -48.035  0.00  0.00 REC       C
+ATOM     39  C   TFLEA   5      21.007   0.504 -48.706  0.00  0.00 REC       C
+ATOM     40  O   TFLEA   5      20.029  -0.063 -48.225  0.00  0.00 REC       O
+ATOM     41  CB  TFLEA   5      23.001  -0.998 -48.282  0.00  0.00 REC       C
+ATOM     42  H   TFLEA   5      21.606   0.092 -46.067  0.00  0.00 REC       H
+ATOM     43  CG  TFLEA   5      23.462  -1.408 -49.688  0.00  0.00 REC       C
+ATOM     44  CD1 TFLEA   5      24.711  -0.608 -50.082  0.00  0.00 REC       C
+ATOM     45  CD2 TFLEA   5      23.740  -2.913 -49.841  0.00  0.00 REC       C
+ATOM     46  FD1 TFLEA   5      25.768  -0.885 -49.287  0.00  0.00 REC       F
+ATOM     47  FD2 TFLEA   5      24.499   0.723 -50.012  0.00  0.00 REC       F
+ATOM     48  FD3 TFLEA   5      25.091  -0.871 -51.352  0.00  0.00 REC       F
+ENDMDL

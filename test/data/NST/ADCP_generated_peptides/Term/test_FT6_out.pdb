@@ -1,0 +1,63 @@
+MODEL 1
+USER: ADCP SOLUTION 1
+USER: SCORE  48.178
+USER: ROTAMERS 5 1 1 2 2 
+REMARK Selection 'not deleted'
+
+ATOM      1  N   FT6 A   1      35.612  -5.903 -54.492  0.00  0.00 REC       N
+ATOM      2  CA  FT6 A   1      35.612  -6.291 -55.898  0.00  0.00 REC       C
+ATOM      3  C   FT6 A   1      34.377  -5.642 -56.514  0.00  0.00 REC       C
+ATOM      4  O   FT6 A   1      34.107  -4.470 -56.262  0.00  0.00 REC       O
+ATOM      5  CB  FT6 A   1      35.676  -7.802 -56.112  0.00  0.00 REC       C
+ATOM      6  H   FT6 A   1      35.612  -4.934 -54.255  0.00  0.00 REC       H
+ATOM      7  CG  FT6 A   1      35.782  -8.303 -57.436  0.00  0.00 REC       C
+ATOM      8  CD1 FT6 A   1      36.189  -7.549 -58.512  0.00  0.00 REC       C
+ATOM      9  CD2 FT6 A   1      35.486  -9.611 -57.910  0.00  0.00 REC       C
+ATOM     10  CE2 FT6 A   1      35.725  -9.612 -59.286  0.00  0.00 REC       C
+ATOM     11  CE3 FT6 A   1      35.036 -10.799 -57.299  0.00  0.00 REC       C
+ATOM     12  NE1 FT6 A   1      36.151  -8.346 -59.624  0.00  0.00 REC       N
+ATOM     13  CZ2 FT6 A   1      35.535 -10.746 -60.086  0.00  0.00 REC       C
+ATOM     14  CZ3 FT6 A   1      34.842 -11.940 -58.087  0.00  0.00 REC       C
+ATOM     15  CH2 FT6 A   1      35.088 -11.911 -59.458  0.00  0.00 REC       C
+ATOM     16  FAP FT6 A   1      34.896 -13.018 -60.187  0.00  0.00 REC       F
+ATOM     17  N   VAL A   2      33.628  -6.398 -57.320  0.00  0.00 REC       N
+ATOM     18  CA  VAL A   2      32.426  -5.877 -57.961  0.00  0.00 REC       C
+ATOM     19  C   VAL A   2      31.194  -6.633 -57.472  0.00  0.00 REC       C
+ATOM     20  O   VAL A   2      31.257  -7.842 -57.263  0.00  0.00 REC       O
+ATOM     21  CB  VAL A   2      32.543  -5.950 -59.487  0.00  0.00 REC       C
+ATOM     22  H   VAL A   2      33.897  -7.344 -57.487  0.00  0.00 REC       H
+ATOM     23  CG1 VAL A   2      31.223  -5.505 -60.140  0.00  0.00 REC       C
+ATOM     24  CG2 VAL A   2      33.648  -5.068 -60.004  0.00  0.00 REC       C
+ATOM     25  N   PRO A   3      30.077  -5.925 -57.289  0.00  0.00 REC       N
+ATOM     26  CA  PRO A   3      28.843  -6.548 -56.823  0.00  0.00 REC       C
+ATOM     27  C   PRO A   3      27.962  -6.284 -58.040  0.00  0.00 REC       C
+ATOM     28  O   PRO A   3      28.055  -5.220 -58.648  0.00  0.00 REC       O
+ATOM     29  CB  PRO A   3      28.315  -6.144 -55.470  0.00  0.00 REC       C
+ATOM     30  CD  PRO A   3      30.668  -5.058 -56.315  0.00  0.00 REC       C
+ATOM     31  CG  PRO A   3      30.018  -5.496 -55.015  0.00  0.00 REC       C
+ATOM     32  N   ASP A   4      27.109  -7.248 -58.397  0.00  0.00 REC       N
+ATOM     33  CA  ASP A   4      26.221  -7.100 -59.545  0.00  0.00 REC       C
+ATOM     34  C   ASP A   4      24.866  -7.564 -59.021  0.00  0.00 REC       C
+ATOM     35  O   ASP A   4      24.779  -8.612 -58.384  0.00  0.00 REC       O
+ATOM     36  CB  ASP A   4      26.691  -7.801 -60.811  0.00  0.00 REC       C
+ATOM     37  H   ASP A   4      27.079  -8.091 -57.865  0.00  0.00 REC       H
+ATOM     38  OD2 ASP A   4      27.561  -9.735 -59.545  0.00  0.00 REC       O
+ATOM     39  OD1 ASP A   4      26.332 -10.105 -61.329  0.00  0.00 REC       O
+ATOM     40  CG  ASP A   4      26.901  -9.334 -60.528  0.00  0.00 REC       C
+ATOM     41  N   FT6 A   5      23.811  -6.791 -59.286  0.00  0.00 REC       N
+ATOM     42  CA  FT6 A   5      22.470  -7.141 -58.832  0.00  0.00 REC       C
+ATOM     43  C   FT6 A   5      21.449  -6.919 -59.944  0.00  0.00 REC       C
+ATOM     44  O   FT6 A   5      21.423  -5.851 -60.551  0.00  0.00 REC       O
+ATOM     45  CB  FT6 A   5      22.093  -6.340 -57.581  0.00  0.00 REC       C
+ATOM     46  H   FT6 A   5      23.944  -5.951 -59.808  0.00  0.00 REC       H
+ATOM     47  CG  FT6 A   5      22.868  -6.693 -56.366  0.00  0.00 REC       C
+ATOM     48  CD1 FT6 A   5      23.801  -7.699 -56.285  0.00  0.00 REC       C
+ATOM     49  CD2 FT6 A   5      22.791  -6.068 -55.091  0.00  0.00 REC       C
+ATOM     50  CE2 FT6 A   5      23.697  -6.726 -54.257  0.00  0.00 REC       C
+ATOM     51  CE3 FT6 A   5      22.036  -5.001 -54.564  0.00  0.00 REC       C
+ATOM     52  NE1 FT6 A   5      24.297  -7.712 -55.008  0.00  0.00 REC       N
+ATOM     53  CZ2 FT6 A   5      23.886  -6.370 -52.916  0.00  0.00 REC       C
+ATOM     54  CZ3 FT6 A   5      22.215  -4.634 -53.224  0.00  0.00 REC       C
+ATOM     55  CH2 FT6 A   5      23.126  -5.310 -52.415  0.00  0.00 REC       C
+ATOM     56  FAP FT6 A   5      23.278  -4.937 -51.139  0.00  0.00 REC       F
+ENDMDL

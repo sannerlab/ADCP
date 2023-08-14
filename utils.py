@@ -61,8 +61,8 @@ non-minimization calculations.'
 DECLARATION (V1.1.0 build 6):
 a: Support for OpenMM Minimization is still under development.
 b: Currently, it supports docking with "-rmsd 0" flag.
-c: Current version provides docking supports for peptides containing ~400 (L and D) NSTs\
-   and openMM support for 173 (173x2 for D and L) NSTs. Other unknown non-standard amino acids can either be replaced by similar amino \
+c: Current version provides docking supports for peptides containing ~400 (L and D) NSTs \
+and openMM support for 173 (173x2 for D and L) NSTs. Other unknown non-standard amino acids can either be replaced by similar amino \
 acids (pdbfixer v1.7), or if pdbfixer does not identify a non-standard amino \
 acid, it can be replaced by ALA.
 d: Currently no support for external parameter input for non-standard amino \

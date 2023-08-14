@@ -121,7 +121,7 @@ class runADCP:
         startFolder = os.path.abspath(os.getcwd())
         if kw['ref']:
             kw['ref'] = os.path.abspath(kw['ref'])
-            if os.oath.isfile(kw['ref']):
+            if os.path.isfile(kw['ref']):
                 try:
                     ref = Read(kw['ref'])
                 except Exception as e:
@@ -316,8 +316,12 @@ class runADCP:
         runStatus = [None]*(nbRuns)
 
         runEnergies = [999.]*(nbRuns)
-        procToRun = {}
-        outfiles = {}
+        # procToRun = {}
+        # can't change dict during iteration so use 2 lists
+        # outfiles = {}
+        processes = [None]*(nbRuns)
+        outfiles = [None]*(nbRuns)
+
         nbStart = 0 # number of started runs
         nbDone = 0 # number of completed runs
         # print(" ".join(argv))
@@ -370,15 +374,19 @@ class runADCP:
                                        stderr=outfile, #subprocess.PIPE, 
                                        bufsize = 1, shell=self.shell ,  cwd=os.getcwd())
 
-            procToRun[process] = jobNum-1
+            #procToRun[process] = jobNum-1
             #print('FUFU1', process, jobNum-1)
-            outfiles[jobNum] = outfile # process.stdout returns None. So save the file handle in the dictionary, so that we can close the file after the job finishes
+            #outfiles[jobNum] = outfile # process.stdout returns None. So save the file handle in the dictionary, so that we can close the file after the job finishes
+            processes[jobNum-1]= process
+            outfiles[jobNum-1] = outfile
             nbStart += 1
             
         # check for completion and start new runs until we are done
         while nbDone < nbRuns:
             # check running processes            
-            for proc, jnum in procToRun.items():
+            #for proc, jnum in procToRun.items():
+            for jnum, proc in enumerate(processes):
+                if proc is None: continue
                 # print(proc, jnum)
                 #import pdb;pdb.set_trace()
                 if proc.poll() is not None: # process finished
@@ -399,7 +407,7 @@ class runADCP:
                         #print '%d ok'%jnum
                         #import pdb;pdb.set_trace()
                         #f = open('%s_%d.out'%(jobName,jnum+1))
-                        f = outfiles[jnum+1] # the file should still be open
+                        f = outfiles[jnum] # the file should still be open
                         if not f.closed:
                             f.close()
                         f = open(os.path.join(workingFolder, 'run_%d.out'%(jnum+1)))
@@ -411,7 +419,7 @@ class runADCP:
                                 runEnergies[jnum] = float(ln.rstrip().split()[3])
 
                     nbDone += 1
-                    self._jobStatus[jobNum-1] = 2
+                    self._jobStatus[jnum] = 2
                     self.completedJobs += 1
                     percent = float(self.completedJobs)/self.numberOfJobs
                     #print('FUGU percent %f %d %d %d %d'%(percent, self.completedJobs, self.numberOfJobs, int(50*percent), jnum))
@@ -428,18 +436,18 @@ class runADCP:
                         # overwrite jobNum
                         argv[-2] = 'run_%d.pdb'%(jobNum)
                         #argv[-1] = '> %s_%d.out 2>&1'%(jobName,jobNum)
-                        outfileName =  open(os.path.join(workingFolder, 'run_%d.out'%(jobNum)), 'w')
+                        outfileName =  os.path.join(workingFolder, 'run_%d.out'%(jobNum))
                         # remove output file in case it exists
                         #try:
                         #    os.remove(argv[-1])
                         #except OSError:
                         #    pass
                         if os.path.exists(outfileName):
-                            f = outfiles.get(jobNum, None)
+                            f = outfiles[jobNum]
                             if f and not f.closed:
                                 f.close()
                             os.remove(outfileName)
-                        outfile =  open(outfileName, "w")
+                        outfile = open(outfileName, "w")
 
                         # overwrite the sequence if parition is found
                         if partition > 0 and partition < 100 and kw['sequence'] is not None:
@@ -456,9 +464,11 @@ class runADCP:
                                                    stderr=outfile, #subprocess.PIPE, 
                                                    bufsize = 1, shell=self.shell, cwd=os.getcwd())
                         # print(process)
-                        procToRun[process] = jobNum-1
+                        #procToRun[process] = jobNum-1
+                        processes[jobNum-1]= process
+                        outfiles[jobNum-1] = outfile
                         #print('FUFU2', process, jobNum-1)
-                        outfiles[jobNum] = outfile
+                        #outfiles[jobNum] = outfile
                         nbStart += 1
             
             sleep(1)

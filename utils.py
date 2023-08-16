@@ -29,6 +29,9 @@ Build 6:
     3: Added scheme to override default hydrogens.xml to avoid conflicts with some NST templates, like for ORN. 
     4: Solved atom-type errors for 2 letter element codes in rotamer files.
     
+    Update 8/16/23
+    1: Suggest correct NST name if case of NST wrong like for "af1" or 'AF1', it will suggest to use "Af1"
+    2: Some other bug fixes.
     
     
     Remaining:
@@ -62,8 +65,8 @@ DECLARATION (V1.1.0 build 6):
 a: Support for OpenMM Minimization is still under development.
 b: Currently, it supports docking with "-rmsd 0" flag.
 c: Current version provides docking supports for peptides containing ~400 (L and D) NSTs \
-and openMM support for 173 (173x2 for D and L) NSTs. Other unknown non-standard amino acids can either be replaced by similar amino \
-acids (pdbfixer v1.7), or if pdbfixer does not identify a non-standard amino \
+and openMM support for 182 (182x2 for D and L) NSTs. Other unknown non-standard amino acids can either be replaced by similar amino \
+acids (pdbfixer v1.8), or if pdbfixer does not identify a non-standard amino \
 acid, it can be replaced by ALA.
 d: Currently no support for external parameter input for non-standard amino \
 acids.
@@ -100,6 +103,7 @@ class rotamerfile:
     evaluate supports of the rotamer file
     '''
     def __init__(self, rotamerfile_in,myprint=print):
+        '''Intiation'''
         self.rotamerfile_ = rotamerfile_in
         self.__aalist__ = 'ACDEFGHIKLMNPQRSTVWYO'
         self.residues = []        
@@ -108,6 +112,7 @@ class rotamerfile:
         self.get_all_residues()
         
     def __read__(self):
+        '''Reads rotamer file and collects required details'''
         fid = open(self.rotamerfile_,'r')
         data = fid.readlines()
         fid.close()
@@ -120,36 +125,54 @@ class rotamerfile:
         self.name = os.path.split(self.rotamerfile_)[1][:-4]
         
     def get_all_residues(self):
+        '''returns names of all residues provided by the file'''
         if len(self.residues) > 0:
             return self.residues        
         self.residues = list(self.AA_dict.keys())
         self.residues.sort()
         return self.residues
     
+    def get_case_insensitive_residues(self, in_res):
+        '''returns residues names in capital letter and associated libraries'''
+        upper_case_res = [r.upper() for r in self.residues]
+        if not in_res.upper() in upper_case_res:
+            return None        
+        return self.residues[upper_case_res.index(in_res.upper())]
+    
     def coarse_potential_for_residue(self,res_name):
+        '''rerturns the coarse potential for specific residue'''
         return self.AA_dict[res_name]    
     
     def if_residue_exists(self,resname):
+        '''Checks if residue exists in the rotamer file.'''
         if resname in self.residues:
             return True
         return False        
     
     def if_residue_and_course_combination_possible(self, res_name, coarse_p):
+        '''Validates the combination of NST and coarse potential'''
+        
+        # checks if residue name valid
         if not self.if_residue_exists(res_name):
             self.myprint("Residue is not found in rotamer lib.")
             return False   
         
+        # checks if corse potential is one letter long
         if not len(coarse_p)== 1:
             self.myprint("Coarse potential needs to be one-letter standard amino acid code!")
             return False
         
+        #checks if coarse potential letter is in [amino acid letters + "O"]
         if not coarse_p.upper() in self.__aalist__:
             self.myprint("Coarse potential needs to be one-letter standard amino acid code!")
             return False
             
+        # if it is not default as "O" any other amino acid coarse potential combination possible
         if not coarse_p.upper() == 'O':
             return True
         
+        # if input is "O" (default) but rotamer file does not provide default
+        # coarse potential ("O" at the place of any other AA letter), combination is not possible.
         if self.coarse_potential_for_residue(res_name).upper() == 'O':
             return False
         
@@ -161,12 +184,14 @@ class rotamerdata:
     required operations on multiple rotamer files'''
 
     def __init__(self,myprint=print):
+        '''Initiation'''
         self.rotamerfiles = []
         self.rotamerobjects = []
         self.residues =[]
         self.myprint = myprint
         
     def readrotamerfile(self,rot_file):
+        '''Reads rotamer file as rotamer file object'''
         rot_file_with_path = os.path.abspath(rot_file)
         
         self.rotamerfiles.append(rot_file_with_path)
@@ -174,25 +199,43 @@ class rotamerdata:
         self.get_all_residues()
         
     def if_residue_exists(self,resname):
+        '''checks if specific residue is present in loaded rotamer files'''
         for rot_file_object in self.rotamerobjects:
             if rot_file_object.if_residue_exists(resname):
                 return True
         return False       
         
     def if_residue_and_course_combination_possible(self, res_name, coarse_p):
+        '''evaluates if specific residue and coarse amino acid letter combination possible'''
         for rot_file_object in self.rotamerobjects:
             if rot_file_object.if_residue_and_course_combination_possible(res_name, coarse_p):
                 return True        
         return False
     
     def get_all_residues(self):
+        '''returns all available residues from all loaded rotamer files'''
         res =[]
         for rot_file_object in self.rotamerobjects:
             res = res + rot_file_object.residues            
         self.residues = list(set(res))
         self.residues.sort()
         
-    def get_rotamerfile_name_for_residue(self, resname):
+    def get_case_insensitive_residues(self,res_in):
+        ''' returns all available residues from all loaded rotamer files in capital letter and associated rotamer libraries'''
+        similar_res = []
+        rotamer_file_names =[]
+        for rot_file_object in self.rotamerobjects:
+            similar_res_trial = rot_file_object.get_case_insensitive_residues(res_in)
+            if not similar_res_trial == None:
+                similar_res.append(similar_res_trial)   
+                rotamer_file_names.append(rot_file_object.name)
+        if len(similar_res) > 0:
+            return similar_res, rotamer_file_names
+        
+        return None        
+        
+    def get_rotamerfile_name_for_residue(self, resname):   
+        '''returns the names of rotamer files that provide the specific residue'''
         rotfile_names = []
         for rot_file_object in self.rotamerobjects:
             if rot_file_object.if_residue_exists(resname):
@@ -244,12 +287,14 @@ def all_available_rotamers(kw,myprint=print):
 class ffxmlfile:
     '''Reads openMM ffxmlfile to evaluate availability of specific NST parameters'''
     def __init__(self,ffxmlFile, myprint = print):
+        '''initiation'''
         self.ffxmlFile = ffxmlFile
         self.myprint = myprint
         self.residues =[]
         self.__read__()
         
     def __read__(self):
+        '''Reading of file and required details'''
         tree = ET.parse(self.ffxmlFile)    
         root = tree.getroot()
         all_res = root.find('Residues').findall('Residue')
@@ -259,12 +304,14 @@ class ffxmlfile:
         self.name = os.path.split(self.ffxmlFile)[1][:-4]
         
     def get_all_residues(self):
+        '''returns all resdiues available from the file'''
         if len(self.residues) > 0:
             return self.residues
         self._read__()
         return self.residues
         
     def if_residue_exists(self,resname):
+        '''Checks if the residue is present in current ffxml'''
         if resname in self.residues:
             return True
         return False       
@@ -323,26 +370,28 @@ class ffxmldata:
     required operations on multiple ffxml files'''
 
     def __init__(self,myprint=print):
+        '''initiation'''
         self.ffxmlfiles = []
         self.ffxmlobjects = []
         self.residues =[]
         self.myprint = myprint
         
     def readffxmlfile(self,ffxml_file):
-        ffxml_file_with_path = os.path.abspath(ffxml_file)
-        
+        '''Reading of the file and required details'''
+        ffxml_file_with_path = os.path.abspath(ffxml_file)        
         self.ffxmlfiles.append(ffxml_file_with_path)
         self.ffxmlobjects.append(ffxmlfile(ffxml_file_with_path,self.myprint))
         self.get_all_residues()
         
     def if_residue_exists(self,resname):
+        '''Evaulates if the residue is present in ffxml files'''
         for ffxml_file_object in self.ffxmlobjects:
             if ffxml_file_object.if_residue_exists(resname):
                 return True
         return False       
-        
    
     def get_all_residues(self):
+        '''Retruns all residues from all read ffxml files'''
         res =[]
         for ffxml_file_object in self.ffxmlobjects:
             res = res + ffxml_file_object.residues            
@@ -350,6 +399,7 @@ class ffxmldata:
         self.residues.sort()
         
     def get_ffxmlfile_name_for_residue(self, resname):
+        '''Returns names of files that provide specific residue'''
         ffxmlfile_names = []
         for ffxml_file_object in self.ffxmlobjects:
             if ffxml_file_object.if_residue_exists(resname):
@@ -388,19 +438,19 @@ def getNamesOfAAandNstsFromSequence(seq):
             continue
         if val =='&':
             continue        
-        if val == 'o':
+        if val.lower() == 'o':
             if seq[pos+1] == '<':
                 SAAlist.append(val)
                 continue
             else:
-                SAAlist.append("-o<")
+                SAAlist.append("-%s<" % val)
                 # continue
         SAAlist.append(val)
     return SAAlist, NSTlist
 
 
 def support_validator(kw,myprint=print):
-    # this function validates the input sequence and other options for ADCP run
+    '''this function validates the input sequence and other options for ADCP run'''
     all_flags_allowed = True
     detected_problems = []
     
@@ -418,6 +468,12 @@ def support_validator(kw,myprint=print):
             
     if '-o<' in SAAseq:
         detected_problems.append('At least one "<" is missing after "o" in the peptide sequence.')
+        if all_flags_allowed:
+            all_flags_allowed = False
+            bracket_error = True
+            
+    if '-O<' in SAAseq:
+        detected_problems.append('At least one "<" is missing after "O" in the peptide sequence.')
         if all_flags_allowed:
             all_flags_allowed = False
             bracket_error = True
@@ -445,7 +501,7 @@ def support_validator(kw,myprint=print):
         saa = 'ACDEFGHIKLMNPQRSTVWY'
         unknownaa=[]
         for aa in SAAseq:
-            if aa in ['o']:
+            if aa in ['o','O']:
                 continue
             if not aa.upper() in saa:
                 unknownaa.append(aa)     
@@ -469,13 +525,22 @@ def support_validator(kw,myprint=print):
         loaded_rotamers = currently_loaded_rotamer_data(kw,myprint)
         
         # checking NSTs
-        for nst in NSTlist:            
+        for nst in NSTlist:      
+           
+            
             if not nst[0] in all_possible_rotamers.residues:
-                detected_problems.append('Undefined rotamers for NST: "%s" is not available from any default rotamer library files' % nst[0] +
-                                         '.To run ADCP for peptide with NST "%s", please provide an user-defined rotamer library using "-l" option'
+                detected_problems.append('Undefined rotamers for NST: "%s" is not available from any default rotamer library files.' % nst[0])
+                detected_problems.append('To run ADCP for peptide with NST "%s", please provide an user-defined rotamer library using "-l" option.'
                                          % nst[0] )                
                 if all_flags_allowed:
                     all_flags_allowed = False
+                    
+                if not nst[0] in all_possible_rotamers.residues:
+                    possible_case_insentive_names,possible_lib_names = all_possible_rotamers.get_case_insensitive_residues(nst[0])
+                    if not possible_case_insentive_names == None:
+                        detected_problems.append("Possible residue(s) with similar name:")
+                        for p_res,p_lib in zip(possible_case_insentive_names,possible_lib_names):
+                            detected_problems.append(' "%s" from rotamer library "%s"'   %(p_res,p_lib))                    
                     
             else:
                 if not nst[0] in loaded_rotamers.residues:
@@ -488,10 +553,11 @@ def support_validator(kw,myprint=print):
                         
                 else:
                     if not loaded_rotamers.if_residue_and_course_combination_possible(nst[0], nst[1]):
-                        if nst[1] == 'o':
-                            # FIXME: a better message would be "NST: %s defined in library: %s does not provide a default coarse potential. Do not use o<%s> instead replace o by a valid coarse potential" 
-                            detected_problems.append('There is no default coarse potential defined for NST: "%s".' %(nst[0]))
-                            detected_problems.append('Please provide a coarse potential amino-acid letter for calculation with NST: "%s".' %(nst[0]))
+                        if nst[1] in['o','O']:                            
+                            rotamer_libs_providing_this_aa_params = loaded_rotamers.get_rotamerfile_name_for_residue(nst[0])
+                            
+                            detected_problems.append('NST: "%s" defined in library: "%s" does not provide a default coarse potential.' %(nst[0], ','.join(rotamer_libs_providing_this_aa_params)))
+                            detected_problems.append('Do not use o<%s> instead replace "o" by a valid coarse potential.' %(nst[0]))
                             if all_flags_allowed:
                                 all_flags_allowed = False
             
@@ -502,14 +568,12 @@ def support_validator(kw,myprint=print):
             for msg in detected_problems:
                 myprint("* "+ msg)    
     
-        return all_flags_allowed,''
+        return all_flags_allowed,''    
+    
+    ##<<<<< STANDARD ADCP INPUT VALIDATION ENDS
     
     
-    ##<<<<< STANDARD ADCP INPUT VALIDATOR ENDS
-    
-    
-    # >>>>>> OPENMM RELATED ERROR CHECKS STARTS
-    
+    # >>>>>> OPENMM RELATED ERROR CHECKS START    
     if 'swiss' in loaded_ffxml_names(kw):
         if kw['sequence'][0] =="<" or kw['sequence'][1] =="<" or kw['sequence'][-1] == ">" or (kw['sequence'][0] == "&" and kw['sequence'][2] =="<"):
             detected_problems.append('OpenMM calculation for terminal Non-standard amino acids are not supported with "swiss" ffxml set. Try "-F sannerlab"')
@@ -519,8 +583,7 @@ def support_validator(kw,myprint=print):
             if all_flags_allowed:
                 all_flags_allowed = False
                 
-    ## Terminal NST check<<<
-  
+    ## Terminal NST check<<<  
     if len(NSTlist)>0: 
         loaded_ffxmls = currently_loaded_ffxml_data(kw,myprint)
         # print(loaded_ffxmls.ffxmlfiles)
@@ -596,7 +659,6 @@ def support_validator(kw,myprint=print):
                 myprint ('Receptor residue %s %s substituted with %s.' % (ns_res, replace_will_be_or_can_be,substitutions[ns_res]))
             else:
                 myprint ('Receptor residue %s %s substituted with "ALA".' % (ns_res, replace_will_be_or_can_be))
-
     # all_flags_allowed = False  
 
 
@@ -608,7 +670,6 @@ def support_validator(kw,myprint=print):
         if all_flags_allowed:
             all_flags_allowed = False
         
-    
                 
     if not all_flags_allowed:
         myprint("Please resolve following issues to use openMM based ranking:")

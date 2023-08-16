@@ -34,6 +34,24 @@ from utils import openmm_validator, add_open_mm_flags, support_validator #OMM ne
 # from glob import glob
 
 
+def pepSeqStr(case, sequence):
+    """this function will transform sequence into a peptide sequence for a
+    helical initial confomation with upper case amino acid letters or extended
+    with lower case letters but leaving non standard amino acids (<XXX> unchanged)"""
+    newSeq = []
+    inNST = False
+    for char in sequence:
+        if char is '<': inNST = True
+        if inNST:
+            newSeq.append(char)
+        else:
+            if case is 'upper':
+                newSeq.append(char.upper())
+            else:
+                newSeq.append(char.lower())
+        if char is '>': inNST = False
+    print(''.join(newSeq))
+    return ''.join(newSeq)
 
 class runADCP:
 
@@ -355,10 +373,14 @@ class runADCP:
 
             # overwrite the sequence if parition is found
             if partition > 0 and partition < 100 and kw['sequence'] is not None:
+                ## MS Aug 15 2023. Here we need to be careful because we can not
+                ## change the capitalization of NSTs
                 if jobNum <= numHelix:
-                    argv[1] = '"%s"'%kw['sequence'].upper()
+                    #argv[1] = '"%s"'%kw['sequence'].upper()
+                    argv[1] = pepSeqStr('upper', '"%s"'%kw['sequence'])
                 else:
-                    argv[1] = '"%s"'%kw['sequence'].lower()
+                    #argv[1] = '"%s"'%kw['sequence'].lower()
+                    argv[1] = pepSeqStr('lower', '"%s"'%kw['sequence'])
             if self.dryRun:
                 self.myprint ('/n*************** command ***************************\n')
                 self.myprint (' '.join(argv))
@@ -380,26 +402,26 @@ class runADCP:
             processes[jobNum-1]= process
             outfiles[jobNum-1] = outfile
             nbStart += 1
-            
+            #print("%3d %s %s"%(jobNum-1, process, outfile))
+
         # check for completion and start new runs until we are done
         while nbDone < nbRuns:
             # check running processes            
             #for proc, jnum in procToRun.items():
             for jnum, proc in enumerate(processes):
                 if proc is None: continue
-                # print(proc, jnum)
                 #import pdb;pdb.set_trace()
                 if proc.poll() is not None: # process finished
                     if runStatus[jnum] is not None: continue
-                    if proc.returncode !=0:
-                        #print('FAFA1', proc, jnum)
+                    if proc.returncode != 0:
+                        #print('FAFA1', proc, jnum, proc.returncode)
                         runStatus[jnum] = ('Error', '%s%04d'%(jobName, jnum+1))
                         error = '\n'.join(runStatus[jnum][1])
                         status = 'FAILED'
                         self.myprint( '%d ENDED WITH ERROR'%(jnum,))
                         print ('%d err'%jnum)
                     else:
-                         #print('FAFA2', proc, jnum)
+                        #print('FAFA2', proc, jnum, proc.returncode)
                         status = 'OK'
                         error = ''
                         runStatus[jnum] = ('OKAY', '%s%04d'%(jobName, jnum+1))
@@ -443,7 +465,7 @@ class runADCP:
                         #except OSError:
                         #    pass
                         if os.path.exists(outfileName):
-                            f = outfiles[jobNum]
+                            f = outfiles[jobNum-1]
                             if f and not f.closed:
                                 f.close()
                             os.remove(outfileName)
@@ -452,9 +474,11 @@ class runADCP:
                         # overwrite the sequence if parition is found
                         if partition > 0 and partition < 100 and kw['sequence'] is not None:
                             if jobNum <= numHelix:
-                                argv[1] = '"%s"'%kw['sequence'].upper()
+                                #argv[1] = '"%s"'%kw['sequence'].upper()
+                                argv[1] = pepSeqStr('upper', '"%s"'%kw['sequence'])
                             else:
-                                argv[1] = '"%s"'%kw['sequence'].lower()
+                                #argv[1] = '"%s"'%kw['sequence'].lower()
+                                argv[1] = pepSeqStr('lower', '"%s"'%kw['sequence'])
                         #process = subprocess.Popen(' '.join(argv),
                         #                           stdout=subprocess.PIPE , 
                         #                           stderr=subprocess.PIPE, 

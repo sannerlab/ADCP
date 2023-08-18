@@ -29,7 +29,7 @@
 
 import os, sys, numpy, shutil, random
 from MolKit2 import Read
-from utils import openmm_validator, add_open_mm_flags, support_validator #OMM new line
+from utils import openmm_validator, add_open_mm_flags, support_validator        #OMM new line
 #import os, sys, numpy, platform, datetime, tempfile, shutil, random, tarfile, pickle
 # from glob import glob
 
@@ -50,7 +50,6 @@ def pepSeqStr(case, sequence):
             else:
                 newSeq.append(char.lower())
         if char is '>': inNST = False
-    print(''.join(newSeq))
     return ''.join(newSeq)
 
 class runADCP:
@@ -129,8 +128,8 @@ class runADCP:
         else:
             self.shell=True
 
-        if openmm_validator(kw) == False: #OMM new line
-            return                  #OMM new line
+        if openmm_validator(kw) == False:                                       #OMM new line
+            return                                                              #OMM new line
 
         import subprocess, datetime
         dataDict = {}
@@ -172,7 +171,34 @@ class runADCP:
         if jobName is None:
             jobName = '%s_%s'%(targetName, self.sanitize(kw['sequence']))
 
-        #check overwriting files
+        # Post Docking Minimization step:           
+        if kw['postdockmin']:                                                   #OMM new line
+            from utils import ( evaluate_requirements_for_minimization,         #OMM new line
+                               extract_target_file )                            #OMM new line
+            kw['jobName'] = jobName                                             #OMM new line
+            kw['target'] = targetFile                                           #OMM new line
+            
+            if not extract_target_file(kw,self.myprint):                        #OMM new line
+                self.myexit()                                                   #OMM new line
+            
+            # check everything needed is there for a safe & successful minimization
+            if not evaluate_requirements_for_minimization(kw, self.myprint):    #OMM new line              
+                self.myexit()                                                   #OMM new line
+            
+            self.workingFolder =  jobName                                       #OMM new line  
+            self.summaryFile = open('%s_summary.dlg'%jobName, 'a')              #OMM new line
+            self.myprint(' ')                                                   #OMM new line
+            self.myprint('##### POST DOCKING MINIMIZATION #####')               #OMM new line                         
+            self.myprint('Minimizing docked poses ....')                        #OMM new line
+            
+            from openMMmethods import ommTreatment                              #OMM new line       
+            runner_omm = ommTreatment(targetFile,jobName,self.myprint)          #OMM new line
+            runner_omm(**kw)   
+            self.myprint('Post Docking Minimization Command: %s'%               #OMM new line
+                         " ".join(sys.argv))                                    #OMM new line 
+            self.myexit()                                                       #OMM new line
+            
+        #check overwriting files          
         if os.path.exists('%s_out.pdb'%jobName):
             if not kw['overwriteFiles']:
                 print("ERROR: file %s_out.pdb exists! please use different jobName (-o) or use -O to force overwritting output files"%jobName)
@@ -258,10 +284,10 @@ class runADCP:
 
 
         # to check openmm supports for the residues in the receptor file
-        kw['recpath'] = os.path.join(target_folder, 'rigidReceptor.pdbqt')  #OMM new line
-        if not support_validator(kw,self.myprint)[0]:      #OMM new line
-            self.myexit()                     #OMM new line
-            return                            #OMM new line
+        kw['recpath'] = os.path.join(target_folder, 'rigidReceptor.pdbqt')      #OMM new line        
+        if not support_validator(kw,self.myprint)[0]:                           #OMM new line
+            self.myexit()                                                       #OMM new line
+            return                                                              #OMM new line
 
         if not os.path.exists(os.path.join(target_folder, 'constrains')):
             fff = open(os.path.join(target_folder, 'constrains'),'w')
@@ -530,11 +556,12 @@ class runADCP:
         runner = clusterADCP()
         runner(**kw)
         
-        if kw['minimize']:                                #OMM new line
+        
+        if kw['minimize']:                                                      #OMM new line
             self.myprint('Minimizing docked poses ....')
-            from openMMmethods import ommTreatment        #OMM new line       
-            runner_omm = ommTreatment(targetFile,jobName,self.myprint) #OMM new line
-            runner_omm(**kw)                              #OMM new line
+            from openMMmethods import ommTreatment                              #OMM new line
+            runner_omm = ommTreatment(targetFile,jobName,self.myprint)          #OMM new line
+            runner_omm(**kw)                                                    #OMM new line
 
 
         self.myprint('MC search command: %s'%command)
@@ -555,7 +582,6 @@ if __name__=='__main__':
                                   usage="usage: python %(prog)s -s GaRyMiChEL -t rec.trg -o output")
                                   # version="%prog 0.1")
     parser.add_argument('--version', action='version', version="1.1.0" )
-
     parser.add_argument("-s", "--sequence",dest="sequence",
                         help="initialize peptide from sequence, lower case for coil and UPPER case for helix")
     parser.add_argument("-p", "--partition",dest="partition",type=int,
@@ -606,11 +632,9 @@ if __name__=='__main__':
                        dest="nmodes", help='maximum number of reported docked poses')
 
     # openMM flag support
-    parser = add_open_mm_flags(parser) #OMM new line
-    
+    parser = add_open_mm_flags(parser)                                          #OMM new line
     if len(sys.argv) == 1:
         parser.print_help()
-        #print('You are running "ADCP with OpenMM support v1.1.0". \nRun Use "--help" to see available options.')
         
     else:    
         # kw = vars(parser.parse_args())

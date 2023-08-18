@@ -4,9 +4,8 @@
 Created on Mon Dec 12 14:44:26 2022
 @author: Sudhanshu Shanker
 
-This is a collection of functions to identify OpenMM supports.
-It is made as a separate file from openmmmethods.py to quick check requirements
-without loading the main functions for openMM support.
+This file has collection of functions to evaluate input command and openMM 
+support options given for adcp docking.
 
 * Checks availability of openMM
 * Identifies non-standand aa and suggests (finds) ways to treat them.
@@ -33,10 +32,14 @@ Build 6:
     1: Suggest correct NST name if case of NST wrong like for "af1" or 'AF1', it will suggest to use "Af1"
     2: Some other bug fixes.
     
+    Update 8/16/23
+    1: Support for post-docking openMm minimization added. ("-pdmin", "--postDockMinimize")
+        ** required combinations 1) -pdmin with -nmin 2) if already minimized file in the directory -pdmin, -nmin and -O
     
     Remaining:
     1: ffxml parameters for all NSTs.
     2: clustering of similar atomtypes in ffxml file.
+    
 """
 
 import importlib
@@ -58,20 +61,20 @@ def openmm_validator(kw, myprint=print):
     if int(kw['minimize']) > 0:
         print ("""
 ------------------------------------------------------------------
-OpenMM minimization flag detected. This step takes more time than
-non-minimization calculations.'
+OpenMM minimization flag detected. This step takes more time than non-minimization calculations.
 
 DECLARATION (V1.1.0 build 6):
 a: Support for OpenMM Minimization is still under development.
 b: Currently, it supports docking with "-rmsd 0" flag.
 c: Current version provides docking supports for peptides containing ~400 (L and D) NSTs \
-and openMM support for 182 (182x2 for D and L) NSTs. Other unknown non-standard amino acids can either be replaced by similar amino \
+and openMM support for 182 (182x2 for D and L) NSTs. 
+d: Other unidentified non-standard amino acids can either be replaced by similar amino \
 acids (pdbfixer v1.8), or if pdbfixer does not identify a non-standard amino \
 acid, it can be replaced by ALA.
-d: Currently no support for external parameter input for non-standard amino \
+e: Currently no support for external parameter input for non-standard amino \
 acids.
    """)
-        # check these packages:
+        # check availability of these packages:
         packages_to_check = ['openmm', 'parmed']
 
         for pkg in packages_to_check:
@@ -83,7 +86,7 @@ acids.
 
     return procede_after_flag_check
 
-def loaded_ffxml_names(kw): # current set to default # 
+def loaded_ffxml_names(kw): # currently set to default # 
     """ 'swissaa' openmm parameters for non-terminal NSTs generated from 
     charges obtained from swissaa .rtp files. 
     
@@ -91,12 +94,12 @@ def loaded_ffxml_names(kw): # current set to default #
     charges generated using local RED server with GAMESS. NME/ACE caps used
     for charge generation. N,H,C,O charges addjested as amber FFs as 
     N = -.4157; H = .2719; C = .5973 ; O = -.5679.    
+    
     """
     #system_ffxml_sets = ['swiss'] #under
     system_ffxml_sets = ['sannerlab'] #under development 
     system_ffxml_sets = [kw['systemffxml']]    
     return system_ffxml_sets
-
 
 class rotamerfile:
     ''' This class reads a rotamer lib file and provides various operations to 
@@ -177,7 +180,7 @@ class rotamerfile:
             return False
         
         return True
-        
+
         
 class rotamerdata:
     ''' This class reads multiple rotamer files as rotamerfile object and provides
@@ -232,7 +235,7 @@ class rotamerdata:
         if len(similar_res) > 0:
             return similar_res, rotamer_file_names
         
-        return None        
+        return None,None       
         
     def get_rotamerfile_name_for_residue(self, resname):   
         '''returns the names of rotamer files that provide the specific residue'''
@@ -520,55 +523,56 @@ def support_validator(kw,myprint=print):
 
     # check errors and possible sources for NSTs
     if len(NSTlist)>0:  
-        # print (NSTlist)        
-        all_possible_rotamers = all_available_rotamers(kw,myprint)
-        loaded_rotamers = currently_loaded_rotamer_data(kw,myprint)
-        
-        # checking NSTs
-        for nst in NSTlist:      
-           
+        # print (NSTlist)     
+        if not kw['postdockmin']:
+            all_possible_rotamers = all_available_rotamers(kw,myprint)
+            loaded_rotamers = currently_loaded_rotamer_data(kw,myprint)
             
-            if not nst[0] in all_possible_rotamers.residues:
-                detected_problems.append('Undefined rotamers for NST: "%s" is not available from any default rotamer library files.' % nst[0])
-                detected_problems.append('To run ADCP for peptide with NST "%s", please provide an user-defined rotamer library using "-l" option.'
-                                         % nst[0] )                
-                if all_flags_allowed:
-                    all_flags_allowed = False
-                    
+            # checking NSTs
+            for nst in NSTlist:      
+               
+                
                 if not nst[0] in all_possible_rotamers.residues:
-                    possible_case_insentive_names,possible_lib_names = all_possible_rotamers.get_case_insensitive_residues(nst[0])
-                    if not possible_case_insentive_names == None:
-                        detected_problems.append("Possible residue(s) with similar name:")
-                        for p_res,p_lib in zip(possible_case_insentive_names,possible_lib_names):
-                            detected_problems.append(' "%s" from rotamer library "%s"'   %(p_res,p_lib))                    
-                    
-            else:
-                if not nst[0] in loaded_rotamers.residues:
-                    name_of_required_rotamer_file = all_possible_rotamers.get_rotamerfile_name_for_residue(nst[0])                                        
-                    detected_problems.append('Undefined rotamers for NST "%s". Rotamer library(ies) "%s" support(s) "%s" and '
-                                             % (nst[0], '", "'.join(name_of_required_rotamer_file), nst[0]) + 
-                                                'can be used with "-L" option.')                                             
+                    detected_problems.append('Undefined rotamers for NST: "%s" is not available from any default rotamer library files.' % nst[0])
+                    detected_problems.append('To run ADCP for peptide with NST "%s", please provide an user-defined rotamer library using "-l" option.'
+                                             % nst[0] )                
                     if all_flags_allowed:
                         all_flags_allowed = False
                         
+                    if not nst[0] in all_possible_rotamers.residues:
+                        possible_case_insentive_names,possible_lib_names = all_possible_rotamers.get_case_insensitive_residues(nst[0])
+                        if not possible_case_insentive_names == None:
+                            detected_problems.append("Possible residue(s) with similar name:")
+                            for p_res,p_lib in zip(possible_case_insentive_names,possible_lib_names):
+                                detected_problems.append(' "%s" from rotamer library "%s"'   %(p_res,p_lib))                    
+                        
                 else:
-                    if not loaded_rotamers.if_residue_and_course_combination_possible(nst[0], nst[1]):
-                        if nst[1] in['o','O']:                            
-                            rotamer_libs_providing_this_aa_params = loaded_rotamers.get_rotamerfile_name_for_residue(nst[0])
+                    if not nst[0] in loaded_rotamers.residues:
+                        name_of_required_rotamer_file = all_possible_rotamers.get_rotamerfile_name_for_residue(nst[0])                                        
+                        detected_problems.append('Undefined rotamers for NST "%s". Rotamer library(ies) "%s" support(s) "%s" and '
+                                                 % (nst[0], '", "'.join(name_of_required_rotamer_file), nst[0]) + 
+                                                    'can be used with "-L" option.')                                             
+                        if all_flags_allowed:
+                            all_flags_allowed = False
                             
-                            detected_problems.append('NST: "%s" defined in library: "%s" does not provide a default coarse potential.' %(nst[0], ','.join(rotamer_libs_providing_this_aa_params)))
-                            detected_problems.append('Do not use o<%s> instead replace "o" by a valid coarse potential.' %(nst[0]))
-                            if all_flags_allowed:
-                                all_flags_allowed = False
-            
-
-    if not kw['minimize']:  # no need to check further if no minimization   
-        if not all_flags_allowed: # print error messages and exit
-            myprint("Please resolve following issues:")
-            for msg in detected_problems:
-                myprint("* "+ msg)    
+                    else:
+                        if not loaded_rotamers.if_residue_and_course_combination_possible(nst[0], nst[1]):
+                            if nst[1] in['o','O']:                            
+                                rotamer_libs_providing_this_aa_params = loaded_rotamers.get_rotamerfile_name_for_residue(nst[0])
+                                
+                                detected_problems.append('NST: "%s" defined in library: "%s" does not provide a default coarse potential.' %(nst[0], ','.join(rotamer_libs_providing_this_aa_params)))
+                                detected_problems.append('Do not use o<%s> instead replace "o" by a valid coarse potential.' %(nst[0]))
+                                if all_flags_allowed:
+                                    all_flags_allowed = False
+                
     
-        return all_flags_allowed,''    
+        if not kw['minimize']:  # no need to check further if no minimization   
+            if not all_flags_allowed: # print error messages and exit
+                myprint("Please resolve following issues:")
+                for msg in detected_problems:
+                    myprint("* "+ msg)    
+        
+            return all_flags_allowed,''    
     
     ##<<<<< STANDARD ADCP INPUT VALIDATION ENDS
     
@@ -680,6 +684,101 @@ def support_validator(kw,myprint=print):
     return all_flags_allowed, rec #returning receptor to speed up calculation
 
 
+
+       
+def evaluate_requirements_for_minimization(kw,myprint):
+    '''To check all required options for post docking minimization'''
+    return_val = True  
+    
+    ## if inputs are not supported, exit now
+    if not support_validator(kw, myprint)[0]:     
+        return  False  
+    
+    # as -nmin activates required minimization setting, it must be activated when postdoc minimization is asked
+    if not kw['minimize']:                            
+        print('Post docking minimization (-pdmin) should be used'+   #OMM new line
+                     ' with minimize (-nmin) option') 
+        return  False 
+
+    jobName = kw['jobName']  
+    omm_out_file = jobName + "_omm_rescored_out.pdb"
+    
+    # DO NOT WRITE OVER previously minimized file without -O flag, 
+    if os.path.exists(omm_out_file) and not kw['overwriteFiles']:
+        print("ERROR: openMM minimization output file %s exist! please use -O to force overwritting output files" % omm_out_file)
+        return False                 
+    
+    # Look for required pdb and log file for output
+    docked_file = '%s_out.pdb'% jobName
+    if os.path.exists(docked_file):
+        print('Docked pdb file "%s" for minimization found!' % docked_file)
+    else:
+        print('ERROR: Expected docked pdb file "%s" not found! Please check the availability of the file and if the sequence (-s), targe file (-T), and jobName (-o) inputs are same as used for docking.'  % docked_file)
+        return_val = False
+    
+    summary_file = '%s_out.pdb'% jobName
+    if os.path.exists('%s_summary.dlg'%jobName):
+        print('Docking summary file "%s" found!' % summary_file)      
+        
+        ## check used commands are similar to current ones. rightnow I am only checking the input sequence (-s) and target file (-T)
+        fid = open('%s_summary.dlg'%jobName,'r')
+        data_lines = fid.readlines()
+        fid.close()
+        
+        # previous command line options
+        for dline in data_lines:
+            if dline.startswith("MC search command"):
+                prev_peptide = dline[dline.index("-t 2"): ].split()[2]  # peptide
+                prev_trg_file = dline[dline.index("-T "): ].split()[1].split(os.sep)[-1] # target file name
+                break
+        
+        # check peptide sequence
+        if not prev_peptide.replace('"','') == kw['sequence']:
+            print('ERROR: Peptide sequence used for docking: %s and currently provided peptide sequence: "%s" are different.' % (prev_peptide,kw['sequence'] ))
+            return_val = False   
+            
+        # check target file
+        currently_input_trg_file = kw['target'].split(os.sep)[-1].split(".")[0]
+        if not prev_trg_file == currently_input_trg_file:
+            print('ERROR: Target file used for docking: "%s" and currently provided targetfile: "%s" are different.' % (prev_trg_file, currently_input_trg_file))
+            return_val = False   
+    else:
+        myprint('ERROR: Expected docking summary file "%s" not found! Please check the availability of the file and if the sequence (-s), targe file (-T), and jobName (-o) inputs are same as used for docking.' % summary_file)
+        return_val = False
+    return return_val
+
+
+def extract_target_file(kw,myprint):    
+    '''Extract rec from target file for openmm minimization'''
+    if not os.path.exists(kw['target']):
+        myprint("ERROR: no receptor files found, please provide a .trg file or path to inflated .trg")
+        return False
+    
+    targetFile = kw['target']
+    workingFolder = kw['jobName']
+    
+    if os.path.isdir(targetFile):
+        target_folder = targetFile
+        
+    elif os.path.isfile(targetFile):
+        # if target is zip file unzip and replace cmdline arguments
+        import zipfile
+        myprint( 'Inflating target file %s'%(targetFile))
+        if not os.path.exists(workingFolder):
+            os.mkdir(workingFolder)       
+        
+        with zipfile.ZipFile(targetFile, 'r') as zip_ref:
+            # if the trg file was renamed it might create a folder with a different name
+            # so we first find out the name of the folder in which the maps are
+            filenames = zip_ref.namelist()
+            folder = filenames[0].split(os.sep)[0]
+            zip_ref.extract(('%s/rigidReceptor.pdbqt' % folder) , workingFolder) # we only need rigidReceptor for docking
+        target_folder = os.path.join(workingFolder, folder)
+            
+    kw['recpath'] = os.path.join(target_folder, 'rigidReceptor.pdbqt')  
+    return True
+ 
+
 def add_open_mm_flags(parser):
     # Add flags for openMM based calculations
     parser.add_argument("-nmin", "--omm_nmin", type=int, default=0,
@@ -712,6 +811,16 @@ def add_open_mm_flags(parser):
                         List of supported NSTs for both libraries is given in\
                         'AVAILABLE_PARAMETER.dat' file in 'ADCP/data/openMMff' \
                         directory."))
+                        
+    parser.add_argument("-pdmin", "--postDockMinimize",dest="postdockmin",                         
+                        action="store_true", default=False,
+                        help=("To use openMM minimization on already docked\
+                        poses. This option will stop ADCP to perform re-docking \
+                        and activates openMM minimization of poses from \
+                        already docked output file. If using this option, use target file (-T),\
+                        jobName (-o), and sequence (-s) descriptions same as used for docking."))
+                  
+                      
     
     # THIS PART WILL BE ACTIVATED IN BUILD 7
     # parser.add_argument("-x", "--userffxml",dest="ffxmlibs",

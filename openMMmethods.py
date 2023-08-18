@@ -55,7 +55,7 @@ RESIDUES_WITH_SIMILAR_GRAPHS = ['IIL', 'ILE',
                                 'ALO', 'THR', 
                                 'HL2', 'HLU', 
                                 'LME', 'MEG', 
-                                'MHO', 'SME'] # we may need to update it for new residues
+                                'MHO', 'SME'] # we may need to update this list for new residues
 
 class my_dot_variable:
     # a dot type variable for complex data handling
@@ -315,31 +315,45 @@ def identify_interface_residues(pdb_file, needs_b=0):
     interacting_chainA_res = []
     if needs_b ==1:
         interacting_chainZ_res = []
+    intreacting_chainA_res_ids = []
     for a1,a2,d in near_n:
         # import pdb ; pdb.set_trace()
         interacting_chainA_res.append(a1.getResindex())
+        res_array = [a1.getResname(), a1.getResnum(), a1.getChid() ]        
+        if not res_array in intreacting_chainA_res_ids:  # to avoid set
+            intreacting_chainA_res_ids.append(res_array )
+        
         if needs_b ==1:
             interacting_chainZ_res.append(a2.getResindex())
     
     interacting_chainA_res = list(set(interacting_chainA_res))    
     interacting_chainA_res.sort()
     # import pdb; pdb.set_trace()
-    res_list_prody=[]
-    for i in interacting_chainA_res:
-        res_list_prody.append(rec.select(' name CA and resindex %d' % i ).getResnames()[0])
+    
+    # quick sorting res ids by first 'chain' and second 'resnum'
+    sorting_facilator_array = []
+    for res_data in intreacting_chainA_res_ids:    
+        sorting_facilator_array.append("%s%6d" % (res_data[2], res_data[1])) #6d as largest pdb(4pth)has 120000 residues including HOH
+    sorting_facilator_array = np.array(sorting_facilator_array)
+    new_intreacting_chainA_res_ids = [intreacting_chainA_res_ids[idx] for idx in sorting_facilator_array.argsort()] # TADAA
+    intreacting_chainA_res_ids =[ "%s_%d.%s" % (nm,ids,ch)  for nm,ids,ch in  new_intreacting_chainA_res_ids] 
+
+    # res_list_prody=[]
+    # for i in interacting_chainA_res:
+        # res_list_prody.append(rec.select(' name CA and resindex %d' % i ).getResnames()[0])
     # print("prody ignore:",res_list_prody)
     
     if needs_b ==1:
         interacting_chainZ_res = list(set(interacting_chainZ_res))
         interacting_chainZ_res.sort()
-        pep_list_prody=[]
-        for i in interacting_chainZ_res:
-            pep_list_prody.append(pep.select(' name CA and resindex %d' % i ).getResnames()[0])
+        # pep_list_prody=[]
+        # for i in interacting_chainZ_res:
+            # pep_list_prody.append(pep.select(' name CA and resindex %d' % i ).getResnames()[0])
         # print("prody ignore(B):",pep_list_prody)
         return interacting_chainA_res,interacting_chainZ_res
    
     # interacting_chainA_res=np.array(interacting_chainA_res)
-    return interacting_chainA_res
+    return interacting_chainA_res, intreacting_chainA_res_ids
 
 
 def restrain_(system_, pdb, not_chain='Z', ignore_list=[]):
@@ -645,7 +659,8 @@ def openmm_minimize( pdb_str: str, env='implicit', verbose = 0, max_itr=5,
     system = force_field.createSystem(  topology, nonbondedCutoff=1*nanometer, 
                                       residueTemplates=residueTemplates)
                                       # constraints=constraints)    
-    ignore_list = identify_interface_residues(pdb_str)        
+    ignore_list, aa_without_restrains = identify_interface_residues(pdb_str)  
+      
     restrain_(system, pdb, ignore_list=ignore_list)    
     
     # platform = openmm.Platform.getPlatformByName("CUDA" if use_gpu else "CPU")
@@ -668,6 +683,7 @@ def openmm_minimize( pdb_str: str, env='implicit', verbose = 0, max_itr=5,
     out_var.topology = topology
     out_var.positions = positions
     out_var.env = env
+    out_var.aa_without_restrains = aa_without_restrains
     
     if not amberparminit == None:
         structure = parmed.openmm.topsystem.load_topology( topology, system, positions)
@@ -815,7 +831,7 @@ class ommTreatment:
         self.loaded_ffxml_name = ''
         
         # Options For code debugging        
-        self.CLEAN_AT_END = False # for debugging only ; True to keep all intermediate files
+        self.CLEAN_AT_END = True # for debugging only ; False to keep all intermediate files
         self.peptide_dir = "" # for debugging only; peptide_directory is current directory by defualt        
         self.debug_openmm_load_mode = False # for debugging; minimization will be off; only loading of parameters without any errors will be checked
 
@@ -873,19 +889,19 @@ class ommTreatment:
                 return
 
             # energy calculation    
-            enzs = self.estimate_energies_for_pdb( out_complex_name, out_parm_dirname)
+            enzs, not_restrained_res = self.estimate_energies_for_pdb( out_complex_name, out_parm_dirname)
             self.myprint( "E_Complex = %9.2f; E_Receptor = %9.2f; E_Peptide  = %9.2f" % (enzs[0],enzs[1],enzs[2]))
             self.myprint("dE_Interaction = %9.2f; dE_Complex-Receptor = %9.2f" % (enzs[3], enzs[4]))
             
             # save required details
-            self.make_post_calculation_file_lists(out_complex_name, enzs)        
+            self.make_post_calculation_file_lists(out_complex_name, enzs, not_restrained_res)        
         self.calculate_reranking_index()    
         #self.print_reranked_models()
         self.read_pdb_files_and_combine_using_given_index()
         if self.CLEAN_AT_END == True:
             self.clean_temp_files()
         
-    def make_post_calculation_file_lists(self, flnm, enzs):
+    def make_post_calculation_file_lists(self, flnm, enzs, not_restrained_res):
         # for deleting temprory files at the end
         self.delete_at_end.append(flnm)
         self.delete_at_end.append(flnm[:-4] + "_fixed.pdb")
@@ -894,10 +910,10 @@ class ommTreatment:
         self.delete_at_end.append(flnm[:-4] + "_fixed_min.pdb")
         # combining for final output
         if len(self.pdb_and_score)<1:
-            self.pdb_and_score.append([0,flnm[:-4]+"_fixed_min.pdb", enzs])
+            self.pdb_and_score.append([0,flnm[:-4]+"_fixed_min.pdb", enzs, not_restrained_res])
         else:
             current_model = len(self.pdb_and_score)
-            self.pdb_and_score.append([current_model,flnm[:-4]+"_fixed_min.pdb", enzs])
+            self.pdb_and_score.append([current_model,flnm[:-4]+"_fixed_min.pdb", enzs, not_restrained_res])
             
         # self.pdb_and_score.append([flnm[:-4]+"_fixed_min.pdb", enzs])
         
@@ -932,7 +948,9 @@ class ommTreatment:
         for current_v, rearrage_idx in enumerate(reaarange_for_omm_ranking):
             ommrank_adcprank_data.append([current_v, self.pdb_and_score[rearrage_idx][0],
                                           self.pdb_and_score[rearrage_idx][1],
-                                          self.pdb_and_score[rearrage_idx][2]])
+                                          self.pdb_and_score[rearrage_idx][2],
+                                          self.pdb_and_score[rearrage_idx][3]
+                                          ])
         #ommrank_adcprank_data = np.array(ommrank_adcprank_data)
         adcp_ranks = np.array([ i[1] for i in ommrank_adcprank_data])            
         # print(self.omm_ranking,metric_comp_minus_rec)
@@ -971,10 +989,11 @@ class ommTreatment:
         self.myprint (" Model | Rank | Rank | E_Complex  |")
         self.myprint(" #     |OpenMM| ADCP |-E_Receptor |")
         # print ("       |      |      |  (kJ/mol)  |")
-        self.myprint("-------+------+------+------------+")            
+        self.myprint("-------+------+------+------------+")      
+        
         for model_num, arranged_line in enumerate(self.rearranged_data_as_per_asked):
             # file name and omm scores
-            omm_rank, adcp_rank, flnm, scores = arranged_line            
+            omm_rank, adcp_rank, flnm, scores, res_not_restrained = arranged_line            
             # flnm = self.pdb_and_score[rank][0]
             # scores = self.pdb_and_score[rank][1]
             score_string_to_write1 = "E_Complex = %9.2f; E_Receptor = %9.2f; E_Peptide  = %9.2f\n" % (scores[0],scores[1],scores[2])
@@ -983,6 +1002,8 @@ class ommTreatment:
             out_file.write("USER: OpenMM RESCORED SOLUTION %d\n" % (omm_rank+1))            
             out_file.write("USER: " + score_string_to_write1)
             out_file.write("USER: " + score_string_to_write2)
+            out_file.write("USER: RECEPTOR RESIDUES NOT RESTRAINED DURING MINIMIZATION: %s\n" % ", ".join(res_not_restrained))
+
             # flnm_data = Read(flnm)            
             # writePDBStream(out_file, flnm_data._ag.select('not hydrogen')) 
             read_and_write_pdb_data_to_fid(out_file, flnm)
@@ -1005,13 +1026,17 @@ class ommTreatment:
         enzs = return_comp_rec_pep_energies_from_omm_minimize_output(omm_min_list,self.loaded_ffxml_name)        
         enzs.append(enzs[0] - enzs[1] -enzs[2])   # interaction energy
         enzs.append(enzs[0] - enzs[1])            # complex - protein energy
+        
+        not_restrained_residues = omm_min_list.aa_without_restrains
+        
+        
         e_str=''
         for i in enzs:
             e_str = e_str + "%10.2f" % i
         if verbose == 1:
             self.myprint(' E_Complex E_Receptr E_Peptide dE_Interc dE_ComRes')   
             self.myprint (e_str)
-        return enzs
+        return enzs, not_restrained_residues
     
     def load_pdb_file_to_openMM_engine(self,pdb_fl, amber_parm_init, verbose=0): 
         ## Only for debugging the openMM support to NSTs    

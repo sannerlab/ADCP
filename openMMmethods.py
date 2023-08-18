@@ -47,7 +47,11 @@ Steps:
 '''
 
 # Global Variables
-ffxml_path = os.path.join(os.path.dirname(__file__), 'data/openMMff') 
+ffxml_path = os.path.join(os.path.dirname(__file__), 'data','openMMff') # for NST ffxmls
+AMBERFFXMLFILE = 'amber99sb.xml'
+GBN2IMPLICIT = os.path.join('implicit','gbn2.xml')  # provided after openmm 7.6
+if float(openmm.__version__) < 7.7:
+    GBN2IMPLICIT = os.path.join(ffxml_path,'openmm7.7','implicit','gbn2.xml')# overriding for older openmm version. checked for 7.6
 
 # Similar graphs ILE & IIL; THR & ALO, HLU & HL2, LME & MEG. we may need to update this list for new residues
 # In future use something like this for openMM: https://github.com/ParmEd/ParmEd/issues/629
@@ -99,13 +103,13 @@ def fix_my_pdb(pdb_in,out=None, NonstandardResidueTreatment=False, return_topolo
       -fnst: try to swap NSTs with similar amino acids, if cannot swap, mutate to ALA'''     
 
     if out==None:        
-        pdb_out = os.path.join("./fixed/", os.path.split(pdb_in)[-1].split('.')[0]+'_fixed.pdb' )
+        pdb_out = os.path.join(os.curdir,"fixed", os.path.split(pdb_in)[-1].split('.')[0]+'_fixed.pdb' )
         
     else:
         pdb_out = out
         
     if return_topology:
-        pdb_out = './tmp.pdb'
+        pdb_out = os.path.join(os.curdir,'tmp.pdb')
 
     # Cleaning in Prody >>>        
     mol_tmp =Read(pdb_in)
@@ -563,12 +567,12 @@ def get_energy_on_modeller(modeller, mode='vacuum',loaded_ffxml_name='',verbose 
     '''
 
     if mode == 'implicit':
-        force_field = ForceField("amber99sb.xml",'implicit/gbn2.xml',
+        force_field = ForceField(AMBERFFXMLFILE, GBN2IMPLICIT,
                                  os.path.join(ffxml_path, '%s_ff.xml' % loaded_ffxml_name))  
         msg="Using GBSA (gbn2) environment for energy calculation"    
     else:
         # force_field = ForceField("amber99sb.xml", os.path.join(ffxml_path, 'swissaa_ff.xml'))
-        force_field = ForceField("amber99sb.xml", os.path.join(ffxml_path, '%s_ff.xml' % loaded_ffxml_name))
+        force_field = ForceField(AMBERFFXMLFILE, os.path.join(ffxml_path, '%s_ff.xml' % loaded_ffxml_name))
         msg="Using In-Vacuo environment for energy calculation"
     positions = modeller.positions
     topology = modeller.topology
@@ -646,10 +650,11 @@ def openmm_minimize( pdb_str: str, env='implicit', verbose = 0, max_itr=5,
     
     # force field
     if env == 'implicit':
-        force_field = ForceField("amber99sb.xml",'implicit/gbn2.xml')        
+        force_field = ForceField( AMBERFFXMLFILE, GBN2IMPLICIT,
+                                 os.path.join(ffxml_path, '%s_ff.xml' % loaded_ffxml_name))        
         msg = "Using GBSA (gbn2) environment for energy minimization"
     else:
-        force_field = ForceField("amber99sb.xml", os.path.join(ffxml_path, '%s_ff.xml' % loaded_ffxml_name))
+        force_field = ForceField( AMBERFFXMLFILE, os.path.join(ffxml_path, '%s_ff.xml' % loaded_ffxml_name))
         msg = "Using in-vacuo environment for energy minimization"
     
     if verbose == 1:
@@ -715,11 +720,11 @@ def openmm_create_system( pdb_str: str, env='implicit', verbose = 0, max_itr=5,
         topology, positions = make_disulfide_between_cys_in_last_chain(topology, positions, myprint=myprint) 
         
     if env == 'implicit':
-        force_field = ForceField("amber99sb.xml",'implicit/gbn2.xml',
+        force_field = ForceField( AMBERFFXMLFILE, GBN2IMPLICIT,
                                  os.path.join(ffxml_path, '%s_ff.xml' % loaded_ffxml_name))        
         msg = "Using GBSA (gbn2) environment for energy minimization"
     else:
-        force_field = ForceField("amber99sb.xml", os.path.join(ffxml_path, '%s_ff.xml' % loaded_ffxml_name))
+        force_field = ForceField( AMBERFFXMLFILE, os.path.join(ffxml_path, '%s_ff.xml' % loaded_ffxml_name))
         msg = "Using in-vacuo environment for energy minimization"
     
     if verbose == 1:
@@ -728,7 +733,8 @@ def openmm_create_system( pdb_str: str, env='implicit', verbose = 0, max_itr=5,
     
     # for alo residues
     residueTemplates = get_residue_templates_for_residues_with_same_graphs(topology)    
-    system = force_field.createSystem(  topology, nonbondedCutoff=1*nanometer,residueTemplates=residueTemplates)
+    system = force_field.createSystem( topology, nonbondedCutoff=1*nanometer,
+                                      residueTemplates=residueTemplates)
     return system
 
 
@@ -817,8 +823,8 @@ class ommTreatment:
         #other settings
         self.target_file = target_file
         self.omm_temp_dir = "omm_temp_dir_" + jobName
-        self.omm_proj_dir = self.omm_temp_dir + "/" + target_file.split(".")[0]
-        self.amber_parm_out_dir = "%s_omm_amber_parm/" % jobName + target_file.split(".")[0]
+        self.omm_proj_dir = os.path.join(self.omm_temp_dir, target_file.split(".")[0])
+        self.amber_parm_out_dir = os.path.join("%s_omm_amber_parm" % jobName , target_file.split(".")[0])
         self.file_name_init = jobName
         self.pdb_and_score=[]
         self.delete_at_end =[]
@@ -880,8 +886,8 @@ class ommTreatment:
             pep_pdb._ag.setChids([x for x in 'Z'*pep_pdb._ag.numAtoms()]) # setting peptide chid to 'B'
             
             #making complex for current peptide and receptor
-            out_complex_name = self.omm_proj_dir + "/" + self.file_name_init + "_recNpep_%d.pdb" % (f)  
-            out_parm_dirname = self.amber_parm_out_dir + "/"+ self.file_name_init + "_%d" % f
+            out_complex_name = os.path.join( self.omm_proj_dir , (self.file_name_init + "_recNpep_%d.pdb" % (f)) ) 
+            out_parm_dirname = os.path.join(self.amber_parm_out_dir, (self.file_name_init + "_%d" % f))
             combinedRecPep= rec + pep_pdb._ag
             writePDB(out_complex_name, combinedRecPep.select('not hydrogen'))            
             
@@ -1018,7 +1024,7 @@ class ommTreatment:
         # works as function name says
         env=self.minimization_env
         if verbose == 1:
-            self.myprint('Working on:',pdb_fl.split("/")[-1])
+            self.myprint('Working on:',pdb_fl.split(os.sep)[-1])
         fixed_pdb = fix_my_pdb(pdb_fl, pdb_fl[:-4] +"_fixed.pdb",NonstandardResidueTreatment=self.NonstandardResidueTreatment,kw=self.kw)
         if verbose == 1:
             self.myprint("Minimizing ...")
@@ -1044,7 +1050,7 @@ class ommTreatment:
         ## Only for debugging the openMM support to NSTs    
         env=self.minimization_env
         if verbose == 1:
-            self.myprint('Working on:',pdb_fl.split("/")[-1])
+            self.myprint('Working on:',pdb_fl.split(os.sep)[-1])
         fixed_pdb = fix_my_pdb(pdb_fl, pdb_fl[:-4] +"_fixed.pdb",NonstandardResidueTreatment=self.NonstandardResidueTreatment,kw=self.kw)        
         try: openmm_create_system(fixed_pdb,env, max_itr=self.minimization_steps, 
                            cyclize=self.cyclize_by_backbone, SSbond=self.SSbond, 

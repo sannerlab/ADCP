@@ -253,7 +253,7 @@ def currently_loaded_rotamer_data(kw,myprint=print):
     
     # from system defaults
     if not kw['rotlibs']==None:
-        sys_rotamer_dir = os.path.join( os.path.dirname(__file__), 'data/rotamers')
+        sys_rotamer_dir = os.path.join( os.path.dirname(__file__), 'data','rotamers')
         system_rot_libs = kw['rotlibs'].split(":")
         for filenm in system_rot_libs:
             rot_file = os.path.join(sys_rotamer_dir, filenm+".lib")
@@ -261,7 +261,7 @@ def currently_loaded_rotamer_data(kw,myprint=print):
             
     # from user defined
     if not kw['userrotlibs']==None:
-        sys_rotamer_dir = os.path.join( os.path.dirname(__file__), 'data/rotamers')
+        sys_rotamer_dir = os.path.join( os.path.dirname(__file__), 'data','rotamers')
         UserLibFiles = kw['userrotlibs'].split(":")
         for UlibFile in UserLibFiles:
             UlibPath = os.path.abspath(UlibFile)
@@ -274,7 +274,7 @@ def all_available_rotamers(kw,myprint=print):
     '''Provide rotamerdata object from currently loaded rotamer files and all other
     (not loaded but) system available rotamer files'''  
     loaded_rotamers = currently_loaded_rotamer_data(kw,myprint)    
-    sys_rotamer_dir = os.path.join( os.path.dirname(__file__), 'data/rotamers')    
+    sys_rotamer_dir = os.path.join( os.path.dirname(__file__), 'data','rotamers')    
     for libFile in os.listdir(sys_rotamer_dir):
         if not libFile.endswith(".lib"):
             continue
@@ -772,7 +772,7 @@ def extract_target_file(kw,myprint):
             # so we first find out the name of the folder in which the maps are
             filenames = zip_ref.namelist()
             folder = filenames[0].split(os.sep)[0]
-            zip_ref.extract(('%s/rigidReceptor.pdbqt' % folder) , workingFolder) # we only need rigidReceptor for docking
+            zip_ref.extract(os.path.join(folder, 'rigidReceptor.pdbqt' ), workingFolder) # we only need rigidReceptor for docking
         target_folder = os.path.join(workingFolder, folder)
             
     kw['recpath'] = os.path.join(target_folder, 'rigidReceptor.pdbqt')  

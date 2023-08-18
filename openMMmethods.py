@@ -317,9 +317,9 @@ def identify_interface_residues(pdb_file, needs_b=0):
         interacting_chainZ_res = []
     intreacting_chainA_res_ids = []
     for a1,a2,d in near_n:
-        # import pdb ; pdb.set_trace()
         interacting_chainA_res.append(a1.getResindex())
-        res_array = [a1.getResname(), a1.getResnum(), a1.getChid() ]        
+        # import pdb; pdb.set_trace()
+        res_array = [a1.getResname(), a1.getResnum(), a1.getChid() , a1.getSegname()]        
         if not res_array in intreacting_chainA_res_ids:  # to avoid set
             intreacting_chainA_res_ids.append(res_array )
         
@@ -336,7 +336,9 @@ def identify_interface_residues(pdb_file, needs_b=0):
         sorting_facilator_array.append("%s%6d" % (res_data[2], res_data[1])) #6d as largest pdb(4pth)has 120000 residues including HOH
     sorting_facilator_array = np.array(sorting_facilator_array)
     new_intreacting_chainA_res_ids = [intreacting_chainA_res_ids[idx] for idx in sorting_facilator_array.argsort()] # TADAA
-    intreacting_chainA_res_ids =[ "%s_%d.%s" % (nm,ids,ch)  for nm,ids,ch in  new_intreacting_chainA_res_ids] 
+    
+    intreacting_chainA_res_ids =[ "%4s_%s_%s_%d" % (sg,ch,rname,rnum)  for rname,rnum,ch,sg in  new_intreacting_chainA_res_ids] # name : segid_chain_resname_resnum
+    
 
     # res_list_prody=[]
     # for i in interacting_chainA_res:

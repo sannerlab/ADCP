@@ -175,7 +175,7 @@ class clusterADCP:
         ## read the files containg all the docking poses to be clustered
         ## this file was created in runADCP.py by concatenating the trajectories
         ## of all MC runs
-        syst = os.path.join(kw['workingFolder'],kw['input'])+".pdb"
+        syst = os.path.join(kw['workingFolder'],kw['input'],kw['input'])+".pdb"
 
         print = kw['print']
         
@@ -289,7 +289,7 @@ class clusterADCP:
         order = numpy.array(order)[oorder]
 
         # open file for saving docked poses that are reported
-        solutionFile = open('%s_out.pdb'%(kw['input']), 'w')
+        solutionFile = open('%s_out.pdb'%(os.path.join(kw['workingFolder'], '..', kw['input']),), 'w')
         
         # maximum number of reported docked poses 
         maxModes = int(kw['nmodes'])
@@ -422,6 +422,8 @@ if __name__=='__main__':
     parser.add_argument("-m", "--nmodes", type=int, default=100,
                        dest="nmodes", help='maximum number of reported docked poses')
     parser.add_argument("-ref", "--ref",dest="ref", help='reference peptide structure for calculating rmsd and fnc')
+    parser.add_argument("-w", "--workingFolder", default=None,
+                       dest="workingFolder", help='folder in which the target file is expanded and the MC runs happened. Will be deleted after the run finished unless -k is specified')
     kw = vars(parser.parse_args())
     runner = clusterADCP()
     runner(**kw)

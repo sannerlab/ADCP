@@ -14,8 +14,8 @@ Build 6:
     3: -fnst flag only mutates NSTs that is not present in loaded ffxml file (currently only swiss).
     4: 
 """
-import os
-import sys
+import os, sys, shutil
+
 import numpy as np
 #from colorama import Fore, Style
 
@@ -814,7 +814,7 @@ def read_and_write_pdb_data_to_fid(fid, pdbfile):
 
 class ommTreatment:
     #a class to perform all required operations for openmm calculations
-    def __init__(self,target_file, jobName, myprint, rec_data=None):
+    def __init__(self, target_file, recPath, workingFolder, jobName, myprint, rec_data=None):
         myprint('Rescoring clustered poses using OpenMM ..')
         #omm defaults
         self.minimization_env = 'in-vacuo'
@@ -822,25 +822,26 @@ class ommTreatment:
         self.find_neighbor_cutoff = 5        
         #other settings
         self.target_file = target_file
-        self.omm_temp_dir = "omm_temp_dir_" + jobName
-        self.omm_proj_dir = os.path.join(self.omm_temp_dir, target_file.split(".")[0])
-        self.amber_parm_out_dir = os.path.join("%s_omm_amber_parm" % jobName , target_file.split(".")[0])
+        self.omm_temp_dir = os.path.join(workingFolder, jobName)
+        self.omm_proj_dir = os.path.split(recPath)[0] #os.path.join(self.omm_temp_dir, target_file.split(".")[0])
+        self.amber_parm_out_dir = os.path.join("%s_omm_amber_parm" %(os.path.join(workingFolder, jobName)))
         self.file_name_init = jobName
         self.pdb_and_score=[]
         self.delete_at_end =[]
         self.rearranged_data_as_per_asked=[]
         self.output_file =''
         self.rearrangeposes = True        
-        self.combined_pep_file =''
+        self.combined_pep_file = '%s_out.pdb'%jobName
         self.rec_data = rec_data
         self.cyclize_by_backbone = False
         self.SSbond = False
         self.myprint = myprint
         self.loaded_ffxml_name = ''
-        
+        self.workingFolder = workingFolder
+        self.jobName = jobName
         # Options For code debugging        
         self.CLEAN_AT_END = True # for debugging only ; False to keep all intermediate files
-        self.peptide_dir = "" # for debugging only; peptide_directory is current directory by defualt        
+        self.peptide_dir = workingFolder
         self.debug_openmm_load_mode = False # for debugging; minimization will be off; only loading of parameters without any errors will be checked
 
      
@@ -865,12 +866,12 @@ class ommTreatment:
         makeChidNonPeptide(rec) # removing numerical and 'Z' chains from receptor
         
         # identifying peptide clustered file and initiating output file name        
-        if not os.path.isfile(self.peptide_dir+self.combined_pep_file):
+        if not os.path.isfile(os.path.join(self.peptide_dir, self.combined_pep_file)):
             self.myprint("Clustered file %s does not exist. OpenMM calculation terminated" % self.combined_pep_file)
             return
         
         # combining peptides and receptor; and scoring   
-        pep_pdb = Read( self.peptide_dir+self.combined_pep_file )
+        pep_pdb = Read( os.path.join(self.peptide_dir, self.combined_pep_file ))
         num_mode_to_minimize = min(pep_pdb._ag.numCoordsets(), int(kw['minimize']))        
         
         if not self.debug_openmm_load_mode: # DONT PRINT WHEN DEBUGGING
@@ -931,7 +932,7 @@ class ommTreatment:
         # self.combined_pep_file = self.file_name_init + "_" + kw['sequence'] + "_out.pdb"
         self.combined_pep_file = self.file_name_init + "_out.pdb"
         # self.output_file = self.file_name_init + "_" + kw['sequence'] + "_omm_rescored_out.pdb"
-        self.output_file = self.file_name_init + "_omm_rescored_out.pdb"
+        self.output_file = os.path.join(self.workingFolder, "%s_omm_rescored_out.pdb"%self.jobName)
         self.minimization_env = 'implicit'  if kw['omm_environment'] == 'implicit' else  'in-vacuo'
         self.minimization_steps = kw['omm_max_itr']
         self.NonstandardResidueTreatment = kw['omm_nst']
@@ -986,9 +987,9 @@ class ommTreatment:
             if os.path.isfile(fl):
                 os.remove(fl)
         if os.path.isdir(self.omm_proj_dir):
-            os.rmdir(self.omm_proj_dir)
+            shutil.rmtree(self.omm_proj_dir)
         if os.path.isdir(self.omm_temp_dir):
-            os.rmdir(self.omm_temp_dir)
+            shutil.rmtree(self.omm_temp_dir)
         
     def read_pdb_files_and_combine_using_given_index(self):
         # works as function name says

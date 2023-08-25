@@ -71,10 +71,10 @@ class runADCP:
             sys.stdout.write('\n')
 
     def myexit(self, error=True):
-        if not self.keepWokingFolder and self.workingFolder:
-            print("removing working folder %s"%self.workingFolder)
+        if not self.keepWokingFolder and self.calcFolder:
+            print("removing working folder %s"%self.calcFolder)
             try:
-                shutil.rmtree(self.workingFolder)
+                shutil.rmtree(self.calcFolder)
             except OSError:
                 pass        
         if self.summaryFile:
@@ -97,6 +97,7 @@ class runADCP:
         self.cleanup = True
         self.summaryFile = None
         self.workingFolder = None
+        self.calcFolder = None
 
     def __call__(self, **kw):
         #
@@ -171,6 +172,9 @@ class runADCP:
         if jobName is None:
             jobName = '%s_%s'%(targetName, self.sanitize(kw['sequence']))
 
+        # create a working folder name after the jobname where we will perform calculations
+        self.workingFolder = workingFolder = kw['workingFolder']
+
         # Post Docking Minimization step:           
         if kw['postdockmin']:                                                   #OMM new line
             from utils import ( evaluate_requirements_for_minimization,         #OMM new line
@@ -178,42 +182,52 @@ class runADCP:
             kw['jobName'] = jobName                                             #OMM new line
             kw['target'] = targetFile                                           #OMM new line
             
-            if not extract_target_file(kw,self.myprint):                        #OMM new line
+            if not extract_target_file(kw, workingFolder, jobName, self.myprint):                        #OMM new line
                 self.myexit()                                                   #OMM new line
             
             # check everything needed is there for a safe & successful minimization
             if not evaluate_requirements_for_minimization(kw, self.myprint):    #OMM new line              
                 self.myexit()                                                   #OMM new line
             
-            self.workingFolder =  jobName                                       #OMM new line  
-            self.summaryFile = open('%s_summary.dlg'%jobName, 'a')              #OMM new line
+            self.summaryFile = open('%s_summary.dlg'%os.path.join(self.workingFolder, jobName), 'a')              #OMM new line
             self.myprint(' ')                                                   #OMM new line
             self.myprint('##### POST DOCKING MINIMIZATION #####')               #OMM new line                         
             self.myprint('Minimizing docked poses ....')                        #OMM new line
             
             from openMMmethods import ommTreatment                              #OMM new line       
-            runner_omm = ommTreatment(targetFile,jobName,self.myprint)          #OMM new line
+            runner_omm = ommTreatment(targetFile, kw['recpath'], workingFolder, jobName,self.myprint)          #OMM new line
             runner_omm(**kw)   
             self.myprint('Post Docking Minimization Command: %s'%               #OMM new line
                          " ".join(sys.argv))                                    #OMM new line 
             self.myexit()                                                       #OMM new line
             
+        if not os.path.exists(workingFolder):
+            try:
+                os.mkdir(workingFolder)
+            except:
+                raise RuntimeError("ERROR: uanble to create folder %s"%workingFolder)
+                self.myexit()
+
+        self.calcFolder = calcFolder = os.path.join(workingFolder, jobName)
+        if not os.path.exists(calcFolder):
+            os.mkdir(calcFolder)
+
         #check overwriting files          
-        if os.path.exists('%s_out.pdb'%jobName):
+        if os.path.exists('%s_out.pdb'%os.path.join(workingFolder, jobName)):
             if not kw['overwriteFiles']:
                 print("ERROR: file %s_out.pdb exists! please use different jobName (-o) or use -O to force overwritting output files"%jobName)
                 self.myexit()
-        if os.path.exists('%s_summary.dlg'%jobName):
+        if os.path.exists('%s_summary.dlg'%os.path.join(workingFolder, jobName)):
             if not kw['overwriteFiles']:
-                print("ERROR: file %s_summary.dlg exists! please use different jobName (-o) or use -O to force overwritting output files"%jobName)
+                print("ERROR: file %s_summary.dlg exists! please use different jobName (-o) or use -O to force overwritting output files"%os.path.join(workingFolder, jobName))
                 self.myexit()
         if os.path.exists(jobName):
             if not kw['overwriteFiles']:
-                print("ERROR: file/folder %s exists! please use different jobName (-o) or use -O to force overwritting output files"%jobName)
+                print("ERROR: file/folder %s exists! please use different jobName (-o) or use -O to force overwritting output files"%os.path.join(workingFolder, jobName))
                 self.myexit()
 
         # open summary file
-        self.summaryFile = open('%s_summary.dlg'%jobName, 'w')
+        self.summaryFile = open('%s_summary.dlg'%os.path.join(self.workingFolder, jobName), 'w')
         self.myprint("performing MC searches with: %s "%binary)
         if kw['ref']:
             self.myprint('reference srtucture: %s'%kw['ref'])
@@ -240,11 +254,6 @@ class runADCP:
 
         if seed is None:
             seed = str(random.randint(1,999999))
-
-        # create a working folder name after the jobname where we will perform calculations
-        self.workingFolder = workingFolder = jobName
-        if not os.path.exists(workingFolder):
-            os.mkdir(workingFolder)
 
         #if not os.path.isdir(workingFolder):
         #    raise RuntimeError('ERROR: "%s" exists but is not a folder. Please specify a different working folder'%workingFolder)
@@ -274,8 +283,8 @@ class runADCP:
                 # so we first find out the name of the folder in which the maps are
                 filenames = zip_ref.namelist()
                 folder = filenames[0].split(os.sep)[0]
-                zip_ref.extractall(workingFolder)
-            target_folder = os.path.join(workingFolder, folder)
+                zip_ref.extractall(calcFolder)
+            target_folder = os.path.join(calcFolder, folder)
             transPoints = numpy.load(os.path.join(target_folder, 'translationPoints.npy'))
             TPfile = open(os.path.join(target_folder, 'transpoints'),'w')
             TPfile.write('%s\n'%len(transPoints))
@@ -297,7 +306,7 @@ class runADCP:
         self.dryRun = kw.pop('dryRun')
 
         # build cmdline args for adcp binary
-        argv = ['cd %s; %s -t 2'%(workingFolder, binary)]
+        argv = ['cd %s; %s -t 2'%(calcFolder, binary)]
 
         if kw['sequence'] is None:
             if kw['input'] is None or kw['input'][-3:] != 'pdb':
@@ -415,7 +424,7 @@ class runADCP:
             elif jobNum==1:
                 command = ' '.join(argv)
                 
-            outfile =  open(os.path.join(workingFolder, 'run_%d.out'%(jobNum)), 'w')
+            outfile =  open(os.path.join(calcFolder, 'run_%d.out'%(jobNum)), 'w')
             
             process = subprocess.Popen(' '.join(argv),
                                        stdout=outfile,#subprocess.PIPE , 
@@ -458,7 +467,7 @@ class runADCP:
                         f = outfiles[jnum] # the file should still be open
                         if not f.closed:
                             f.close()
-                        f = open(os.path.join(workingFolder, 'run_%d.out'%(jnum+1)))
+                        f = open(os.path.join(calcFolder, 'run_%d.out'%(jnum+1)))
                         lines = f.readlines()
                         #print "Lines in %s_%d.out %d"%(jobName,jnum+1, len(lines))
                         f.close()
@@ -484,7 +493,7 @@ class runADCP:
                         # overwrite jobNum
                         argv[-2] = 'run_%d.pdb'%(jobNum)
                         #argv[-1] = '> %s_%d.out 2>&1'%(jobName,jobNum)
-                        outfileName =  os.path.join(workingFolder, 'run_%d.out'%(jobNum))
+                        outfileName =  os.path.join(calcFolder, 'run_%d.out'%(jobNum))
                         # remove output file in case it exists
                         #try:
                         #    os.remove(argv[-1])
@@ -546,10 +555,10 @@ class runADCP:
         #import pdb; pdb.set_trace()
         #import shutil
         ## concatenate all runs into a single pdb file
-        with open(os.path.join(workingFolder, "%s.pdb"%jobName), 'wb') as outFile:
+        with open(os.path.join(calcFolder, "%s.pdb"%jobName), 'wb') as outFile:
             for i in range(nbRuns):
                 if runEnergies[i] < runEnergies[sort_index[0]] + 20:
-                    with open(os.path.join(workingFolder, "run_%d.pdb"%(i+1)), 'rb') as com:
+                    with open(os.path.join(calcFolder, "run_%d.pdb"%(i+1)), 'rb') as com:
                         shutil.copyfileobj(com, outFile)
 
         from clusterADCP import clusterADCP
@@ -560,7 +569,7 @@ class runADCP:
         if kw['minimize']:                                                      #OMM new line
             self.myprint('Minimizing docked poses ....')
             from openMMmethods import ommTreatment                              #OMM new line
-            runner_omm = ommTreatment(targetFile,jobName,self.myprint)          #OMM new line
+            runner_omm = ommTreatment(targetFile, kw['recpath'], workingFolder, jobName,self.myprint)          #OMM new line
             runner_omm(**kw)                                                    #OMM new line
 
 
@@ -602,7 +611,7 @@ if __name__=='__main__':
     parser.add_argument("-k", "--keepWorkingFolder", action="store_true", default=False,
                         help="prevents the deletion of the working Folder")
     parser.add_argument("-o", "--jobName",dest="jobName",
-                        help="used to create the working folder, the _out.pdb docked poses and _summary.dlg log file.\
+                        help="root name for the _out.pdb docked poses and _summary.dlg log file.\
                         when ommited it is build as [basename(targetFile)]_[peptideSequence]")
     parser.add_argument(
             '-y', "--dryRun", dest="dryRun", action="store_true",
@@ -630,6 +639,8 @@ if __name__=='__main__':
     parser.add_argument("-ref", "--ref",dest="ref", help='reference peptide structure for calculating rmsd and fnc')
     parser.add_argument("-m", "--nmodes", type=int, default=100,
                        dest="nmodes", help='maximum number of reported docked poses')
+    parser.add_argument("-w", "--workingFolder", default=None,
+                       dest="workingFolder", help='folder in which the target file is expanded and the MC runs happen. Will be deleted after the run finished unless -k is specified')
 
     # openMM flag support
     parser = add_open_mm_flags(parser)                                          #OMM new line

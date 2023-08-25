@@ -700,8 +700,9 @@ def evaluate_requirements_for_minimization(kw,myprint):
                      ' with minimize (-nmin) option') 
         return  False 
 
-    jobName = kw['jobName']  
-    omm_out_file = jobName + "_omm_rescored_out.pdb"
+    jobName = kw['jobName']
+    workingFolder = kw['workingFolder']
+    omm_out_file = os.path.join(workingFolder, jobName + "_omm_rescored_out.pdb")
     
     # DO NOT WRITE OVER previously minimized file without -O flag, 
     if os.path.exists(omm_out_file) and not kw['overwriteFiles']:
@@ -709,19 +710,19 @@ def evaluate_requirements_for_minimization(kw,myprint):
         return False                 
     
     # Look for required pdb and log file for output
-    docked_file = '%s_out.pdb'% jobName
+    docked_file = os.path.join(workingFolder, '%s_out.pdb'% jobName)
     if os.path.exists(docked_file):
         print('Docked pdb file "%s" for minimization found!' % docked_file)
     else:
         print('ERROR: Expected docked pdb file "%s" not found! Please check the availability of the file and if the sequence (-s), targe file (-T), and jobName (-o) inputs are same as used for docking.'  % docked_file)
         return_val = False
     
-    summary_file = '%s_out.pdb'% jobName
-    if os.path.exists('%s_summary.dlg'%jobName):
+    summary_file = os.path.join(workingFolder, '%s_summary.dlg'% jobName)
+    if os.path.exists(summary_file):
         print('Docking summary file "%s" found!' % summary_file)      
         
         ## check used commands are similar to current ones. rightnow I am only checking the input sequence (-s) and target file (-T)
-        fid = open('%s_summary.dlg'%jobName,'r')
+        fid = open(summary_file,'r')
         data_lines = fid.readlines()
         fid.close()
         
@@ -733,7 +734,7 @@ def evaluate_requirements_for_minimization(kw,myprint):
                 break
         
         # check peptide sequence
-        if not prev_peptide.replace('"','') == kw['sequence']:
+        if not prev_peptide.replace('"','').lower() == kw['sequence'].lower():
             print('ERROR: Peptide sequence used for docking: %s and currently provided peptide sequence: "%s" are different.' % (prev_peptide,kw['sequence'] ))
             return_val = False   
             
@@ -748,14 +749,14 @@ def evaluate_requirements_for_minimization(kw,myprint):
     return return_val
 
 
-def extract_target_file(kw,myprint):    
+def extract_target_file(kw, workingFolder, jobName,myprint):    
     '''Extract rec from target file for openmm minimization'''
     if not os.path.exists(kw['target']):
         myprint("ERROR: no receptor files found, please provide a .trg file or path to inflated .trg")
         return False
     
     targetFile = kw['target']
-    workingFolder = kw['jobName']
+    #workingFolder = kw['jobName']
     
     if os.path.isdir(targetFile):
         target_folder = targetFile
@@ -764,15 +765,13 @@ def extract_target_file(kw,myprint):
         # if target is zip file unzip and replace cmdline arguments
         import zipfile
         myprint( 'Inflating target file %s'%(targetFile))
-        if not os.path.exists(workingFolder):
-            os.mkdir(workingFolder)       
-        
         with zipfile.ZipFile(targetFile, 'r') as zip_ref:
             # if the trg file was renamed it might create a folder with a different name
             # so we first find out the name of the folder in which the maps are
             filenames = zip_ref.namelist()
             folder = filenames[0].split(os.sep)[0]
-            zip_ref.extract(os.path.join(folder, 'rigidReceptor.pdbqt' ), workingFolder) # we only need rigidReceptor for docking
+            zip_ref.extract(os.path.join(folder, 'rigidReceptor.pdbqt' ),
+                            workingFolder) # we only need rigidReceptor for docking
         target_folder = os.path.join(workingFolder, folder)
             
     kw['recpath'] = os.path.join(target_folder, 'rigidReceptor.pdbqt')  

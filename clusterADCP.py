@@ -289,7 +289,7 @@ class clusterADCP:
         order = numpy.array(order)[oorder]
 
         # open file for saving docked poses that are reported
-        solutionFile = open('%s_out.pdb'%(os.path.join(kw['workingFolder'], '..', kw['input']),), 'w')
+        solutionFile = open('%s_out.pdb'%(os.path.join(kw['workingFolder'], kw['input']),), 'w')
         
         # maximum number of reported docked poses 
         maxModes = int(kw['nmodes'])

@@ -28,6 +28,8 @@
 #
 
 import os, sys, numpy, shutil, random
+from glob import glob
+from time import time, sleep
 from MolKit2 import Read
 from utils import openmm_validator, add_open_mm_flags, support_validator        #OMM new line
 #import os, sys, numpy, platform, datetime, tempfile, shutil, random, tarfile, pickle
@@ -226,43 +228,10 @@ class runADCP:
                 print("ERROR: file/folder %s exists! please use different jobName (-o) or use -O to force overwritting output files"%os.path.join(workingFolder, jobName))
                 self.myexit()
 
-        # open summary file
-        self.summaryFile = open('%s_summary.dlg'%os.path.join(self.workingFolder, jobName), 'w')
-        self.myprint("performing MC searches with: %s "%binary)
-        if kw['ref']:
-            self.myprint('reference srtucture: %s'%kw['ref'])
-        self.myprint('target data from file: %s'%targetFile)
-        self.myprint('job name: {0}, summary file {0}_summary.dlg, docked poses: {0}_out.pdb'.format(jobName))
-
-        rncpu = kw.pop('maxCores')
-
-        if rncpu is None:
-            ncores = self.ncpu
-            self.myprint( 'Detected %d cores, using %d cores.'%(self.ncpu, ncores))
-        else:
-            assert rncpu > 0, "ERROR: maxCores a positive number, got %d."%rncpu
-            ncores = min(self.ncpu, rncpu)
-            self.myprint( 'Detected %d cores, request %d cores, using %d cores.'%(self.ncpu, rncpu, ncores))
-
-        if kw['nbRuns'] is not None:
-            self.nbRuns = nbRuns = kw.pop('nbRuns')
-
-        self.numberOfJobs = nbRuns
-        self._jobStatus =  [None]*nbRuns        
-
-        seed = kw.pop('seedValue')
-
-        if seed is None:
-            seed = str(random.randint(1,999999))
-
-        #if not os.path.isdir(workingFolder):
-        #    raise RuntimeError('ERROR: "%s" exists but is not a folder. Please specify a different working folder'%workingFolder)
-        #else:
-        #    os.chdir(workingFolder)
-
+        # setup targetFolder
         if not os.path.exists(targetFile):
             raise RuntimeError('ERROR: target file "%s" does not exist, fix -T option'%targetFile)
-            
+
         if os.path.isdir(targetFile):
             target_folder = targetFile
             if not os.path.exists(os.path.join(targetFile, 'transpoints')):
@@ -291,260 +260,333 @@ class runADCP:
             numpy.savetxt(TPfile,transPoints,fmt='%7.3f')
             TPfile.close()
 
+        # open summary file
+        summaryFilename = '%s_summary.dlg'%os.path.join(self.workingFolder, jobName)
+        if kw['reclusterOnly']:
+            t0 = time()
+            if not os.path.exists(summaryFilename):
+                self.myprint('ERROR: summary file %s not found for reclustering'%summaryFilename)
+                sys.exit(1)
+            runFilenames = glob(os.path.join(calcFolder, 'run_*.out'))
+            if len(runFilenames)==0:
+                self.myprint('ERROR: run files run_%s.out files %s not found in folder %s for reclustering'%(summaryFilename, calcFolder))
+                sys.exit(1)
+            # read best target energies from run_%d.out files
+            filenamesNums = [int(os.path.splitext(os.path.basename(fn))[0][4:]) for fn in runFilenames]
+            order = numpy.argsort(filenamesNums)
+            runEnergies = []
+            for nn, i in enumerate(order):
+                f = open(runFilenames[i])
+                lines = f.readlines()
+                f.close()
+                for ln in lines:
+                    if ln.startswith('best target energy'):
+                        runEnergies.append(float(ln.rstrip().split()[3]))
+                        #print(nn, runEnergies[nn], runFilenames[i])
+                        break
 
-        # to check openmm supports for the residues in the receptor file
-        kw['recpath'] = os.path.join(target_folder, 'rigidReceptor.pdbqt')      #OMM new line        
-        if not support_validator(kw,self.myprint)[0]:                           #OMM new line
-            self.myexit()                                                       #OMM new line
-            return                                                              #OMM new line
+            self.summaryFile = open('%s_summary.dlg'%os.path.join(self.workingFolder, jobName), 'a')
 
-        if not os.path.exists(os.path.join(target_folder, 'constrains')):
-            fff = open(os.path.join(target_folder, 'constrains'),'w')
-            fff.write('1\n')
-            fff.close()
+        else: # run docking
+            self.summaryFile = open('%s_summary.dlg'%os.path.join(self.workingFolder, jobName), 'w')
+            self.myprint("performing MC searches with: %s "%binary)
+            if kw['ref']:
+                self.myprint('reference srtucture: %s'%kw['ref'])
+            self.myprint('target data from file: %s'%targetFile)
+            self.myprint('job name: {0}, summary file {0}_summary.dlg, docked poses: {0}_out.pdb'.format(jobName))
 
-        self.dryRun = kw.pop('dryRun')
+            rncpu = kw.pop('maxCores')
 
-        # build cmdline args for adcp binary
-        argv = ['cd %s; %s -t 2'%(calcFolder, binary)]
-
-        if kw['sequence'] is None:
-            if kw['input'] is None or kw['input'][-3:] != 'pdb':
-                self.myprint ("ERROR: no input for peptide found")
-                self.myexit()
+            if rncpu is None:
+                ncores = self.ncpu
+                self.myprint( 'Detected %d cores, using %d cores.'%(self.ncpu, ncores))
             else:
-                argv.append('-f')
-                argv.append('%s'%kw['input'])
-        else:
-            if kw['partition'] is None:
-                argv.append('"%s"'%kw['sequence'])
-            else:
-                partition = kw['partition']
-                argv.append('"%s"'%kw['sequence'])
-                if partition < 0:
-                    partition = 0
-                elif partition > 100:
-                    partition = 100
+                assert rncpu > 0, "ERROR: maxCores a positive number, got %d."%rncpu
+                ncores = min(self.ncpu, rncpu)
+                self.myprint( 'Detected %d cores, request %d cores, using %d cores.'%(self.ncpu, rncpu, ncores))
 
-        if kw['rotlibs']:
-            argv.append('-L %s'%kw['rotlibs'])
-            self.myprint( 'using system rotamer libraries %s from %s'%(
-                kw['rotlibs'], os.path.join(os.path.dirname(binary), 'data', 'rotamers')))
+            if kw['nbRuns'] is not None:
+                self.nbRuns = nbRuns = kw.pop('nbRuns')
 
-        if kw['userrotlibs']:
-            userrotlibswithpath = []
-            for userrotlib in kw['userrotlibs'].split(':'):
-                userrotlibswithpath.append(os.path.abspath(userrotlib))
-                self.myprint( 'using user rotamer library %s'%userrotlib)
-            print(":".join(userrotlibswithpath))
-            argv.append('-l %s'% ":".join(userrotlibswithpath))      
-            # argv.append('-l %s'%os.path.abspath(kw['userrotlibs']))
-            # for word in kw['userrotlibs'].split(':'):
-            #     self.myprint( 'using user rotamer library %s'%word)
+            self.numberOfJobs = nbRuns
+            self._jobStatus =  [None]*nbRuns        
 
-        argv.append('-T %s'%os.path.abspath(target_folder))
-              
-        # set up the length for each run, 25M as default
-        argv.append('-r')
-        if kw['numSteps'] is not None:
-            numSteps = kw['numSteps']        
-        argv.append('1x%s'%numSteps)
+            seed = kw.pop('seedValue')
 
-        # set up other options for ADCP
-        ADCPDefaultOptions = "-p Bias=NULL,external=5,constrains,1.0,1.0"
-        if kw['cyclic']:
-            ADCPDefaultOptions += ",external2=4,constrains,1.0,1.0"
-        if kw['cystein']:
-            ADCPDefaultOptions += ",SSbond=50,2.2,50,0.35"
-        ADCPDefaultOptions += ",Opt=1,0.25,0.75,0.0"
-        argv.append(ADCPDefaultOptions)
+            if seed is None:
+                seed = str(random.randint(1,999999))
 
-        # add arguments that will be set during the loop submitting jobs
-        # for seed jubNum and outputName
-        argv.extend(['-s', '-1', '-o', jobName,' '])
-        jobs = {} # key will be process until process.poll() is not None (i.e. finished)
+            # to check openmm supports for the residues in the receptor file
+            kw['recpath'] = os.path.join(target_folder, 'rigidReceptor.pdbqt')      #OMM new line        
+            if not support_validator(kw,self.myprint)[0]:                           #OMM new line
+                self.myexit()                                                       #OMM new line
+                return                                                              #OMM new line
 
-        from time import time, sleep
-        t0 = time()
-        runStatus = [None]*(nbRuns)
+            if not os.path.exists(os.path.join(target_folder, 'constrains')):
+                fff = open(os.path.join(target_folder, 'constrains'),'w')
+                fff.write('1\n')
+                fff.close()
 
-        runEnergies = [999.]*(nbRuns)
-        # procToRun = {}
-        # can't change dict during iteration so use 2 lists
-        # outfiles = {}
-        processes = [None]*(nbRuns)
-        outfiles = [None]*(nbRuns)
+            self.dryRun = kw.pop('dryRun')
 
-        nbStart = 0 # number of started runs
-        nbDone = 0 # number of completed runs
-        # print(" ".join(argv))
-        if seed == -1:
-            self.myprint( 'Performing %d MC searches using %d evals each using a random seed.'%(self.nbRuns, numSteps))
-        else:
-            self.myprint( 'Performing %d MC searches using %d evals each using seed %g.'%(self.nbRuns, numSteps, seed))
+            seeds = [] # save seeds for runs to save in summary file
+            # build cmdline args for adcp binary
+            argv = ['cd %s; %s -t 2'%(calcFolder, binary)]
 
-        self.myprint( "Performing search (%d ADCP runs with %d steps each) ..."%
-                      (nbRuns, numSteps))
-        self.myprint ("0%   10   20   30   40   50   60   70   80   90   100%")
-        self.myprint ("|----|----|----|----|----|----|----|----|----|----|")
-
-
-        numHelix = nbRuns * partition / 100
-
-        ## submit the first set of jobs
-        for jobNum in range(1,min(nbRuns,ncores)+1):
-            # overwrite seed
-            if seed == -1:
-                argv[-4] = str(random.randint(1,999999))
-            else:
-                argv[-4] = str(seed+jobNum-1)
-            # overwrite jobNum
-            argv[-2] = 'run_%d.pdb'%(jobNum)
-            # since we set shell=False on Windows, we cannot redirect output to a file
-            # like in the following commented out line. We will open a file "outfile"
-            # and set stdout to the file handle.
-            
-            #argv[-1] = '> %s_%d.out 2>&1'%(jobName,jobNum)
-
-            # overwrite the sequence if parition is found
-            if partition > 0 and partition < 100 and kw['sequence'] is not None:
-                ## MS Aug 15 2023. Here we need to be careful because we can not
-                ## change the capitalization of NSTs
-                if jobNum <= numHelix:
-                    #argv[1] = '"%s"'%kw['sequence'].upper()
-                    argv[1] = pepSeqStr('upper', '"%s"'%kw['sequence'])
+            if kw['sequence'] is None:
+                if kw['input'] is None or kw['input'][-3:] != 'pdb':
+                    self.myprint ("ERROR: no input for peptide found")
+                    self.myexit()
                 else:
-                    #argv[1] = '"%s"'%kw['sequence'].lower()
-                    argv[1] = pepSeqStr('lower', '"%s"'%kw['sequence'])
-            if self.dryRun:
-                self.myprint ('/n*************** command ***************************\n')
-                self.myprint (' '.join(argv))
-                self.myexit()
-                sys.exit()
-            elif jobNum==1:
-                command = ' '.join(argv)
-                
-            outfile =  open(os.path.join(calcFolder, 'run_%d.out'%(jobNum)), 'w')
-            
-            process = subprocess.Popen(' '.join(argv),
-                                       stdout=outfile,#subprocess.PIPE , 
-                                       stderr=outfile, #subprocess.PIPE, 
-                                       bufsize = 1, shell=self.shell ,  cwd=os.getcwd())
+                    argv.append('-f')
+                    argv.append('%s'%kw['input'])
+            else:
+                if kw['partition'] is None:
+                    argv.append('"%s"'%kw['sequence'])
+                else:
+                    partition = kw['partition']
+                    argv.append('"%s"'%kw['sequence'])
+                    if partition < 0:
+                        partition = 0
+                    elif partition > 100:
+                        partition = 100
 
-            #procToRun[process] = jobNum-1
-            #print('FUFU1', process, jobNum-1)
-            #outfiles[jobNum] = outfile # process.stdout returns None. So save the file handle in the dictionary, so that we can close the file after the job finishes
-            processes[jobNum-1]= process
-            outfiles[jobNum-1] = outfile
-            nbStart += 1
-            #print("%3d %s %s"%(jobNum-1, process, outfile))
+            if kw['rotlibs']:
+                argv.append('-L %s'%kw['rotlibs'])
+                self.myprint( 'using system rotamer libraries %s from %s'%(
+                    kw['rotlibs'], os.path.join(os.path.dirname(binary), 'data', 'rotamers')))
 
-        # check for completion and start new runs until we are done
-        while nbDone < nbRuns:
-            # check running processes            
-            #for proc, jnum in procToRun.items():
-            for jnum, proc in enumerate(processes):
-                if proc is None: continue
-                #import pdb;pdb.set_trace()
-                if proc.poll() is not None: # process finished
-                    if runStatus[jnum] is not None: continue
-                    if proc.returncode != 0:
-                        #print('FAFA1', proc, jnum, proc.returncode)
-                        runStatus[jnum] = ('Error', '%s%04d'%(jobName, jnum+1))
-                        error = '\n'.join(runStatus[jnum][1])
-                        status = 'FAILED'
-                        self.myprint( '%d ENDED WITH ERROR'%(jnum,))
-                        print ('%d err'%jnum)
+            if kw['userrotlibs']:
+                userrotlibswithpath = []
+                for userrotlib in kw['userrotlibs'].split(':'):
+                    userrotlibswithpath.append(os.path.abspath(userrotlib))
+                    self.myprint( 'using user rotamer library %s'%userrotlib)
+                print(":".join(userrotlibswithpath))
+                argv.append('-l %s'% ":".join(userrotlibswithpath))      
+                # argv.append('-l %s'%os.path.abspath(kw['userrotlibs']))
+                # for word in kw['userrotlibs'].split(':'):
+                #     self.myprint( 'using user rotamer library %s'%word)
+
+            argv.append('-T %s'%os.path.abspath(target_folder))
+
+            # set up the length for each run, 25M as default
+            argv.append('-r')
+            if kw['numSteps'] is not None:
+                numSteps = kw['numSteps']        
+            argv.append('1x%s'%numSteps)
+
+            # set up other options for ADCP
+            ADCPDefaultOptions = "-p Bias=NULL,external=5,constrains,1.0,1.0"
+            if kw['cyclic']:
+                ADCPDefaultOptions += ",external2=4,constrains,1.0,1.0"
+            if kw['cystein']:
+                ADCPDefaultOptions += ",SSbond=50,2.2,50,0.35"
+            ADCPDefaultOptions += ",Opt=1,0.25,0.75,0.0"
+            argv.append(ADCPDefaultOptions)
+
+            # add arguments that will be set during the loop submitting jobs
+            # for seed jubNum and outputName
+            argv.extend(['-s', '-1', '-o', jobName,' '])
+            jobs = {} # key will be process until process.poll() is not None (i.e. finished)
+
+            t0 = time()
+            runStatus = [None]*(nbRuns)
+
+            runEnergies = [999.]*(nbRuns)
+            # procToRun = {}
+            # can't change dict during iteration so use 2 lists
+            # outfiles = {}
+            processes = [None]*(nbRuns)
+            outfiles = [None]*(nbRuns)
+
+            nbStart = 0 # number of started runs
+            nbDone = 0 # number of completed runs
+            # print(" ".join(argv))
+            if seed == -1:
+                self.myprint( 'Performing %d MC searches using %d evals each using a random seed.'%(self.nbRuns, numSteps))
+            else:
+                self.myprint( 'Performing %d MC searches using %d evals each using seed %g.'%(self.nbRuns, numSteps, seed))
+
+            self.myprint( "Performing search (%d ADCP runs with %d steps each) ..."%
+                          (nbRuns, numSteps))
+            self.myprint ("0%   10   20   30   40   50   60   70   80   90   100%")
+            self.myprint ("|----|----|----|----|----|----|----|----|----|----|")
+
+
+            numHelix = nbRuns * partition / 100
+
+            ## submit the first set of jobs
+            for jobNum in range(1,min(nbRuns,ncores)+1):
+                # overwrite seed
+                if seed == -1:
+                    argv[-4] = str(random.randint(1,999999))
+                else:
+                    argv[-4] = str(seed+jobNum-1)
+                # overwrite jobNum
+                argv[-2] = 'run_%d.pdb'%(jobNum)
+                # since we set shell=False on Windows, we cannot redirect output to a file
+                # like in the following commented out line. We will open a file "outfile"
+                # and set stdout to the file handle.
+
+                #argv[-1] = '> %s_%d.out 2>&1'%(jobName,jobNum)
+
+                # overwrite the sequence if parition is found
+                if partition > 0 and partition < 100 and kw['sequence'] is not None:
+                    ## MS Aug 15 2023. Here we need to be careful because we can not
+                    ## change the capitalization of NSTs
+                    if jobNum <= numHelix:
+                        #argv[1] = '"%s"'%kw['sequence'].upper()
+                        argv[1] = pepSeqStr('upper', '"%s"'%kw['sequence'])
                     else:
-                        #print('FAFA2', proc, jnum, proc.returncode)
-                        status = 'OK'
-                        error = ''
-                        runStatus[jnum] = ('OKAY', '%s%04d'%(jobName, jnum+1))
-                        #self.myprint( jnum, 'ENDED OK')
-                        #print '%d ok'%jnum
-                        #import pdb;pdb.set_trace()
-                        #f = open('%s_%d.out'%(jobName,jnum+1))
-                        f = outfiles[jnum] # the file should still be open
-                        if not f.closed:
-                            f.close()
-                        f = open(os.path.join(calcFolder, 'run_%d.out'%(jnum+1)))
-                        lines = f.readlines()
-                        #print "Lines in %s_%d.out %d"%(jobName,jnum+1, len(lines))
-                        f.close()
-                        for ln in lines:
-                            if ln.startswith('best target energy'):
-                                runEnergies[jnum] = float(ln.rstrip().split()[3])
+                        #argv[1] = '"%s"'%kw['sequence'].lower()
+                        argv[1] = pepSeqStr('lower', '"%s"'%kw['sequence'])
+                if self.dryRun:
+                    self.myprint ('/n*************** command ***************************\n')
+                    self.myprint (' '.join(argv))
+                    self.myexit()
+                    sys.exit()
+                elif jobNum==1:
+                    command = ' '.join(argv)
 
-                    nbDone += 1
-                    self._jobStatus[jnum] = 2
-                    self.completedJobs += 1
-                    percent = float(self.completedJobs)/self.numberOfJobs
-                    #print('FUGU percent %f %d %d %d %d'%(percent, self.completedJobs, self.numberOfJobs, int(50*percent), jnum))
-                    sys.stdout.write('%s\r' % ('*'*int(50*percent)))
-                    sys.stdout.flush()
+                outfile =  open(os.path.join(calcFolder, 'run_%d.out'%(jobNum)), 'w')
 
-                    if nbStart < nbRuns:
-                        # start new one
-                        jobNum += 1
-                        if seed == -1:
-                            argv[-4] = str(random.randint(1,999999))
+                process = subprocess.Popen(' '.join(argv),
+                                           stdout=outfile,#subprocess.PIPE , 
+                                           stderr=outfile, #subprocess.PIPE, 
+                                           bufsize = 1, shell=self.shell ,  cwd=os.getcwd())
+
+                #procToRun[process] = jobNum-1
+                #print('FUFU1', process, jobNum-1)
+                #outfiles[jobNum] = outfile # process.stdout returns None. So save the file handle in the dictionary, so that we can close the file after the job finishes
+                processes[jobNum-1]= process
+                outfiles[jobNum-1] = outfile
+                nbStart += 1
+                #print("%3d %s %s"%(jobNum-1, process, outfile))
+
+            # check for completion and start new runs until we are done
+            while nbDone < nbRuns:
+                # check running processes            
+                #for proc, jnum in procToRun.items():
+                for jnum, proc in enumerate(processes):
+                    if proc is None: continue
+                    #import pdb;pdb.set_trace()
+                    if proc.poll() is not None: # process finished
+                        if runStatus[jnum] is not None: continue
+                        if proc.returncode != 0:
+                            #print('FAFA1', proc, jnum, proc.returncode)
+                            runStatus[jnum] = ('Error', '%s%04d'%(jobName, jnum+1))
+                            error = '\n'.join(runStatus[jnum][1])
+                            status = 'FAILED'
+                            self.myprint( '%d ENDED WITH ERROR'%(jnum,))
+                            print ('%d err'%jnum)
                         else:
-                            argv[-4] = str(seed+jobNum-1)
-                        # overwrite jobNum
-                        argv[-2] = 'run_%d.pdb'%(jobNum)
-                        #argv[-1] = '> %s_%d.out 2>&1'%(jobName,jobNum)
-                        outfileName =  os.path.join(calcFolder, 'run_%d.out'%(jobNum))
-                        # remove output file in case it exists
-                        #try:
-                        #    os.remove(argv[-1])
-                        #except OSError:
-                        #    pass
-                        if os.path.exists(outfileName):
-                            f = outfiles[jobNum-1]
-                            if f and not f.closed:
+                            #print('FAFA2', proc, jnum, proc.returncode)
+                            status = 'OK'
+                            error = ''
+                            runStatus[jnum] = ('OKAY', '%s%04d'%(jobName, jnum+1))
+                            #self.myprint( jnum, 'ENDED OK')
+                            #print '%d ok'%jnum
+                            #import pdb;pdb.set_trace()
+                            #f = open('%s_%d.out'%(jobName,jnum+1))
+                            f = outfiles[jnum] # the file should still be open
+                            if not f.closed:
                                 f.close()
-                            os.remove(outfileName)
-                        outfile = open(outfileName, "w")
+                            f = open(os.path.join(calcFolder, 'run_%d.out'%(jnum+1)))
+                            lines = f.readlines()
+                            #print "Lines in %s_%d.out %d"%(jobName,jnum+1, len(lines))
+                            f.close()
+                            for ln in lines:
+                                if ln.startswith('best target energy'):
+                                    runEnergies[jnum] = float(ln.rstrip().split()[3])
 
-                        # overwrite the sequence if parition is found
-                        if partition > 0 and partition < 100 and kw['sequence'] is not None:
-                            if jobNum <= numHelix:
-                                #argv[1] = '"%s"'%kw['sequence'].upper()
-                                argv[1] = pepSeqStr('upper', '"%s"'%kw['sequence'])
+                        nbDone += 1
+                        self._jobStatus[jnum] = 2
+                        self.completedJobs += 1
+                        percent = float(self.completedJobs)/self.numberOfJobs
+                        #print('FUGU percent %f %d %d %d %d'%(percent, self.completedJobs, self.numberOfJobs, int(50*percent), jnum))
+                        sys.stdout.write('%s\r' % ('*'*int(50*percent)))
+                        sys.stdout.flush()
+
+                        if nbStart < nbRuns:
+                            # start new one
+                            jobNum += 1
+                            if seed == -1:
+                                argv[-4] = str(random.randint(1,999999))
                             else:
-                                #argv[1] = '"%s"'%kw['sequence'].lower()
-                                argv[1] = pepSeqStr('lower', '"%s"'%kw['sequence'])
-                        #process = subprocess.Popen(' '.join(argv),
-                        #                           stdout=subprocess.PIPE , 
-                        #                           stderr=subprocess.PIPE, 
-                        #                           bufsize = 1, shell=self.shell, cwd=os.getcwd())
-                        process = subprocess.Popen(' '.join(argv),
-                                                   stdout=outfile, #subprocess.PIPE , 
-                                                   stderr=outfile, #subprocess.PIPE, 
-                                                   bufsize = 1, shell=self.shell, cwd=os.getcwd())
-                        # print(process)
-                        #procToRun[process] = jobNum-1
-                        processes[jobNum-1]= process
-                        outfiles[jobNum-1] = outfile
-                        #print('FUFU2', process, jobNum-1)
-                        #outfiles[jobNum] = outfile
-                        nbStart += 1
-            
-            sleep(1)
+                                argv[-4] = str(seed+jobNum-1)
+                            seeds.append(argv[-4])
+                            # overwrite jobNum
+                            argv[-2] = 'run_%d.pdb'%(jobNum)
+                            #argv[-1] = '> %s_%d.out 2>&1'%(jobName,jobNum)
+                            outfileName =  os.path.join(calcFolder, 'run_%d.out'%(jobNum))
+                            # remove output file in case it exists
+                            #try:
+                            #    os.remove(argv[-1])
+                            #except OSError:
+                            #    pass
+                            if os.path.exists(outfileName):
+                                f = outfiles[jobNum-1]
+                                if f and not f.closed:
+                                    f.close()
+                                os.remove(outfileName)
+                            outfile = open(outfileName, "w")
 
-        dt = time()-t0
-        h,m,s = str(datetime.timedelta(seconds=dt)).split(':')
-        self.myprint( 'Docking performed in %.2f seconds, i.e. %s hours %s minutes %s seconds '%(dt, h, m, s))
-        
+                            # overwrite the sequence if parition is found
+                            if partition > 0 and partition < 100 and kw['sequence'] is not None:
+                                if jobNum <= numHelix:
+                                    #argv[1] = '"%s"'%kw['sequence'].upper()
+                                    argv[1] = pepSeqStr('upper', '"%s"'%kw['sequence'])
+                                else:
+                                    #argv[1] = '"%s"'%kw['sequence'].lower()
+                                    argv[1] = pepSeqStr('lower', '"%s"'%kw['sequence'])
+                            #process = subprocess.Popen(' '.join(argv),
+                            #                           stdout=subprocess.PIPE , 
+                            #                           stderr=subprocess.PIPE, 
+                            #                           bufsize = 1, shell=self.shell, cwd=os.getcwd())
+                            process = subprocess.Popen(' '.join(argv),
+                                                       stdout=outfile, #subprocess.PIPE , 
+                                                       stderr=outfile, #subprocess.PIPE, 
+                                                       bufsize = 1, shell=self.shell, cwd=os.getcwd())
+                            # print(process)
+                            #procToRun[process] = jobNum-1
+                            processes[jobNum-1]= process
+                            outfiles[jobNum-1] = outfile
+                            #print('FUFU2', process, jobNum-1)
+                            #outfiles[jobNum] = outfile
+                            nbStart += 1
+
+                sleep(1)
+
+            dt = time()-t0
+            h,m,s = str(datetime.timedelta(seconds=dt)).split(':')
+            self.myprint( 'Docking performed in %.2f seconds, i.e. %s hours %s minutes %s seconds '%(dt, h, m, s))
+
         sort_index = numpy.argsort(runEnergies)
 
-        try:
-            from MolKit2.AARotamer import AARotamer, CanonicalAARotamers, AARotamerMutator
-        except ImportError:
-            #write out energy for top 5 solutions and exit            
-            for i in range(min(5,nbRuns)):
-                self.myprint('No. %d energy found is %3.1f kcal/mol at %s_%d.pdb '%(i+1, runEnergies[sort_index[i]]*0.59219, jobName, sort_index[i]+1))
-            self.myexit()
+        # discard crazy low energies that are sometimes generated by
+        # CrankiteAD, not sure why
+        Elow = -100000
+        Ehigh = -Elow
+        validLowestE = -Elow
+        for nn,i in enumerate(sort_index):
+            if runEnergies[i] > Elow:
+                validLowestE = runEnergies[i]
+                break
+    
+        if validLowestE==-Elow:
+            self.myprint("no run obtained a reasonable low energy solution.\n Stopping calculation without removing calcualtion folder %d"%calcFolder)
+            sys.exit(1)
+
+        self.myprint('bestEnergies %s '%(str(runEnergies)))
+        self.myprint('bestEnergy in run %d %f (%d)'%(sort_index[nn]+1, validLowestE, nn))
+
+        #try:
+        #    from MolKit2.AARotamer import AARotamer, CanonicalAARotamers, AARotamerMutator
+        #except ImportError:
+        #    #write out energy for top 5 solutions and exit  # MS why do that if import failed ??? makes no sense          
+        #    for i in range(min(5,nbRuns)):
+        #        self.myprint('No. %d energy found is %3.1f kcal/mol at %s_%d.pdb '%(i+1, runEnergies[sort_index[i]]*0.59219, jobName, sort_index[i]+1))
+        #    self.myexit()
 
         self.myprint('Analyzing results ....')
         kw['print'] = self.myprint
@@ -552,14 +594,17 @@ class runADCP:
         kw['input'] = jobName
         kw['rec'] = 'rigidReceptor.pdbqt'
         kw['targetFolder'] = os.path.abspath(target_folder)
-        #import pdb; pdb.set_trace()
-        #import shutil
+
         ## concatenate all runs into a single pdb file
+        ntrajsaved = 0
+        self.myprint('concatenating trajectories for run with best energy < %f'%(validLowestE + 20))
         with open(os.path.join(calcFolder, "%s.pdb"%jobName), 'wb') as outFile:
             for i in range(nbRuns):
-                if runEnergies[i] < runEnergies[sort_index[0]] + 20:
+                if runEnergies[i] >= validLowestE and runEnergies[sort_index[0]] + 20:
+                    ntrajsaved += 1
                     with open(os.path.join(calcFolder, "run_%d.pdb"%(i+1)), 'rb') as com:
                         shutil.copyfileobj(com, outFile)
+        self.myprint('concatenated %d trajectories'%ntrajsaved)
 
         from clusterADCP import clusterADCP
         runner = clusterADCP()
@@ -572,10 +617,16 @@ class runADCP:
             runner_omm = ommTreatment(targetFile, kw['recpath'], workingFolder, jobName,self.myprint)          #OMM new line
             runner_omm(**kw)                                                    #OMM new line
 
-
-        self.myprint('MC search command: %s'%command)
         dt = time()-t0
-        self.myprint( 'Calculations completed %.2f seconds, i.e. %s hours %s minutes %s seconds '%(dt, h, m, s))
+        if kw['reclusterOnly']:
+            h,m,s = str(datetime.timedelta(seconds=dt)).split(':')
+            self.myprint( 'Reclustering completed %.2f seconds, i.e. %s hours %s minutes %s seconds '%(dt, h, m, s))
+            self.keepWokingFolder = True
+        else:
+            self.myprint( 'Calculations completed %.2f seconds, i.e. %s hours %s minutes %s seconds '%(dt, h, m, s))
+            self.myprint('MC search command: %s'%command)
+            self.myprint('seed: %s'%str(seeds))
+
         self.myexit(error = False)
 
 
@@ -641,6 +692,8 @@ if __name__=='__main__':
                        dest="nmodes", help='maximum number of reported docked poses')
     parser.add_argument("-w", "--workingFolder", default=None,
                        dest="workingFolder", help='folder in which the target file is expanded and the MC runs happen. Will be deleted after the run finished unless -k is specified')
+    parser.add_argument("-r", "--reclusterOnly", default=False,  dest="reclusterOnly",
+                        action="store_true", help="only perform reclustering, assuming the calcualtion folder still exists")
 
     # openMM flag support
     parser = add_open_mm_flags(parser)                                          #OMM new line

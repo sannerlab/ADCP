@@ -180,6 +180,10 @@ class clusterADCP:
         print = kw['print']
         
         models = Read(syst)
+        his = models._ag.select('resname HIE HID')
+        if his:
+            his.setResnames(['HIS']*len(his))
+            
         seq = ''
         for res in models._ag.iterResidues():
             seq += AAnames.get(res.getResname(), '?')
@@ -210,7 +214,6 @@ class clusterADCP:
         if kw['ref']:
             hasRef = True
             ref = Read(kw['ref'])
-
             if ref._ag.numResidues() == models._ag.numResidues():
                 ## if the pdbqt has a torsion tree the atoms and residues are not in the right order
                 ## sort the refAtoms by increasing residue numbers. In addition resnums in the docked

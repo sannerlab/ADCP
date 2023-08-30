@@ -12,7 +12,31 @@ support options given for adcp docking.
 * Parser flags for openMM parameters.
 
 
-Last Update 7/31/23 build 6
+Last Update 8/30/23 build 9
+Build 9:
+    Update 8/30/23
+    1: updated fix_my_pdb to treat seperately internal and terminal resiudes 
+        expecting one type of paramater may not be present
+    2: default openMM parameter set is not sannerlab + swiss (for a few NSTs 
+        not present in sannerlab). ['sannerlabPLUSswiss']
+    3: user can provide their own parameter sets using "-f" flag. Requires 
+        <XXX>_ff.xml, <XXX>_hydrogens.xml, <XXX>_residues.xml files in same directory
+    4: user can specify specific system paramter(-F)and can also restrict use 
+       of system paraeters by "-F none" option.
+    5: multiple modifications in getNamesOfAAandNstsFromSequence to define NST 
+       names with terminal tags.
+    6: removed scheme to check terminal NSTs for swiss_ff. Now program collects
+       the available residues from ffxml file and checks terminal residues with "N/C" tag
+
+Build 8:
+    Update 8/29/23
+    1: Crankite updated for "-o/-O" check (MS)
+
+Build 7:
+    Update 8/25/23
+    1: output, working and temp dir related errors resolved (MS).
+    2: added -w --workingFolder command line option (MS).
+
 Build 6:
     Update 7/31/23 
     1: file objects to handle ffxml and rotamer library files.
@@ -36,7 +60,7 @@ Build 6:
     1: Support for post-docking openMm minimization added. ("-pdmin", "--postDockMinimize")
         ** required combinations 1) -pdmin with -nmin 2) if already minimized file in the directory -pdmin, -nmin and -O
     
-    Remaining:
+    TBD:
     1: ffxml parameters for all NSTs.
     2: clustering of similar atomtypes in ffxml file.
     
@@ -46,6 +70,13 @@ import importlib
 import os
 import xml.etree.ElementTree as ET
 #from colorama import Fore, Style
+
+### Global variables
+# Default system ffxml files, it can be extended for new parameter sets
+# update it if more ffxml files added as default potentials 
+#
+DEFAULTSYSTEMFFXMLS = [ 'sannerlab', 'swiss', 'sannerlabPLUSswiss']  
+###
 
 replace_msg = ("""This flag is used to specify the handling of non-standard \
 amino acids when minimization is requested. When omitted, the software will \
@@ -63,7 +94,7 @@ def openmm_validator(kw, myprint=print):
 ------------------------------------------------------------------
 OpenMM minimization flag detected. This step takes more time than non-minimization calculations.
 
-DECLARATION (V1.1.0 build 6):
+DECLARATION (V1.1.0 build 9):
 a: Support for OpenMM Minimization is still under development.
 b: Currently, it supports docking with "-rmsd 0" flag.
 c: Current version provides docking supports for peptides containing ~400 (L and D) NSTs \
@@ -71,8 +102,8 @@ and openMM support for 182 (182x2 for D and L) NSTs.
 d: Other unidentified non-standard amino acids can either be replaced by similar amino \
 acids (pdbfixer v1.8), or if pdbfixer does not identify a non-standard amino \
 acid, it can be replaced by ALA.
-e: Currently no support for external parameter input for non-standard amino \
-acids.
+e: Added support for external parameter input for non-standard amino \
+acids.(from build 9)
    """)
         # check availability of these packages:
         packages_to_check = ['openmm', 'parmed']
@@ -86,20 +117,6 @@ acids.
 
     return procede_after_flag_check
 
-def loaded_ffxml_names(kw): # currently set to default # 
-    """ 'swissaa' openmm parameters for non-terminal NSTs generated from 
-    charges obtained from swissaa .rtp files. 
-    
-   'sannerlab' openmm parameters for terminal as well as intenal NSTs
-    charges generated using local RED server with GAMESS. NME/ACE caps used
-    for charge generation. N,H,C,O charges addjested as amber FFs as 
-    N = -.4157; H = .2719; C = .5973 ; O = -.5679.    
-    
-    """
-    #system_ffxml_sets = ['swiss'] #under
-    system_ffxml_sets = ['sannerlab'] #under development 
-    system_ffxml_sets = [kw['systemffxml']]    
-    return system_ffxml_sets
 
 class rotamerfile:
     ''' This class reads a rotamer lib file and provides various operations to 
@@ -170,7 +187,7 @@ class rotamerfile:
             self.myprint("Coarse potential needs to be one-letter standard amino acid code!")
             return False
             
-        # if it is not default as "O" any other amino acid coarse potential combination possible
+        # if it is not default as "O" any amino acid coarse potential combination possible
         if not coarse_p.upper() == 'O':
             return True
         
@@ -319,36 +336,79 @@ class ffxmlfile:
             return True
         return False       
   
+class ffxmldata:
+    ''' This class reads multiple ffxml files as ffxmlfile object and provides
+    required operations on multiple ffxml files'''
 
+    def __init__(self,myprint=print):
+        '''initiation'''
+        self.ffxmlfiles = []
+        self.ffxmlobjects = []
+        self.residues =[]
+        self.myprint = myprint
+        
+    def readffxmlfile(self,ffxml_file):
+        '''Reading of the file and required details'''
+        ffxml_file_with_path = os.path.abspath(ffxml_file)        
+        self.ffxmlfiles.append(ffxml_file_with_path)
+        self.ffxmlobjects.append(ffxmlfile(ffxml_file_with_path,self.myprint))
+        self.make_list_of_all_residues()
+        
+    def if_residue_exists(self,resname):
+        '''Evaulates if the residue is present in ffxml files'''
+        for ffxml_file_object in self.ffxmlobjects:
+            if ffxml_file_object.if_residue_exists(resname):
+                return True
+        return False       
+   
+    def make_list_of_all_residues(self):
+        '''Retruns all residues from all read ffxml files'''
+        res =[]
+        for ffxml_file_object in self.ffxmlobjects:
+            res = res + ffxml_file_object.residues            
+        self.residues = list(set(res))
+        self.residues.sort()
+        
+        
+    def get_ffxmlfile_name_for_residue(self, resname):
+        '''Returns names of files that provide specific residue'''
+        ffxmlfile_names = []
+        for ffxml_file_object in self.ffxmlobjects:
+            if ffxml_file_object.if_residue_exists(resname):
+                ffxmlfile_names.append(ffxml_file_object.name)        
+        return ffxmlfile_names
+    
+    
 ## FOR FFXML CURRENTLY ONLY BY DEFAULT SWISS_FF.XML IS LOADED
 ## USER CAN NOT PROVIDE A NEW FFXML FILE, BUT CAN USE -FNST FLAG TO
 ## RUN ADCP CALCULATIONS FOR FIXING UNKNOWN RSIDUES USING PDBFIXER
 
+
 def currently_loaded_ffxml_data(kw,myprint=print):
     '''Provide rotamerdata object for currently loaded ffxml files'''  
-    loaded_ffxmls = ffxmldata(myprint)   
+    '''By default it loads sannerlab rotamers (primary) and swiss (as secondary)
+    In case, user want to use only one of these or specific multiples (in future)
+    _F name_a:name_b:name_c can be given to override the defaults
+    
+    '''
+    loaded_ffxmls = ffxmldata(myprint) # for output
+    ## from system
 
-    # currently implemented for default swiss only
-    # from system defaults
-    # if not kw['rotlibs']==None:
-    if 1: # currently overriding for 'swiss' only
-        sys_ffxml_dir = os.path.join( os.path.dirname(__file__), 'data/openMMff')
-        # system_ffxml_libs = kw['rotlibs'].split(":")
-        # currently overriding for 'swissaa' only
-        system_ffxml_libs = loaded_ffxml_names(kw)
-        
+    system_ffxml_libs= kw['systemffxml'].split(":")
+    
+    if not 'none' in system_ffxml_libs :  ## none overrides everything
+        sys_ffxml_dir = os.path.join( os.path.dirname(__file__), 'data/openMMff')            
         for filenm in system_ffxml_libs:
+            # print(filenm)
             ffxml_file = os.path.join(sys_ffxml_dir, filenm+"_ff.xml")
             loaded_ffxmls.readffxmlfile(ffxml_file)
-            
-    # from user defined # will be implemented later
-    # if not kw['userrotlibs']==None:
-    #     sys_rotamer_dir = os.path.join( os.path.dirname(__file__), 'data/rotamers')
-    #     UserLibFiles = kw['userrotlibs'].split(":")
-    #     for UlibFile in UserLibFiles:
-    #         UlibPath = os.path.abspath(UlibFile)
-    #         loaded_rotamers.readrotamerfile(UlibPath)
-            
+
+    # user defined
+    if not kw['userffxml'] == None:
+        UserFFxmlLibFiles = kw['userffxml'].split(":")
+        for UFFxmllibFile in UserFFxmlLibFiles:
+            UFFxmllibPath = os.path.abspath(UFFxmllibFile)
+            loaded_ffxmls.readffxmlfile(UFFxmllibPath)            
     return loaded_ffxmls
 
 # currently not accepts openmm ff from users
@@ -366,48 +426,6 @@ def all_available_ffxml_data(kw,myprint=print):
             continue        
         loaded_ffxmls.readffxmlfile(xmlFilePath)        
     return loaded_ffxmls
-        
-    
-class ffxmldata:
-    ''' This class reads multiple ffxml files as ffxmlfile object and provides
-    required operations on multiple ffxml files'''
-
-    def __init__(self,myprint=print):
-        '''initiation'''
-        self.ffxmlfiles = []
-        self.ffxmlobjects = []
-        self.residues =[]
-        self.myprint = myprint
-        
-    def readffxmlfile(self,ffxml_file):
-        '''Reading of the file and required details'''
-        ffxml_file_with_path = os.path.abspath(ffxml_file)        
-        self.ffxmlfiles.append(ffxml_file_with_path)
-        self.ffxmlobjects.append(ffxmlfile(ffxml_file_with_path,self.myprint))
-        self.get_all_residues()
-        
-    def if_residue_exists(self,resname):
-        '''Evaulates if the residue is present in ffxml files'''
-        for ffxml_file_object in self.ffxmlobjects:
-            if ffxml_file_object.if_residue_exists(resname):
-                return True
-        return False       
-   
-    def get_all_residues(self):
-        '''Retruns all residues from all read ffxml files'''
-        res =[]
-        for ffxml_file_object in self.ffxmlobjects:
-            res = res + ffxml_file_object.residues            
-        self.residues = list(set(res))
-        self.residues.sort()
-        
-    def get_ffxmlfile_name_for_residue(self, resname):
-        '''Returns names of files that provide specific residue'''
-        ffxmlfile_names = []
-        for ffxml_file_object in self.ffxmlobjects:
-            if ffxml_file_object.if_residue_exists(resname):
-                ffxmlfile_names.append(ffxml_file_object.name)        
-        return ffxmlfile_names
 
 
 def getNamesOfAAandNstsFromSequence(seq):
@@ -419,11 +437,19 @@ def getNamesOfAAandNstsFromSequence(seq):
     d_tag = ''
     coarse_tag = ''
     readaa = False
+    n_term = False
     for pos, val in enumerate(seq):        
         if readaa:
             if val ==">":
-                readaa = False
-                NSTlist.append([aa+d_tag, coarse_tag])                
+                readaa = False  
+                aa_type = "" # "" for internal "N" for N terminal and "C" for C terminal
+                if n_term:
+                    aa_type = "N"
+                    n_term = False
+                elif pos == len(seq)-1:
+                    aa_type = "C"
+                NSTlist.append([aa+d_tag, coarse_tag, aa_type]) 
+            
                 continue
             if pos == len(seq)-1:
                 SAAlist.append("->")
@@ -435,21 +461,34 @@ def getNamesOfAAandNstsFromSequence(seq):
             aa= ''
             d_tag = ''
             coarse_tag = ''
-            coarse_tag = seq[pos-1]
-            if seq[pos-2] == '&':
-                d_tag = "_D" 
+            
+            if pos >0:
+                coarse_tag = seq[pos-1]
+                if pos == 1:
+                    n_term = True
+                               
+            if pos >1:
+                if seq[pos-2] == '&':
+                    d_tag = "_D" 
+                    if pos == 2:
+                        n_term = True
+ 
             continue
         if val =='&':
+            if pos == len(seq)-1:
+                SAAlist.append("-aa" )   
             continue        
         if val.lower() == 'o':
-            if seq[pos+1] == '<':
-                SAAlist.append(val)
-                continue
+            if pos+1 < len(seq):
+                if seq[pos+1] == '<':
+                    SAAlist.append(val)
+                    continue
             else:
                 SAAlist.append("-%s<" % val)
-                # continue
+                continue
+
         SAAlist.append(val)
-    return SAAlist, NSTlist
+    return SAAlist, NSTlist,
 
 
 def support_validator(kw,myprint=print):
@@ -461,7 +500,6 @@ def support_validator(kw,myprint=print):
     # check input peptide sequence 
     
     SAAseq, NSTlist = getNamesOfAAandNstsFromSequence(kw['sequence'])
-    # print(SAAseq,NSTlist)
     bracket_error = False
     if '-<' in SAAseq:
         detected_problems.append('At least one "<" is missing in the peptide sequence.')
@@ -498,7 +536,11 @@ def support_validator(kw,myprint=print):
         if all_flags_allowed:
             all_flags_allowed = False
             bracket_error = True
-
+    if '-aa' in SAAseq:    
+        detected_problems.append('& at the end of sequence is not followed by any amino acid letter or NST.')                                 # 'NST example: "o<2AS>" or for D form "&o<2AS>"')
+        if all_flags_allowed:
+            all_flags_allowed = False
+            bracket_error = True
     # check standard aa in sequence
     if bracket_error is False:
         saa = 'ACDEFGHIKLMNPQRSTVWY'
@@ -578,30 +620,40 @@ def support_validator(kw,myprint=print):
     
     
     # >>>>>> OPENMM RELATED ERROR CHECKS START    
-    if 'swiss' in loaded_ffxml_names(kw):
-        if kw['sequence'][0] =="<" or kw['sequence'][1] =="<" or kw['sequence'][-1] == ">" or (kw['sequence'][0] == "&" and kw['sequence'][2] =="<"):
-            detected_problems.append('OpenMM calculation for terminal Non-standard amino acids are not supported with "swiss" ffxml set. Try "-F sannerlab"')
-            #+
-            #                        ' the ffxml set "swiss_sannerlab" can be used (under development) for terminal NSTs but currently'+
-            #                        ' it does not support all NSTs listed on swisssidechain.ch. To use "swiss_sannerlab",')
-            if all_flags_allowed:
-                all_flags_allowed = False
+    # if not 'sannerlab' in currently_loaded_ffxml_data(kw):
+    #     if kw['sequence'][0] =="<" or kw['sequence'][1] =="<" or kw['sequence'][-1] == ">" or (kw['sequence'][0] == "&" and kw['sequence'][2] =="<"):
+    #         detected_problems.append('OpenMM calculation for terminal Non-standard amino acids are not supported with "swiss" ffxml set. Try "-F sannerlab"')
+    #         #+
+    #         #                        ' the ffxml set "swiss_sannerlab" can be used (under development) for terminal NSTs but currently'+
+    #         #                        ' it does not support all NSTs listed on swisssidechain.ch. To use "swiss_sannerlab",')
+    #         if all_flags_allowed:
+    #             all_flags_allowed = False
                 
     ## Terminal NST check<<<  
     if len(NSTlist)>0: 
         loaded_ffxmls = currently_loaded_ffxml_data(kw,myprint)
-        # print(loaded_ffxmls.ffxmlfiles)
-        all_possible_ffxmls = all_available_ffxml_data(kw,myprint) ## as currently user can not define so both are same
         
+        all_possible_ffxmls = all_available_ffxml_data(kw,myprint) ## as currently user can not define so both are same
+        # import pdb; pdb.set_trace()
         # checking NSTs
-        ## As for standard amino acids, amber uses same paramters for L and D type AAs. so nst[0].split("_") is used 
-        ## to remove "_D" for D type res.
+
         for nst in NSTlist:
-            if not nst[0].split("_")[0] in all_possible_ffxmls.residues: #nst[0].split("_") to remove "_D" for D type res
-                if not kw['omm_nst']: #If -fnst option is not provided
-                    detected_problems.append('Undefined openMM parameters for NST: "%s" is not available from any default ffxml files' % nst[0].split("_")[0] 
-                                             + ' use -fnst option to mutate unknown NSTs to standard amino acids, or remove -nmin option'
-                                             
+            terminal_details =""
+            if not nst[2] =="": # the terminal information
+                terminal_details = "%s-terminal " % nst[2]
+            ## As for standard amino acids, amber uses same paramters for L and D type AAs. so nst[0].split("_") is used 
+            ## to remove "_D" for D type res.
+            # first terminal residue check
+                        
+            nst_without_D_or_L = nst[0].split("_")[0]
+            nst_name_with_terminal = nst[2] + nst_without_D_or_L
+                
+            if not nst_name_with_terminal in all_possible_ffxmls.residues: #nst[0].split("_") to remove "_D" for D type res
+                if not kw['omm_nst']: #If -fnst option is not provided                    
+        
+                    detected_problems.append('Undefined openMM parameters for NST: "%s%s" is not available from any default ffxml files' % 
+                                             (terminal_details, nst_without_D_or_L) 
+                                             + ' use -fnst option to mutate unknown NSTs to standard amino acids, or remove -nmin option'                                             
                                              ) #+
                                              # '.To run ADCP for peptide with NST "%s", please provide an user-defined rotamer library using "-l" option'
                                              # % nst[0])                
@@ -609,10 +661,11 @@ def support_validator(kw,myprint=print):
                         all_flags_allowed = False
                     
             else:
-                if not nst[0].split("_")[0] in loaded_ffxmls.residues:
-                    name_of_required_ffxmls_file = all_possible_ffxmls.get_ffxmlfile_name_for_residue(nst[0].split("_")[0])                                        
-                    detected_problems.append('Undefined openMM parameters for NST "%s". ffxml library(ies) "%s" support(s) "%s" and '
-                                             % (nst[0].split("_")[0] , nst[0].split("_")[0] ,'", "'.join(name_of_required_ffxmls_file))+ #+ 
+                if not nst_name_with_terminal in loaded_ffxmls.residues:                    
+                    name_of_required_ffxmls_file = all_possible_ffxmls.get_ffxmlfile_name_for_residue(nst_name_with_terminal)                                        
+                    detected_problems.append('Undefined openMM parameters for NST "%s%s". ffxml library(ies) "%s" support(s) "%s%s" and '
+                                             % (terminal_details,nst_without_D_or_L , '", "'.join(name_of_required_ffxmls_file), 
+                                                terminal_details,nst_without_D_or_L)+ #+ 
                                                 'can be used with "-F" option.')                                             
                     if all_flags_allowed:
                         all_flags_allowed = False
@@ -663,16 +716,29 @@ def support_validator(kw,myprint=print):
                 myprint ('Receptor residue %s %s substituted with %s.' % (ns_res, replace_will_be_or_can_be,substitutions[ns_res]))
             else:
                 myprint ('Receptor residue %s %s substituted with "ALA".' % (ns_res, replace_will_be_or_can_be))
-    # all_flags_allowed = False  
 
 
-    # check ffxml file
-    system_ffxml_set = kw['systemffxml']     
-    
-    if not system_ffxml_set in ['swiss','sannerlab']:
-        detected_problems.append('Unknown ffxmlset "%s". "-ffxmlset" should be "swiss" or "sannerlab".' % system_ffxml_set)
-        if all_flags_allowed:
-            all_flags_allowed = False
+    ### check ffxml file
+    system_ffxml_set = kw['systemffxml']         
+    for sysffxml in system_ffxml_set.split(":"):
+        if not sysffxml in ['all_available','none']+DEFAULTSYSTEMFFXMLS: 
+            detected_problems.append('Unknown ffxmlset "%s". "-ffxmlset" should be "swiss", "sannerlab" or "none".' % system_ffxml_set)
+            if all_flags_allowed:
+                all_flags_allowed = False
+        
+    ## User defined xml Files:
+    if not kw['userffxml'] == None:
+        user_ffxml_set = kw['userffxml'].split(":")
+        for uffxml in user_ffxml_set:
+            expected_res_file = uffxml[:-6]+"residues.xml"
+            expected_hydrogen_file = uffxml[:-6]+"hydrogens.xml"
+            
+            for file,ftype in zip( [uffxml, expected_res_file, expected_hydrogen_file],
+                                  ['force-field', 'bond-definition', 'hydrogen-definition']):
+                if not os.path.exists(file):
+                    detected_problems.append('ERROR: Could not find user defined %s file %s' % (ftype,file))
+                    if all_flags_allowed:
+                        all_flags_allowed = False
         
                 
     if not all_flags_allowed:
@@ -680,7 +746,7 @@ def support_validator(kw,myprint=print):
         for msg in detected_problems:
             myprint("* "+ msg) 
         #print("Exiting now")
-
+        
     return all_flags_allowed, rec #returning receptor to speed up calculation
 
 
@@ -802,14 +868,28 @@ def add_open_mm_flags(parser):
     parser.add_argument("-fnst", "--fix_nst", action="store_true",
                        dest="omm_nst", help=replace_msg)
     
-    parser.add_argument("-F", "--ffxmlset",dest="systemffxml", default= "swiss",
-                        help=("To use openmm parameter (swiss or sannerlab) \
-                        from 'ADCP/data/openMMff' directory (Default:'swiss'). \
-                        parameter 'swiss' supports only non-terminal \
-                        NST residues. For terminal NSTs use 'sannerlab' library\
-                        List of supported NSTs for both libraries is given in\
+    parser.add_argument("-F", "--ffxmlset",dest="systemffxml", default= "sannerlabPLUSswiss",
+                        help=("To specify the use of openmm parameter sets (swiss, sannerlab, or none) \
+                        from 'ADCP/data/openMMff' directory. \
+                        By default, 'sannerlab' is used as primary source of parameters. \
+                        Parameter for only NSTs that are not identified by 'sannerlab' will be taken from \
+                        'swiss'.'swiss' supports only non-terminal NST residues.\
+                        option 'none' can be used to restrict use of any system default parameter sets. \
+                        List of supported NSTs from both libraries is given in\
                         'AVAILABLE_PARAMETER.dat' file in 'ADCP/data/openMMff' \
                         directory."))
+                        
+    parser.add_argument("-f", "--userffxml",dest="userffxml",
+                        help=("a ':' separated list of filenames(initials) to \
+                        load openMM force-field data for NSTs. To support a new\
+                        residue OpenMM requires three files  containing \
+                        1) force-field data, 2) bond definitions, and 3) hydrogen\
+                        definitions. User must provide all three files in the \
+                        same directory with the same initial names, as for given input\
+                        : '-f ./XXXX_ff.xml', the program will expect force-field file(./XXXX_ff.xml), \
+                        bond definition file(./XXXX_residues.xml), and hydrogen definition file (./XXXX_hydrogen_def.xml) \
+                        all three in the same directory."))
+                        
                         
     parser.add_argument("-pdmin", "--postDockMinimize",dest="postdockmin",                         
                         action="store_true", default=False,
@@ -820,17 +900,6 @@ def add_open_mm_flags(parser):
                         jobName (-o), and sequence (-s) descriptions same as used for docking."))
                   
                       
-    
-    # THIS PART WILL BE ACTIVATED IN BUILD 7
-    # parser.add_argument("-x", "--userffxml",dest="ffxmlibs",
-    #                     help=("a ':' separated list of filenames(initials) to \
-    #                     load openMM force-field data for NSTs. To support a new\
-    #                     residue OpenMM requires three files  containing \
-    #                     1) force-field data, 2) bond definitions, and 3) hydrogen\
-    #                     definitions, user must provide all three files in the \
-    #                     same directory with the same initial names  and the input\
-    #                     can be given as: '-x ./XXXX' for ./XXXX_ff.xml, ./XXXX_bond_def.xml,\
-    #                     ./XXXX_hydrogen_def.xml"))
                         
     return parser
 

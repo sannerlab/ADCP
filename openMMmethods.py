@@ -23,7 +23,7 @@ import prody
 from prody.measure.contacts import findNeighbors
 from prody import writePDB
 from MolKit2 import Read
-from utils import currently_loaded_ffxml_data, loaded_ffxml_names
+from utils import currently_loaded_ffxml_data, DEFAULTSYSTEMFFXMLS #, loaded_ffxml_names
 
 import openmm
 from openmm import CustomExternalForce
@@ -83,15 +83,29 @@ def AddListForUnknownNSTsToALA(fixer,kw=None):
     from pdbfixer.pdbfixer import (
         substitutions, proteinResidues,dnaResidues, rnaResidues)
     keep = set(proteinResidues).union(dnaResidues).union(rnaResidues).union(['N','UNK','HOH'])
+    
+    n_terminal_res = []
+    c_terminal_res = []
+    for c in fixer.topology.chains():
+        res_in_chain = list(c.residues())
+        n_terminal_res.append(res_in_chain[0])
+        c_terminal_res.append(res_in_chain[-1])    
+
     for residue in fixer.topology.residues():
         if residue.name in keep:
             continue
         
-        if not residue.name in substitutions:
-            if not hasattr(fixer, 'nonstandardResidues'):
-                fixer.nonstandardResidues =[]
+        # for terminal residues, we need to check with terminal flag
+        resname_with_terminal = residue.name
+        if residue in n_terminal_res:
+            resname_with_terminal = "N" + resname_with_terminal
+        elif residue in c_terminal_res:            
+            resname_with_terminal = "C" + resname_with_terminal
                 
-            if not residue.name in current_ffxmls.residues:  # to ignore loaded NSTS to mutate
+        if not resname_with_terminal in substitutions:            
+            if not hasattr(fixer, 'nonstandardResidues'):
+                fixer.nonstandardResidues =[]                
+            if not resname_with_terminal in current_ffxmls.residues:  # to ignore loaded NSTS to mutate
                 fixer.nonstandardResidues.append([residue, 'ALA'])
 
 
@@ -149,8 +163,18 @@ def fix_my_pdb(pdb_in,out=None, NonstandardResidueTreatment=False, return_topolo
     
     #    # adding required bond data for NSTs
     # fixer.topology.loadBondDefinitions(os.path.join(ffxml_path, 'swissaa_bond_def.xml')) ## default in Build6
-    fixer.topology.loadBondDefinitions(os.path.join(ffxml_path, 'NST_residues.xml'))
+    if not 'none' in kw['systemffxml'].split(":"):
+        currently_loaded_system_ffxmls = kw['systemffxml'].split(":")
+        for sys_ffxml in currently_loaded_system_ffxmls:
+            if sys_ffxml in DEFAULTSYSTEMFFXMLS:
+                fixer.topology.loadBondDefinitions(os.path.join(ffxml_path, 'NST_residues.xml'))
+                break  # needs to be loaded once
     
+    if not kw['userffxml'] == None:
+        user_ffxml_set = kw['userffxml'].split(":")
+        for uffxml in user_ffxml_set:
+            fixer.topology.loadBondDefinitions(uffxml[:-6]+"residues.xml")
+        
     ## Replacement Treatment for unidentified NSTs
     if NonstandardResidueTreatment:
         fixer.findNonstandardResidues()
@@ -172,7 +196,18 @@ def fix_my_pdb(pdb_in,out=None, NonstandardResidueTreatment=False, return_topolo
     Modeller._hasLoadedStandardHydrogens = True  
     
     # adding NST data and overriding all defaults
-    modeller.loadHydrogenDefinitions(os.path.join(ffxml_path, 'NST_hydrogens.xml')) ## default in Build6
+    if not 'none' in kw['systemffxml'].split(":"):
+        currently_loaded_system_ffxmls = kw['systemffxml'].split(":")
+        for sys_ffxml in currently_loaded_system_ffxmls:
+            if sys_ffxml in DEFAULTSYSTEMFFXMLS:
+                modeller.loadHydrogenDefinitions(os.path.join(ffxml_path, 'NST_hydrogens.xml'))
+                break # needs to be loaded once
+            
+    if not kw['userffxml'] == None:
+        user_ffxml_set = kw['userffxml'].split(":")
+        for uffxml in user_ffxml_set:
+            modeller.loadHydrogenDefinitions(uffxml[:-6]+"hydrogens.xml")
+    
     fixer.addMissingHydrogens(7.4)
     
     ## modeller can add hydrogens to topology, it works well on N-terminal residues
@@ -561,19 +596,22 @@ def make_disulfide_between_cys_in_last_chain(top, pos, myprint=print, debug = Fa
         return modeller.topology, modeller.positions
 
  
-def get_energy_on_modeller(modeller, mode='vacuum',loaded_ffxml_name='',verbose = 0 ):
+def get_energy_on_modeller(modeller, mode='vacuum',loaded_ffxml_files=[],verbose = 0 ):
     ''' Rather than using temp pdb files this method 
     takes modeller object as input to calculates potential energy.    
     '''
-
+    ffxml_files = [AMBERFFXMLFILE]
+    for loaded_ff in loaded_ffxml_files:
+        ffxml_files.append(loaded_ff)
+        
     if mode == 'implicit':
-        force_field = ForceField(AMBERFFXMLFILE, GBN2IMPLICIT,
-                                 os.path.join(ffxml_path, '%s_ff.xml' % loaded_ffxml_name))  
-        msg="Using GBSA (gbn2) environment for energy calculation"    
+        ffxml_files.append(GBN2IMPLICIT)
+        force_field = ForceField(*ffxml_files)      
+        msg = "Using GBSA (gbn2) environment for energy minimization"
     else:
-        # force_field = ForceField("amber99sb.xml", os.path.join(ffxml_path, 'swissaa_ff.xml'))
-        force_field = ForceField(AMBERFFXMLFILE, os.path.join(ffxml_path, '%s_ff.xml' % loaded_ffxml_name))
-        msg="Using In-Vacuo environment for energy calculation"
+        force_field = ForceField(*ffxml_files)
+        msg = "Using in-vacuo environment for energy minimization"
+
     positions = modeller.positions
     topology = modeller.topology
     
@@ -627,7 +665,7 @@ def get_residue_templates_for_residues_with_same_graphs(topol):
 
 def openmm_minimize( pdb_str: str, env='implicit', verbose = 0, max_itr=5, 
                     cyclize = False, SSbond=False, amberparminit=None, 
-                    loaded_ffxml_name ='',myprint=print):
+                    loaded_ffxml_files =[],myprint=print):
     '''Minimize a protein-peptide complex using openMM'''
     #"""Minimize energy via openmm."""
     pdb = PDBFile(pdb_str)
@@ -649,12 +687,16 @@ def openmm_minimize( pdb_str: str, env='implicit', verbose = 0, max_itr=5,
     residueTemplates = get_residue_templates_for_residues_with_same_graphs(topology)
     
     # force field
+    ffxml_files = [AMBERFFXMLFILE]
+    for loaded_ff in loaded_ffxml_files:
+        ffxml_files.append(loaded_ff)
+        
     if env == 'implicit':
-        force_field = ForceField( AMBERFFXMLFILE, GBN2IMPLICIT,
-                                 os.path.join(ffxml_path, '%s_ff.xml' % loaded_ffxml_name))        
+        ffxml_files.append(GBN2IMPLICIT)
+        force_field = ForceField(*ffxml_files)      
         msg = "Using GBSA (gbn2) environment for energy minimization"
     else:
-        force_field = ForceField( AMBERFFXMLFILE, os.path.join(ffxml_path, '%s_ff.xml' % loaded_ffxml_name))
+        force_field = ForceField(*ffxml_files)
         msg = "Using in-vacuo environment for energy minimization"
     
     if verbose == 1:
@@ -702,7 +744,7 @@ def openmm_minimize( pdb_str: str, env='implicit', verbose = 0, max_itr=5,
 
 def openmm_create_system( pdb_str: str, env='implicit', verbose = 0, max_itr=5, 
                          cyclize = False, SSbond=False, amberparminit=None, 
-                         loaded_ffxml_name ='',myprint=print):
+                         loaded_ffxml_files =[],myprint=print):
     '''FOR DEBUGGING: This program loads parametes to openMM engine to check the compatability'''
     #"""Minimize energy via openmm."""
     pdb = PDBFile(pdb_str)
@@ -719,12 +761,17 @@ def openmm_create_system( pdb_str: str, env='implicit', verbose = 0, max_itr=5,
     if SSbond:
         topology, positions = make_disulfide_between_cys_in_last_chain(topology, positions, myprint=myprint) 
         
+    # force field
+    ffxml_files = [AMBERFFXMLFILE]
+    for loaded_ff in loaded_ffxml_files:
+        ffxml_files.append(loaded_ff)
+        
     if env == 'implicit':
-        force_field = ForceField( AMBERFFXMLFILE, GBN2IMPLICIT,
-                                 os.path.join(ffxml_path, '%s_ff.xml' % loaded_ffxml_name))        
+        ffxml_files.append(GBN2IMPLICIT)
+        force_field = ForceField(*ffxml_files)      
         msg = "Using GBSA (gbn2) environment for energy minimization"
     else:
-        force_field = ForceField( AMBERFFXMLFILE, os.path.join(ffxml_path, '%s_ff.xml' % loaded_ffxml_name))
+        force_field = ForceField(*ffxml_files)
         msg = "Using in-vacuo environment for energy minimization"
     
     if verbose == 1:
@@ -738,7 +785,7 @@ def openmm_create_system( pdb_str: str, env='implicit', verbose = 0, max_itr=5,
     return system
 
 
-def return_comp_rec_pep_energies_from_omm_minimize_output(omm_min_in, loaded_ffxml_name):
+def return_comp_rec_pep_energies_from_omm_minimize_output(omm_min_in, loaded_ffxml_files):
     '''for faster E_consensus and E_interface calulation it uses modeller object
     to calculate energy values'''
     
@@ -750,16 +797,16 @@ def return_comp_rec_pep_energies_from_omm_minimize_output(omm_min_in, loaded_ffx
     
     # complex single point energy
     modeller_comp = Modeller(topology, positions)
-    comp_e = get_energy_on_modeller(modeller_comp, mode=env, loaded_ffxml_name=loaded_ffxml_name)        
+    comp_e = get_energy_on_modeller(modeller_comp, mode=env, loaded_ffxml_files=loaded_ffxml_files)        
     
     # receptor single point energy
     modeller_comp.delete([chains[-1]])
-    rec_e = get_energy_on_modeller(modeller_comp, mode=env, loaded_ffxml_name=loaded_ffxml_name)  
+    rec_e = get_energy_on_modeller(modeller_comp, mode=env, loaded_ffxml_files=loaded_ffxml_files)  
     
     # peptide single point energy
     modeller_pep = Modeller(topology, positions)
     modeller_pep.delete(chains[:-1])
-    pep_e = get_energy_on_modeller(modeller_pep, mode=env, loaded_ffxml_name=loaded_ffxml_name)    
+    pep_e = get_energy_on_modeller(modeller_pep, mode=env, loaded_ffxml_files=loaded_ffxml_files)    
     return [comp_e, rec_e, pep_e]
 
 
@@ -854,8 +901,8 @@ class ommTreatment:
         self.create_omm_dirs()   
         
         # getting ffxml file names
-        self.loaded_ffxml_name = loaded_ffxml_names(kw)[0] # currently only one name
-        
+        #self.loaded_ffxml_name = loaded_ffxml_names(kw)[0] # currently only one name
+        self.loaded_ffxml_files = currently_loaded_ffxml_data(kw).ffxmlfiles
         # reading receptor file
         if self.rec_data == None:
             if kw['recpath']:
@@ -880,7 +927,7 @@ class ommTreatment:
         
         for f in range( num_mode_to_minimize ):
             if not self.debug_openmm_load_mode: # DONT PRINT WHEN DEBUGGING
-                self.myprint( "\nWorking on #%d of %d models" % (f+1, num_mode_to_minimize))
+                self.myprint( "\nOMM Energy: Working on #%d of %d models" % (f+1, num_mode_to_minimize))
                 
             #peptide data
             pep_pdb._ag.setACSIndex(f)  
@@ -899,8 +946,8 @@ class ommTreatment:
 
             # energy calculation    
             enzs, not_restrained_res = self.estimate_energies_for_pdb( out_complex_name, out_parm_dirname)
-            self.myprint( "E_Complex = %9.2f; E_Receptor = %9.2f; E_Peptide  = %9.2f" % (enzs[0],enzs[1],enzs[2]))
-            self.myprint("dE_Interaction = %9.2f; dE_Complex-Receptor = %9.2f" % (enzs[3], enzs[4]))
+            self.myprint( "OMM Energy: E_Complex = %9.2f; E_Receptor = %9.2f; E_Peptide  = %9.2f" % (enzs[0],enzs[1],enzs[2]))
+            self.myprint("OMM Energy: dE_Interaction = %9.2f; dE_Complex-Receptor = %9.2f" % (enzs[3], enzs[4]))
             
             # save required details
             self.make_post_calculation_file_lists(out_complex_name, enzs, not_restrained_res)        
@@ -964,10 +1011,10 @@ class ommTreatment:
         adcp_ranks = np.array([ i[1] for i in ommrank_adcprank_data])            
         # print(self.omm_ranking,metric_comp_minus_rec)
         if self.rearrangeposes == True:            
-            self.myprint("\nREARRANGING output poses using OpenMM energy")          
+            self.myprint("\nOMM Ranking:REARRANGING output poses using OpenMM energy")          
             self.rearranged_data_as_per_asked = ommrank_adcprank_data            
         else:
-            self.myprint("\nNOT REARRANGING output poses using OpenMM energy")
+            self.myprint("\nOMM Ranking:NOT REARRANGING output poses using OpenMM energy")
             self.rearranged_data_as_per_asked = [ ommrank_adcprank_data[i] for i in adcp_ranks.argsort()]
          
     def create_omm_dirs(self):   
@@ -994,11 +1041,11 @@ class ommTreatment:
     def read_pdb_files_and_combine_using_given_index(self):
         # works as function name says
         out_file = open(self.output_file,"w+")
-        self.myprint("-------+------+------+------------+")
-        self.myprint (" Model | Rank | Rank | E_Complex  |")
-        self.myprint(" #     |OpenMM| ADCP |-E_Receptor |")
+        self.myprint("OMM Ranking:-------+------+------+------------+")
+        self.myprint ("OMM Ranking: Model | Rank | Rank | E_Complex  |")
+        self.myprint("OMM Ranking: #     |OpenMM| ADCP |-E_Receptor |")
         # print ("       |      |      |  (kJ/mol)  |")
-        self.myprint("-------+------+------+------------+")      
+        self.myprint("OMM Ranking:-------+------+------+------------+")      
         
         for model_num, arranged_line in enumerate(self.rearranged_data_as_per_asked):
             # file name and omm scores
@@ -1017,9 +1064,9 @@ class ommTreatment:
             # writePDBStream(out_file, flnm_data._ag.select('not hydrogen')) 
             read_and_write_pdb_data_to_fid(out_file, flnm)
             out_file.write("ENDMDL\n")
-            self.myprint(" %6d %6d %6d %10.1f" %(model_num+1 , omm_rank+1, adcp_rank+1, scores[4] ))            
+            self.myprint("OMM Ranking: %6d %6d %6d %10.1f" %(model_num+1 , omm_rank+1, adcp_rank+1, scores[4] ))            
         out_file.close()
-        self.myprint("-------+------+------+------------+")
+        self.myprint("OMM Ranking:-------+------+------+------------+")
         
     def estimate_energies_for_pdb(self,pdb_fl, amber_parm_init, verbose=0):
         # works as function name says
@@ -1031,8 +1078,8 @@ class ommTreatment:
             self.myprint("Minimizing ...")
         omm_min_list = openmm_minimize(fixed_pdb,env, max_itr=self.minimization_steps, 
                            cyclize=self.cyclize_by_backbone, SSbond=self.SSbond, amberparminit = amber_parm_init, 
-                           loaded_ffxml_name=self.loaded_ffxml_name, myprint=self.myprint)        
-        enzs = return_comp_rec_pep_energies_from_omm_minimize_output(omm_min_list,self.loaded_ffxml_name)        
+                           loaded_ffxml_files=self.loaded_ffxml_files, myprint=self.myprint)        
+        enzs = return_comp_rec_pep_energies_from_omm_minimize_output(omm_min_list,self.loaded_ffxml_files)        
         enzs.append(enzs[0] - enzs[1] -enzs[2])   # interaction energy
         enzs.append(enzs[0] - enzs[1])            # complex - protein energy
         
@@ -1051,12 +1098,12 @@ class ommTreatment:
         ## Only for debugging the openMM support to NSTs    
         env=self.minimization_env
         if verbose == 1:
-            self.myprint('Working on:',pdb_fl.split(os.sep)[-1])
+            self.myprint('OMM Output: Working on:',pdb_fl.split(os.sep)[-1])
         fixed_pdb = fix_my_pdb(pdb_fl, pdb_fl[:-4] +"_fixed.pdb",NonstandardResidueTreatment=self.NonstandardResidueTreatment,kw=self.kw)        
         try: openmm_create_system(fixed_pdb,env, max_itr=self.minimization_steps, 
                            cyclize=self.cyclize_by_backbone, SSbond=self.SSbond, 
                            amberparminit = amber_parm_init, 
-                           loaded_ffxml_name=self.loaded_ffxml_name, myprint=self.myprint)
+                           loaded_ffxml_files=self.loaded_ffxml_files, myprint=self.myprint)
         except Exception as e:
             self.myprint(str(e))
             return 'FAILED'            

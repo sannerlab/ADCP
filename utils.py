@@ -12,17 +12,20 @@ support options given for adcp docking.
 * Parser flags for openMM parameters.
 
 
-Last Update 8/30/23 build 9
-Build 9:
+Last Update 8/30/23 build 10
+Build 10:
+    Update 9/1/23
+    1: NST check in receptors updated 
+Build 9:    
     Update 8/30/23
     1: updated fix_my_pdb to treat seperately internal and terminal resiudes 
         expecting one type of paramater may not be present
-    2: default openMM parameter set is not sannerlab + swiss (for a few NSTs 
+    2: default openMM parameter set is now sannerlab + swiss (for a few NSTs 
         not present in sannerlab). ['sannerlabPLUSswiss']
     3: user can provide their own parameter sets using "-f" flag. Requires 
         <XXX>_ff.xml, <XXX>_hydrogens.xml, <XXX>_residues.xml files in same directory
-    4: user can specify specific system paramter(-F)and can also restrict use 
-       of system paraeters by "-F none" option.
+    4: user can specify specific system parameter set (using -F)and can also restrict use 
+       of system parameters by "-F none" option.
     5: multiple modifications in getNamesOfAAandNstsFromSequence to define NST 
        names with terminal tags.
     6: removed scheme to check terminal NSTs for swiss_ff. Now program collects
@@ -82,7 +85,7 @@ replace_msg = ("""This flag is used to specify the handling of non-standard \
 amino acids when minimization is requested. When omitted, the software will \
 stop if non standard amino acids are found in the receptor and minimization \
 is required. Alternatively if -fnst flag is given, non standard amino acids \
-will be swapped with similar standard AAs using pdbfixer(v1.7), and mutate \
+will be swapped with similar standard AAs using pdbfixer(v1.8), and mutate \
 non-replaceables to "ALA".""")
 
 def openmm_validator(kw, myprint=print):
@@ -438,7 +441,9 @@ def getNamesOfAAandNstsFromSequence(seq):
     coarse_tag = ''
     readaa = False
     n_term = False
-    for pos, val in enumerate(seq):        
+    for pos, val in enumerate(seq):     
+        
+        #when reading of NST is active
         if readaa:
             if val ==">":
                 readaa = False  
@@ -448,14 +453,18 @@ def getNamesOfAAandNstsFromSequence(seq):
                     n_term = False
                 elif pos == len(seq)-1:
                     aa_type = "C"
-                NSTlist.append([aa+d_tag, coarse_tag, aa_type]) 
-            
+                NSTlist.append([aa+d_tag, coarse_tag, aa_type,'p'])         # p for peptide    
                 continue
+            if val =="<": # one closing is missing
+               SAAlist.append("->")
+                            
             if pos == len(seq)-1:
-                SAAlist.append("->")
+                SAAlist.append("->") # if opened NST block not closed 
                 continue                
             aa = aa + val
-            continue        
+            continue       
+        
+        #activate reading of NST name
         if val == "<":
             readaa=True
             aa= ''
@@ -471,20 +480,23 @@ def getNamesOfAAandNstsFromSequence(seq):
                 if seq[pos-2] == '&':
                     d_tag = "_D" 
                     if pos == 2:
-                        n_term = True
- 
+                        n_term = True 
             continue
+        
+        # if D tag "&" is identified
         if val =='&':
-            if pos == len(seq)-1:
-                SAAlist.append("-aa" )   
-            continue        
+            if pos == len(seq)-1: # to see if it is the end of sequence
+                SAAlist.append("-aa" )   # missing aa 
+            continue    
+        
+        # for rotamer letter "o/O"
         if val.lower() == 'o':
             if pos+1 < len(seq):
                 if seq[pos+1] == '<':
                     SAAlist.append(val)
                     continue
             else:
-                SAAlist.append("-%s<" % val)
+                SAAlist.append("-%s<" % val) # if o is not followed by "<" : missing "<"
                 continue
 
         SAAlist.append(val)
@@ -523,24 +535,33 @@ def support_validator(kw,myprint=print):
         detected_problems.append('At least one ">" is missing in the peptide sequence.')
         if all_flags_allowed:
             all_flags_allowed = False
+            bracket_error = True            
+
+    if '-aa' in SAAseq:    
+        detected_problems.append('& at the end of sequence is not followed by any amino acid letter or NST.')                                 # 'NST example: "o<2AS>" or for D form "&o<2AS>"')
+        if all_flags_allowed:
+            all_flags_allowed = False
             bracket_error = True
-            
+        
     if '&<' in kw['sequence']:    
         detected_problems.append('For D variants of NST use "&" followed by the coarse respresentation potential letter. e.g. "&o<OTYR>"')
         if all_flags_allowed:
             all_flags_allowed = False
-            bracket_error = True
+            bracket_error = True    
     
     if '><' in kw['sequence'] or kw['sequence'].startswith('<'):    
         detected_problems.append('At least one coarse respresentation potential letter is missing in the peptide sequence.')                                 # 'NST example: "o<2AS>" or for D form "&o<2AS>"')
         if all_flags_allowed:
             all_flags_allowed = False
             bracket_error = True
-    if '-aa' in SAAseq:    
-        detected_problems.append('& at the end of sequence is not followed by any amino acid letter or NST.')                                 # 'NST example: "o<2AS>" or for D form "&o<2AS>"')
+            
+    if '<>' in kw['sequence']:
+        detected_problems.append('Empty NST bracket set "<>" present in the sequence')
         if all_flags_allowed:
-            all_flags_allowed = False
+            all_flags_allowed = False  
             bracket_error = True
+        
+            
     # check standard aa in sequence
     if bracket_error is False:
         saa = 'ACDEFGHIKLMNPQRSTVWY'
@@ -564,48 +585,88 @@ def support_validator(kw,myprint=print):
             
 
     # check errors and possible sources for NSTs
-    if len(NSTlist)>0:  
-        # print (NSTlist)     
-        if not kw['postdockmin']:
-            all_possible_rotamers = all_available_rotamers(kw,myprint)
-            loaded_rotamers = currently_loaded_rotamer_data(kw,myprint)
+    if not bracket_error:
+        
+        # if squence input is correct evaluate receptor now
+        
+        from pdbfixer.pdbfixer import (
+            proteinResidues,dnaResidues, rnaResidues)
+        from MolKit2 import Read
+        import numpy as np        
+    
+        rec = Read(kw['recpath'])
+        residues_in_pdb = rec._ag.select('name CA').getResnames()
+        uniq_residues = np.unique(residues_in_pdb) # for faster calculation
+        keep = set(proteinResidues).union(dnaResidues).union(rnaResidues).union(['N','UNK','HOH'])
+        list_of_identified_non_standard_residues = [i for i in uniq_residues if not i in keep]
+        # import pdb; pdb.set_trace()
+        if len(list_of_identified_non_standard_residues) > 0:
             
-            # checking NSTs
-            for nst in NSTlist:      
-               
+            receptor_n_terminal_residues=[] 
+            receptor_c_terminal_residues=[] 
+            for chid in set(rec._ag.getChids()):
+                res_in_chain = rec._ag.select('name CA and chid %s' % chid).getResnames()
+                receptor_c_terminal_residues.append(res_in_chain[-1])
+                receptor_n_terminal_residues.append(res_in_chain[0])
+            
+            for rec_nst in list_of_identified_non_standard_residues:
+                myprint("Non standard residue(s) %s detected in receptor." % rec_nst)
+                res_type ='i'
+                NSTlist.append([rec_nst,'v','','r']) # v is random it will never be used; we always need internal
+                if rec_nst in receptor_c_terminal_residues:
+                    NSTlist.append([rec_nst,'v','C','r'])
+                    
+                if rec_nst in receptor_n_terminal_residues:
+                    NSTlist.append([rec_nst,'v','N','r'])
                 
-                if not nst[0] in all_possible_rotamers.residues:
-                    detected_problems.append('Undefined rotamers for NST: "%s" is not available from any default rotamer library files.' % nst[0])
-                    detected_problems.append('To run ADCP for peptide with NST "%s", please provide an user-defined rotamer library using "-l" option.'
-                                             % nst[0] )                
-                    if all_flags_allowed:
-                        all_flags_allowed = False
-                        
+        # receptor NSt check done
+                     
+        if len(NSTlist)>0:  
+            # print (NSTlist)     
+            if not kw['postdockmin']:
+                if not 'all_possible_rotamers' in locals():                
+                    all_possible_rotamers = all_available_rotamers(kw,myprint)
+                    loaded_rotamers = currently_loaded_rotamer_data(kw,myprint)
+                    
+                # checking NSTs
+                for nst in NSTlist:     
+                    
+                    if nst[3] == 'r':  # we do not need rotamers for receptor
+                        continue
+                   
+                    
                     if not nst[0] in all_possible_rotamers.residues:
-                        possible_case_insentive_names,possible_lib_names = all_possible_rotamers.get_case_insensitive_residues(nst[0])
-                        if not possible_case_insentive_names == None:
-                            detected_problems.append("Possible residue(s) with similar name:")
-                            for p_res,p_lib in zip(possible_case_insentive_names,possible_lib_names):
-                                detected_problems.append(' "%s" from rotamer library "%s"'   %(p_res,p_lib))                    
-                        
-                else:
-                    if not nst[0] in loaded_rotamers.residues:
-                        name_of_required_rotamer_file = all_possible_rotamers.get_rotamerfile_name_for_residue(nst[0])                                        
-                        detected_problems.append('Undefined rotamers for NST "%s". Rotamer library(ies) "%s" support(s) "%s" and '
-                                                 % (nst[0], '", "'.join(name_of_required_rotamer_file), nst[0]) + 
-                                                    'can be used with "-L" option.')                                             
+                        detected_problems.append('Undefined rotamers for NST: "%s" is not available from any default rotamer library files.' % nst[0])
+                        detected_problems.append('To run ADCP for peptide with NST "%s", please provide an user-defined rotamer library using "-l" option.'
+                                                 % nst[0] )                
                         if all_flags_allowed:
                             all_flags_allowed = False
                             
+                        if not nst[0] in all_possible_rotamers.residues:
+                            possible_case_insentive_names,possible_lib_names = all_possible_rotamers.get_case_insensitive_residues(nst[0])
+                            if not possible_case_insentive_names == None:
+                                detected_problems.append("Possible residue(s) with similar name:")
+                                for p_res,p_lib in zip(possible_case_insentive_names,possible_lib_names):
+                                    detected_problems.append(' "%s" from rotamer library "%s"'   %(p_res,p_lib))                    
+                            
                     else:
-                        if not loaded_rotamers.if_residue_and_course_combination_possible(nst[0], nst[1]):
-                            if nst[1] in['o','O']:                            
-                                rotamer_libs_providing_this_aa_params = loaded_rotamers.get_rotamerfile_name_for_residue(nst[0])
+                        if not nst[0] in loaded_rotamers.residues:
+                            name_of_required_rotamer_file = all_possible_rotamers.get_rotamerfile_name_for_residue(nst[0])                                        
+                            detected_problems.append('Undefined rotamers for NST "%s". Rotamer library(ies) "%s" support(s) "%s" and '
+                                                     % (nst[0], '", "'.join(name_of_required_rotamer_file), nst[0]) + 
+                                                        'can be used with "-L" option.')                                             
+                            if all_flags_allowed:
+                                all_flags_allowed = False
                                 
-                                detected_problems.append('NST: "%s" defined in library: "%s" does not provide a default coarse potential.' %(nst[0], ','.join(rotamer_libs_providing_this_aa_params)))
-                                detected_problems.append('Do not use o<%s> instead replace "o" by a valid coarse potential.' %(nst[0]))
-                                if all_flags_allowed:
-                                    all_flags_allowed = False
+                        else:
+                            if not loaded_rotamers.if_residue_and_course_combination_possible(nst[0], nst[1]):
+                                if nst[1] in['o','O']:                            
+                                    rotamer_libs_providing_this_aa_params = loaded_rotamers.get_rotamerfile_name_for_residue(nst[0])
+                                    
+                                    detected_problems.append('NST: "%s" defined in library: "%s" does not provide a default coarse potential.' %(nst[0], ','.join(rotamer_libs_providing_this_aa_params)))
+                                    detected_problems.append('Do not use o<%s> instead replace "o" by a valid coarse potential.' %(nst[0]))
+                                    if all_flags_allowed:
+                                        all_flags_allowed = False
                 
     
         if not kw['minimize']:  # no need to check further if no minimization   
@@ -618,18 +679,8 @@ def support_validator(kw,myprint=print):
     
     ##<<<<< STANDARD ADCP INPUT VALIDATION ENDS
     
+   
     
-    # >>>>>> OPENMM RELATED ERROR CHECKS START    
-    # if not 'sannerlab' in currently_loaded_ffxml_data(kw):
-    #     if kw['sequence'][0] =="<" or kw['sequence'][1] =="<" or kw['sequence'][-1] == ">" or (kw['sequence'][0] == "&" and kw['sequence'][2] =="<"):
-    #         detected_problems.append('OpenMM calculation for terminal Non-standard amino acids are not supported with "swiss" ffxml set. Try "-F sannerlab"')
-    #         #+
-    #         #                        ' the ffxml set "swiss_sannerlab" can be used (under development) for terminal NSTs but currently'+
-    #         #                        ' it does not support all NSTs listed on swisssidechain.ch. To use "swiss_sannerlab",')
-    #         if all_flags_allowed:
-    #             all_flags_allowed = False
-                
-    ## Terminal NST check<<<  
     if len(NSTlist)>0: 
         loaded_ffxmls = currently_loaded_ffxml_data(kw,myprint)
         
@@ -671,10 +722,7 @@ def support_validator(kw,myprint=print):
                         all_flags_allowed = False
                         
 
-    from pdbfixer.pdbfixer import (
-        substitutions, proteinResidues,dnaResidues, rnaResidues)
-    from MolKit2 import Read
-    import numpy as np
+
 
     # nmin
     if kw['minimize'] < 0:
@@ -692,30 +740,6 @@ def support_validator(kw,myprint=print):
         if all_flags_allowed:
             all_flags_allowed = False
             
-
-    #check nst receptor
-    rec = Read(kw['recpath'])
-    residues_in_pdb = rec._ag.select('name CA').getResnames()
-    uniq_residues = np.unique(residues_in_pdb) # for faster calculation
-    keep = set(proteinResidues).union(dnaResidues).union(rnaResidues).union(['N','UNK','HOH'])
-    list_of_identified_non_standard_residues = [i for i in uniq_residues if not i in keep]
-    if len(list_of_identified_non_standard_residues) > 0:
-        myprint("Non standard residue(s) detected in receptor.")
-           
-        replace_will_be_or_can_be = "will be"
-        if not kw['omm_nst']: #If -fnst option is not provided
-            replace_will_be_or_can_be = "can be"
-            detected_problems.append('Use "-fnst" option for non-standard amino acids:')
-            detected_problems.append(replace_msg)
-            detected_problems.append('Or, remove -nmin option.')
-            if all_flags_allowed:
-                all_flags_allowed = False
-
-        for indx, ns_res in enumerate(list_of_identified_non_standard_residues):
-            if ns_res in substitutions:
-                myprint ('Receptor residue %s %s substituted with %s.' % (ns_res, replace_will_be_or_can_be,substitutions[ns_res]))
-            else:
-                myprint ('Receptor residue %s %s substituted with "ALA".' % (ns_res, replace_will_be_or_can_be))
 
 
     ### check ffxml file

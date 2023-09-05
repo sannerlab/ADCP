@@ -23,8 +23,8 @@ import prody
 from prody.measure.contacts import findNeighbors
 from prody import writePDB
 from MolKit2 import Read
-from utils import currently_loaded_ffxml_data, DEFAULTSYSTEMFFXMLS #, loaded_ffxml_names
-
+# from ADCP.utils import currently_loaded_ffxml_data, DEFAULTSYSTEMFFXMLS,  #, loaded_ffxml_names
+from utils import currently_loaded_ffxml_data, DEFAULTSYSTEMFFXMLS, myprint_handler #, loaded_ffxml_names
 import openmm
 from openmm import CustomExternalForce
 from openmm.app import Modeller, PDBFile, ForceField, Simulation, HBonds
@@ -130,7 +130,7 @@ def fix_my_pdb(pdb_in,out=None, NonstandardResidueTreatment=False, return_topolo
     res_names = mol_tmp._ag.getResnames()
     atom_names = mol_tmp._ag.getNames()
     element_names = mol_tmp._ag.getElements()
-    for indx, (i,j) in enumerate(zip(res_names, atom_names)):
+    for indx, (i,j) in enumerate(zip(res_names, atom_names)):        
         if i == 'LEU':
             if j == 'CD':
                 atom_names[indx]='CD1'
@@ -152,7 +152,7 @@ def fix_my_pdb(pdb_in,out=None, NonstandardResidueTreatment=False, return_topolo
             elif j == 'CD2':
                 atom_names[indx]='CG2'
                 element_names[indx]='C'
-       
+            
     mol_tmp._ag.setNames(atom_names)
     mol_tmp._ag.setElements(element_names)
     prody.writePDB(pdb_out,mol_tmp._ag)
@@ -183,19 +183,36 @@ def fix_my_pdb(pdb_in,out=None, NonstandardResidueTreatment=False, return_topolo
     fixer.findMissingResidues()
     fixer.findMissingAtoms()    
     fixer.addMissingAtoms(seed=2112)
+    
+    # we need to run addMissngHydrogens here once as this calls addHydrogens from modeller which 
+    # loads the default hydrogen definition files. If we do not perform this step here, then later runnning 
+    # of addMissingHydrogens will override residues with similar names in NST hydrogen files.
     fixer.addMissingHydrogens(7.4)  ## This adds hydrogens to standard amino acids.
     
     
-    # loading hydrogen info for NSTs to modeller
+    # IFhydrogen atoms on NSTs are present in system, modeller somehow ignores and adds duplicate hydrogens atoms
+    # To solve this problem I am removing hyrogen atoms form NSTs before application of add hydrogen
+    current_ffxmls = currently_loaded_ffxml_data(kw)    # to get the names of NSTs loaded
+    nst_H_to_delete = [] # list of H to delete
+    for r in fixer.topology.residues():
+        if r.name in current_ffxmls.residues: # if residue in NST list
+            for a in r.atoms():
+                if a.element.name == 'hydrogen': # if atom is hydrogen
+                    # import pdb; pdb.set_trace()
+                    nst_H_to_delete.append(a)
+            
+    # for loading hydrogen info for NSTs to modeller    
     modeller =Modeller(fixer.topology,fixer.positions) 
+    modeller.delete(nst_H_to_delete)
+    # ###
     
     # As some NSTs (like ORN) are present in the openMM default hydrogen defenition file i.e.
     # (openmm/app/data/hydrogens.xml), we have to override values of previsouly
     # loaded templates for that we will make Modeller._hasLoadedStandardHydrogens = True  
-    # to forbid Modeller to load default hydrogen definition data again.    
+    # to forbid Modeller to re-load default hydrogen definition data again.    
     Modeller._hasLoadedStandardHydrogens = True  
     
-    # adding NST data and overriding all defaults
+    # adding NST data and overriding all default names
     if not 'none' in kw['systemffxml'].split(":"):
         currently_loaded_system_ffxmls = kw['systemffxml'].split(":")
         for sys_ffxml in currently_loaded_system_ffxmls:
@@ -206,10 +223,12 @@ def fix_my_pdb(pdb_in,out=None, NonstandardResidueTreatment=False, return_topolo
     if not kw['userffxml'] == None:
         user_ffxml_set = kw['userffxml'].split(":")
         for uffxml in user_ffxml_set:
-            modeller.loadHydrogenDefinitions(uffxml[:-6]+"hydrogens.xml")
-    
-    fixer.addMissingHydrogens(7.4)
-    
+            modeller.loadHydrogenDefinitions(uffxml[:-6]+"hydrogens.xml") # if user also provides hydrogen details, it overrides again
+
+    fixer.topology = modeller.topology
+    fixer.positions = modeller.positions
+
+    fixer.addMissingHydrogens(7.4)     
     ## modeller can add hydrogens to topology, it works well on N-terminal residues
     ## but it can not fix the C-terminal residues So we need to do it here for NSTs    
     pep_chain = list(fixer.topology.chains())[-1] ## As last chain is peptide
@@ -599,6 +618,7 @@ def make_disulfide_between_cys_in_last_chain(top, pos, myprint=print, debug = Fa
 def get_energy_on_modeller(modeller, mode='vacuum',loaded_ffxml_files=[],verbose = 0 ):
     ''' Rather than using temp pdb files this method 
     takes modeller object as input to calculates potential energy.    
+    openMM default energy is in kj/mol , converting it to kcal/mol
     '''
     ffxml_files = [AMBERFFXMLFILE]
     for loaded_ff in loaded_ffxml_files:
@@ -627,7 +647,7 @@ def get_energy_on_modeller(modeller, mode='vacuum',loaded_ffxml_files=[],verbose
     simulation.minimizeEnergy(maxIterations=1)
     state = simulation.context.getState(getEnergy=True)
     # import pdb; pdb.set_trace()        
-    return( state.getPotentialEnergy()._value)
+    return( state.getPotentialEnergy()._value*0.239006) # for kcal/mol
 
 
 def get_residue_templates_for_residues_with_same_graphs(topol):
@@ -861,8 +881,7 @@ def read_and_write_pdb_data_to_fid(fid, pdbfile):
 
 class ommTreatment:
     #a class to perform all required operations for openmm calculations
-    def __init__(self, target_file, recPath, workingFolder, jobName, myprint, rec_data=None):
-        myprint('Rescoring clustered poses using OpenMM ..')
+    def __init__(self, target_file, recPath, workingFolder, jobName, rec_data=None, PostDockMinCommands=None):        
         #omm defaults
         self.minimization_env = 'in-vacuo'
         self.minimization_steps = 100
@@ -882,7 +901,7 @@ class ommTreatment:
         self.rec_data = rec_data
         self.cyclize_by_backbone = False
         self.SSbond = False
-        self.myprint = myprint
+        # self.myprint = myprint
         self.loaded_ffxml_name = ''
         self.workingFolder = workingFolder
         self.jobName = jobName
@@ -890,11 +909,28 @@ class ommTreatment:
         self.CLEAN_AT_END = True # for debugging only ; False to keep all intermediate files
         self.peptide_dir = workingFolder
         self.debug_openmm_load_mode = False # for debugging; minimization will be off; only loading of parameters without any errors will be checked
-
+        self.PostDockMinCommands = PostDockMinCommands
      
     def __call__(self, **kw):       
         # reading all flags
         self.kw = kw
+        
+        # opening summary file
+        summaryFilename = '%s_summary.dlg'%os.path.join(kw['workingFolder'], self.jobName)
+        self.myprint = myprint_handler(summaryFilename)
+        self.myprint.intiated = True     # for not overwriting the previously created file
+        self.docking_header, self.docking_score = self.myprint.getDockingData()
+        
+        # adding info about postdock minimization
+        if self.PostDockMinCommands:
+            self.myprint(' ')                                                   
+            self.myprint('##### POST DOCKING MINIMIZATION #####')                                        
+            self.myprint('Minimizing docked poses ....')
+        
+
+        self.myprint('Rescoring clustered poses using OpenMM ..')
+        
+        # reading all other settings
         self.read_settings_from_flags(kw)     
         
         # creating required directories        
@@ -911,6 +947,7 @@ class ommTreatment:
                 rec = self.rec_data[0]
         rec = rec._ag # receptor
         makeChidNonPeptide(rec) # removing numerical and 'Z' chains from receptor
+
         
         # identifying peptide clustered file and initiating output file name        
         if not os.path.isfile(os.path.join(self.peptide_dir, self.combined_pep_file)):
@@ -942,6 +979,7 @@ class ommTreatment:
             if self.debug_openmm_load_mode:
                 enzs = self.load_pdb_file_to_openMM_engine(out_complex_name, out_parm_dirname) # will return PASSED of FAILED
                 self.myprint(self.target_file + " "+ enzs) # if enzs in ['PASSED','FAILED'] : ## from debugging
+                self.myprint.close()
                 return
 
             # energy calculation    
@@ -954,6 +992,12 @@ class ommTreatment:
         self.calculate_reranking_index()    
         #self.print_reranked_models()
         self.read_pdb_files_and_combine_using_given_index()
+        
+        if self.PostDockMinCommands:
+            self.myprint('Post Docking Minimization Command: %s'%              
+                         " ".join(self.PostDockMinCommands))
+        
+        self.myprint.close()
         if self.CLEAN_AT_END == True:
             self.clean_temp_files()
         
@@ -979,7 +1023,9 @@ class ommTreatment:
         # self.combined_pep_file = self.file_name_init + "_" + kw['sequence'] + "_out.pdb"
         self.combined_pep_file = self.file_name_init + "_out.pdb"
         # self.output_file = self.file_name_init + "_" + kw['sequence'] + "_omm_rescored_out.pdb"
+        
         self.output_file = os.path.join(self.workingFolder, "%s_omm_rescored_out.pdb"%self.jobName)
+        
         self.minimization_env = 'implicit'  if kw['omm_environment'] == 'implicit' else  'in-vacuo'
         self.minimization_steps = kw['omm_max_itr']
         self.NonstandardResidueTreatment = kw['omm_nst']
@@ -1012,10 +1058,13 @@ class ommTreatment:
         # print(self.omm_ranking,metric_comp_minus_rec)
         if self.rearrangeposes == True:            
             self.myprint("\nOMM Ranking:REARRANGING output poses using OpenMM energy")          
-            self.rearranged_data_as_per_asked = ommrank_adcprank_data            
+            self.rearranged_data_as_per_asked = ommrank_adcprank_data       
+            if self.docking_score:
+                self.docking_score = [self.docking_score[i] for i in adcp_ranks]
         else:
             self.myprint("\nOMM Ranking:NOT REARRANGING output poses using OpenMM energy")
             self.rearranged_data_as_per_asked = [ ommrank_adcprank_data[i] for i in adcp_ranks.argsort()]
+            
          
     def create_omm_dirs(self):   
         # create required output directories
@@ -1041,11 +1090,12 @@ class ommTreatment:
     def read_pdb_files_and_combine_using_given_index(self):
         # works as function name says
         out_file = open(self.output_file,"w+")
-        self.myprint("OMM Ranking:-------+------+------+------------+")
-        self.myprint ("OMM Ranking: Model | Rank | Rank | E_Complex  |")
-        self.myprint("OMM Ranking: #     |OpenMM| ADCP |-E_Receptor |")
-        # print ("       |      |      |  (kJ/mol)  |")
-        self.myprint("OMM Ranking:-------+------+------+------------+")      
+        docking_data_index_after_mode = self.docking_header[2].find("+")+1
+        self.myprint("OMM Ranking:-------+------+------+------------+"+ self.docking_header[2][docking_data_index_after_mode:])
+        
+        self.myprint ("OMM Ranking: Model | Rank | Rank | E_Complex  |" + self.docking_header[0][docking_data_index_after_mode:])
+        self.myprint("OMM Ranking: #     |OpenMM| ADCP |-E_Receptor |"+ self.docking_header[1][docking_data_index_after_mode:])
+        self.myprint("OMM Ranking:-------+------+------+------------+"+ self.docking_header[2][docking_data_index_after_mode:])     
         
         for model_num, arranged_line in enumerate(self.rearranged_data_as_per_asked):
             # file name and omm scores
@@ -1062,14 +1112,19 @@ class ommTreatment:
 
             # flnm_data = Read(flnm)            
             # writePDBStream(out_file, flnm_data._ag.select('not hydrogen')) 
+            #read_data_from_dlg_file(self.kw, myprint=self.myprint)
             read_and_write_pdb_data_to_fid(out_file, flnm)
             out_file.write("ENDMDL\n")
-            self.myprint("OMM Ranking: %6d %6d %6d %10.1f" %(model_num+1 , omm_rank+1, adcp_rank+1, scores[4] ))            
+            docking_score_line = ""
+            if self.docking_score:
+                docking_score_line = self.docking_score[model_num][docking_data_index_after_mode:]
+            self.myprint("OMM Ranking: %6d %6d %6d %10.1f" %(model_num+1 , omm_rank+1, adcp_rank+1, scores[4] ) + docking_score_line )            
         out_file.close()
-        self.myprint("OMM Ranking:-------+------+------+------------+")
+        self.myprint("OMM Ranking:-------+------+------+------------+"+ self.docking_header[2][docking_data_index_after_mode:])
         
     def estimate_energies_for_pdb(self,pdb_fl, amber_parm_init, verbose=0):
         # works as function name says
+        #read_data_from_dlg_file(self.kw, myprint=self.myprint)
         env=self.minimization_env
         if verbose == 1:
             self.myprint('Working on:',pdb_fl.split(os.sep)[-1])

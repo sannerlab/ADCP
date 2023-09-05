@@ -13,6 +13,12 @@ support options given for adcp docking.
 
 
 Last Update 8/30/23 build 10
+Build 11:
+    9/5/23
+    1: myprint is separated in runADCP and openMM calculations.
+    2: Omm raking line also provides score data from docking step.
+    3: fix_my_pdb is modified to work with protein-peptide complex and hydrogen added NSTs.
+
 Build 10:
     Update 9/1/23
     1: NST check in receptors updated 
@@ -70,7 +76,7 @@ Build 6:
 """
 
 import importlib
-import os
+import os, sys
 import xml.etree.ElementTree as ET
 #from colorama import Fore, Style
 
@@ -120,6 +126,70 @@ acids.(from build 9)
 
     return procede_after_flag_check
 
+class myprint_handler():
+    '''This program reads and write summary file and displays the outputs on 
+    screen, based on the myprint written my MS in runADCP.py,
+    It also provides docking records from the summary file'''
+    def __init__(self,summaryFileName):
+        self.summaryFileName = summaryFileName
+        self.summaryFileObject = None
+        self.intiated = False # for append mode
+        self.preWriteData=[] # keeping all data in case we need more details later
+        
+    def getDockingData(self): #
+    # if summary output file is opened, data will not be read.
+    # So, it should be run before the first __call__
+        if not self.summaryFileObject: 
+            if self.intiated:
+                fid = open(self.summaryFileName,'r')                
+                self.preWriteData = fid.readlines()
+                fid.close()
+                
+                line_read = False
+                ignore_lines = 3
+                header_lines = []
+                score_lines =[]
+                for l in self.preWriteData:
+                    if 'mode |  affinity' in l:
+                        line_read = True
+                    if line_read:
+                        if ignore_lines > 0:
+                            header_lines.append(l.rstrip())
+                            ignore_lines -= 1
+                        else:
+                            if not l.split()[0].isnumeric():
+                                line_read = False
+                                continue
+                            score_lines.append(l.rstrip())
+               
+                if len(score_lines) < 1:
+                    return ['',]*3, None
+               
+                return header_lines,score_lines
+            else:
+                return ['',]*3, None
+        else:
+            return ['',]*3, None
+
+    def __call__( self, txt, newline=True):
+        if not self.summaryFileObject:
+            if self.intiated:
+                self.summaryFileObject = open(self.summaryFileName,'a')
+            else:
+                self.summaryFileObject = open(self.summaryFileName,'w+')
+                self.intiated = 1
+        
+        self.summaryFileObject.write(txt)
+        if newline:
+            self.summaryFileObject.write('\n')
+        
+        sys.stdout.write(txt)
+        if newline:
+            sys.stdout.write('\n')
+    def close(self):
+        if self.summaryFileObject:
+            self.summaryFileObject.close()
+        
 
 class rotamerfile:
     ''' This class reads a rotamer lib file and provides various operations to 
@@ -338,6 +408,7 @@ class ffxmlfile:
         if resname in self.residues:
             return True
         return False       
+    
   
 class ffxmldata:
     ''' This class reads multiple ffxml files as ffxmlfile object and provides
@@ -371,8 +442,7 @@ class ffxmldata:
             res = res + ffxml_file_object.residues            
         self.residues = list(set(res))
         self.residues.sort()
-        
-        
+                
     def get_ffxmlfile_name_for_residue(self, resname):
         '''Returns names of files that provide specific residue'''
         ffxmlfile_names = []
@@ -502,15 +572,13 @@ def getNamesOfAAandNstsFromSequence(seq):
         SAAlist.append(val)
     return SAAlist, NSTlist,
 
-
 def support_validator(kw,myprint=print):
     '''this function validates the input sequence and other options for ADCP run'''
     all_flags_allowed = True
     detected_problems = []
     
     ##>>>> STANDARD ADCP INPUT VALIDATOR START
-    # check input peptide sequence 
-    
+    # check input peptide sequence     
     SAAseq, NSTlist = getNamesOfAAandNstsFromSequence(kw['sequence'])
     bracket_error = False
     if '-<' in SAAseq:
@@ -560,8 +628,7 @@ def support_validator(kw,myprint=print):
         if all_flags_allowed:
             all_flags_allowed = False  
             bracket_error = True
-        
-            
+                    
     # check standard aa in sequence
     if bracket_error is False:
         saa = 'ACDEFGHIKLMNPQRSTVWY'
@@ -587,8 +654,7 @@ def support_validator(kw,myprint=print):
     # check errors and possible sources for NSTs
     if not bracket_error:
         
-        # if squence input is correct evaluate receptor now
-        
+        # if squence input is correct evaluate receptor now        
         from pdbfixer.pdbfixer import (
             proteinResidues,dnaResidues, rnaResidues)
         from MolKit2 import Read
@@ -619,8 +685,7 @@ def support_validator(kw,myprint=print):
                 if rec_nst in receptor_n_terminal_residues:
                     NSTlist.append([rec_nst,'v','N','r'])
                 
-        # receptor NSt check done
-                     
+        # receptor NSt check done                     
         if len(NSTlist)>0:  
             # print (NSTlist)     
             if not kw['postdockmin']:
@@ -632,8 +697,7 @@ def support_validator(kw,myprint=print):
                 for nst in NSTlist:     
                     
                     if nst[3] == 'r':  # we do not need rotamers for receptor
-                        continue
-                   
+                        continue                   
                     
                     if not nst[0] in all_possible_rotamers.residues:
                         detected_problems.append('Undefined rotamers for NST: "%s" is not available from any default rotamer library files.' % nst[0])
@@ -678,9 +742,7 @@ def support_validator(kw,myprint=print):
             return all_flags_allowed,''    
     
     ##<<<<< STANDARD ADCP INPUT VALIDATION ENDS
-    
    
-    
     if len(NSTlist)>0: 
         loaded_ffxmls = currently_loaded_ffxml_data(kw,myprint)
         
@@ -722,8 +784,6 @@ def support_validator(kw,myprint=print):
                         all_flags_allowed = False
                         
 
-
-
     # nmin
     if kw['minimize'] < 0:
         detected_problems.append('"-nmin" cannot be a negative integer.')
@@ -739,8 +799,6 @@ def support_validator(kw,myprint=print):
         detected_problems.append('"-env" should be "vacuum" or "implicit".')
         if all_flags_allowed:
             all_flags_allowed = False
-            
-
 
     ### check ffxml file
     system_ffxml_set = kw['systemffxml']         
@@ -773,10 +831,8 @@ def support_validator(kw,myprint=print):
         
     return all_flags_allowed, rec #returning receptor to speed up calculation
 
-
-
        
-def evaluate_requirements_for_minimization(kw,myprint):
+def evaluate_requirements_for_minimization(kw,myprint=print):
     '''To check all required options for post docking minimization'''
     return_val = True  
     
@@ -839,7 +895,7 @@ def evaluate_requirements_for_minimization(kw,myprint):
     return return_val
 
 
-def extract_target_file(kw, workingFolder, jobName,myprint):    
+def extract_target_file(kw, workingFolder, jobName,myprint=print):    
     '''Extract rec from target file for openmm minimization'''
     if not os.path.exists(kw['target']):
         myprint("ERROR: no receptor files found, please provide a .trg file or path to inflated .trg")

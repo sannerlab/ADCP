@@ -177,30 +177,23 @@ class runADCP:
         # create a working folder name after the jobname where we will perform calculations
         self.workingFolder = workingFolder = kw['workingFolder']
 
-        # Post Docking Minimization step:           
-        if kw['postdockmin']:                                                   #OMM new line
+        # Post Docking Minimization step:                                       #OMM new line           
+        if kw['postdockmin']:                                                   #OMM new line            
             from utils import ( evaluate_requirements_for_minimization,         #OMM new line
                                extract_target_file )                            #OMM new line
             kw['jobName'] = jobName                                             #OMM new line
             kw['target'] = targetFile                                           #OMM new line
             
-            if not extract_target_file(kw, workingFolder, jobName, self.myprint):                        #OMM new line
+            if not extract_target_file(kw, workingFolder, jobName):             #OMM new line
                 self.myexit()                                                   #OMM new line
             
             # check everything needed is there for a safe & successful minimization
-            if not evaluate_requirements_for_minimization(kw, self.myprint):    #OMM new line              
+            if not evaluate_requirements_for_minimization(kw):                  #OMM new line              
                 self.myexit()                                                   #OMM new line
-            
-            self.summaryFile = open('%s_summary.dlg'%os.path.join(self.workingFolder, jobName), 'a')              #OMM new line
-            self.myprint(' ')                                                   #OMM new line
-            self.myprint('##### POST DOCKING MINIMIZATION #####')               #OMM new line                         
-            self.myprint('Minimizing docked poses ....')                        #OMM new line
-            
+
             from openMMmethods import ommTreatment                              #OMM new line       
-            runner_omm = ommTreatment(targetFile, kw['recpath'], workingFolder, jobName,self.myprint)          #OMM new line
-            runner_omm(**kw)   
-            self.myprint('Post Docking Minimization Command: %s'%               #OMM new line
-                         " ".join(sys.argv))                                    #OMM new line 
+            runner_omm = ommTreatment(targetFile, kw['recpath'], workingFolder, jobName, PostDockMinCommands=sys.argv)          #OMM new line
+            runner_omm(**kw)            
             self.myexit()                                                       #OMM new line
             
         if not os.path.exists(workingFolder):
@@ -609,13 +602,6 @@ class runADCP:
         from clusterADCP import clusterADCP
         runner = clusterADCP()
         runner(**kw)
-        
-        
-        if kw['minimize']:                                                      #OMM new line
-            self.myprint('Minimizing docked poses ....')
-            from openMMmethods import ommTreatment                              #OMM new line
-            runner_omm = ommTreatment(targetFile, kw['recpath'], workingFolder, jobName,self.myprint)          #OMM new line
-            runner_omm(**kw)                                                    #OMM new line
 
         dt = time()-t0
         if kw['reclusterOnly']:
@@ -626,6 +612,15 @@ class runADCP:
             self.myprint( 'Calculations completed %.2f seconds, i.e. %s hours %s minutes %s seconds '%(dt, h, m, s))
             self.myprint('MC search command: %s'%command)
             self.myprint('seed: %s'%str(seeds))
+            
+        
+        if kw['minimize']:                                                      #OMM new line
+            self.myprint('Minimizing docked poses ....')                        #OMM new line
+            from openMMmethods import ommTreatment                              #OMM new line
+            if self.summaryFile:
+                self.summaryFile.close()                                        #OMM new line
+            runner_omm = ommTreatment(targetFile, kw['recpath'], workingFolder, jobName)          #OMM new line
+            runner_omm(**kw)                                                    #OMM new line
 
         self.myexit(error = False)
 

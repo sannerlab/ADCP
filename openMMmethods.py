@@ -6,7 +6,15 @@ Created on Fri Sep 23 13:29:31 2022
 
 Collection of methods to perform openMM based calculation of ADCP docked poses.
 
-Last Update 7/26/23 build 6
+
+Build 11:
+    9/5/23
+    1: myprint is separated in runADCP and openMM calculations.
+    2: Omm raking line also provides score data from docking step.
+    3: fix_my_pdb is modified to work with protein-peptide complex and hydrogen added NSTs.
+    4: As we are printing ADCP score and OpenMM score together, openMM score unit is changed to kcal/mol.
+
+7/26/23 build 6
 Build 6:
     1: fix_my_pdb loads openMM parameters (bond definition and hydrogen definition)
     (currently only swiss) to support NSTs.

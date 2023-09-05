@@ -12,12 +12,13 @@ support options given for adcp docking.
 * Parser flags for openMM parameters.
 
 
-Last Update 8/30/23 build 10
+Last Update build 11
 Build 11:
     9/5/23
     1: myprint is separated in runADCP and openMM calculations.
     2: Omm raking line also provides score data from docking step.
-    3: fix_my_pdb is modified to work with protein-peptide complex and hydrogen added NSTs.
+    3: fix_my_pdb is modified to work with protein-peptide complex and NSTs with hydrogens.[MOST LIKELY OPENMM BUG]
+    4: As we are printing ADCP score and OpenMM score together, openMM score unit is changed to kcal/mol.
 
 Build 10:
     Update 9/1/23
@@ -84,7 +85,8 @@ import xml.etree.ElementTree as ET
 # Default system ffxml files, it can be extended for new parameter sets
 # update it if more ffxml files added as default potentials 
 #
-DEFAULTSYSTEMFFXMLS = [ 'sannerlab', 'swiss', 'sannerlabPLUSswiss']  
+DEFAULTSYSTEMFFXMLS = [ 'sannerlab', 'swiss', 'sannerlabPLUSswiss'] 
+BUILD_VERSION = 11 
 ###
 
 replace_msg = ("""This flag is used to specify the handling of non-standard \
@@ -103,7 +105,7 @@ def openmm_validator(kw, myprint=print):
 ------------------------------------------------------------------
 OpenMM minimization flag detected. This step takes more time than non-minimization calculations.
 
-DECLARATION (V1.1.0 build 9):
+DECLARATION (V1.1.0 build %d):
 a: Support for OpenMM Minimization is still under development.
 b: Currently, it supports docking with "-rmsd 0" flag.
 c: Current version provides docking supports for peptides containing ~400 (L and D) NSTs \
@@ -113,7 +115,7 @@ acids (pdbfixer v1.8), or if pdbfixer does not identify a non-standard amino \
 acid, it can be replaced by ALA.
 e: Added support for external parameter input for non-standard amino \
 acids.(from build 9)
-   """)
+   """ % BUILD_VERSION)
         # check availability of these packages:
         packages_to_check = ['openmm', 'parmed']
 

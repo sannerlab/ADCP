@@ -164,14 +164,14 @@ class myprint_handler():
                                 continue
                             score_lines.append(l.rstrip())
                
-                if len(score_lines) < 1:
+                if len(score_lines) < 1: # in case no scores are there 
                     return ['',]*3, None
                
                 return header_lines,score_lines
             else:
-                return ['',]*3, None
+                return ['',]*3, None # if file is created the first time
         else:
-            return ['',]*3, None
+            return ['',]*3, None # if file is open
 
     def __call__( self, txt, newline=True):
         if not self.summaryFileObject:
@@ -287,8 +287,7 @@ class rotamerdata:
         
     def readrotamerfile(self,rot_file):
         '''Reads rotamer file as rotamer file object'''
-        rot_file_with_path = os.path.abspath(rot_file)
-        
+        rot_file_with_path = os.path.abspath(rot_file)        
         self.rotamerfiles.append(rot_file_with_path)
         self.rotamerobjects.append(rotamerfile(rot_file_with_path,self.myprint))
         self.get_all_residues()
@@ -325,8 +324,7 @@ class rotamerdata:
                 similar_res.append(similar_res_trial)   
                 rotamer_file_names.append(rot_file_object.name)
         if len(similar_res) > 0:
-            return similar_res, rotamer_file_names
-        
+            return similar_res, rotamer_file_names        
         return None,None       
         
     def get_rotamerfile_name_for_residue(self, resname):   
@@ -463,8 +461,7 @@ def currently_loaded_ffxml_data(kw,myprint=print):
     '''Provide rotamerdata object for currently loaded ffxml files'''  
     '''By default it loads sannerlab rotamers (primary) and swiss (as secondary)
     In case, user want to use only one of these or specific multiples (in future)
-    _F name_a:name_b:name_c can be given to override the defaults
-    
+    _F name_a:name_b:name_c can be given to override the defaults    
     '''
     loaded_ffxmls = ffxmldata(myprint) # for output
     ## from system
@@ -654,8 +651,8 @@ def support_validator(kw,myprint=print):
             
 
     # check errors and possible sources for NSTs
+    rec=''
     if not bracket_error:
-        
         # if squence input is correct evaluate receptor now        
         from pdbfixer.pdbfixer import (
             proteinResidues,dnaResidues, rnaResidues)
@@ -668,8 +665,7 @@ def support_validator(kw,myprint=print):
         keep = set(proteinResidues).union(dnaResidues).union(rnaResidues).union(['N','UNK','HOH'])
         list_of_identified_non_standard_residues = [i for i in uniq_residues if not i in keep]
         # import pdb; pdb.set_trace()
-        if len(list_of_identified_non_standard_residues) > 0:
-            
+        if len(list_of_identified_non_standard_residues) > 0:            
             receptor_n_terminal_residues=[] 
             receptor_c_terminal_residues=[] 
             for chid in set(rec._ag.getChids()):
@@ -732,8 +728,7 @@ def support_validator(kw,myprint=print):
                                     detected_problems.append('NST: "%s" defined in library: "%s" does not provide a default coarse potential.' %(nst[0], ','.join(rotamer_libs_providing_this_aa_params)))
                                     detected_problems.append('Do not use o<%s> instead replace "o" by a valid coarse potential.' %(nst[0]))
                                     if all_flags_allowed:
-                                        all_flags_allowed = False
-                
+                                        all_flags_allowed = False                
     
         if not kw['minimize']:  # no need to check further if no minimization   
             if not all_flags_allowed: # print error messages and exit
@@ -758,14 +753,12 @@ def support_validator(kw,myprint=print):
                 terminal_details = "%s-terminal " % nst[2]
             ## As for standard amino acids, amber uses same paramters for L and D type AAs. so nst[0].split("_") is used 
             ## to remove "_D" for D type res.
-            # first terminal residue check
-                        
+            # first terminal residue check                        
             nst_without_D_or_L = nst[0].split("_")[0]
             nst_name_with_terminal = nst[2] + nst_without_D_or_L
                 
             if not nst_name_with_terminal in all_possible_ffxmls.residues: #nst[0].split("_") to remove "_D" for D type res
-                if not kw['omm_nst']: #If -fnst option is not provided                    
-        
+                if not kw['omm_nst']: #If -fnst option is not provided    
                     detected_problems.append('Undefined openMM parameters for NST: "%s%s" is not available from any default ffxml files' % 
                                              (terminal_details, nst_without_D_or_L) 
                                              + ' use -fnst option to mutate unknown NSTs to standard amino acids, or remove -nmin option'                                             
@@ -822,15 +815,13 @@ def support_validator(kw,myprint=print):
                 if not os.path.exists(file):
                     detected_problems.append('ERROR: Could not find user defined %s file %s' % (ftype,file))
                     if all_flags_allowed:
-                        all_flags_allowed = False
-        
-                
+                        all_flags_allowed = False        
+       
     if not all_flags_allowed:
         myprint("Please resolve following issues to use openMM based ranking:")
         for msg in detected_problems:
             myprint("* "+ msg) 
-        #print("Exiting now")
-        
+        #print("Exiting now")        
     return all_flags_allowed, rec #returning receptor to speed up calculation
 
        

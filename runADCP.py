@@ -195,7 +195,12 @@ class runADCP:
             runner_omm = ommTreatment(targetFile, kw['recpath'], workingFolder, jobName, PostDockMinCommands=sys.argv)          #OMM new line
             runner_omm(**kw)            
             self.myexit()                                                       #OMM new line
-            
+        
+        if workingFolder == None:
+                print('ERROR: Working folder is not defined. Working folder is required for temporary data generation. '+
+                      'Use -w to define working folder.' )
+                self.myexit()       
+        
         if not os.path.exists(workingFolder):
             try:
                 os.mkdir(workingFolder)
@@ -436,6 +441,11 @@ class runADCP:
                 if self.dryRun:
                     self.myprint ('/n*************** command ***************************\n')
                     self.myprint (' '.join(argv))
+                    if kw['minimize']:                                                      #OMM new line
+                        if openmm_validator(kw) == True:
+                            from openMMmethods import openMMdryrunchecks
+                            kw['target'] = targetFile   
+                            openMMdryrunchecks(kw, self.myprint)
                     self.myexit()
                     sys.exit()
                 elif jobNum==1:
@@ -613,7 +623,6 @@ class runADCP:
             self.myprint('MC search command: %s'%command)
             self.myprint('seed: %s'%str(seeds))
             
-        
         if kw['minimize']:                                                      #OMM new line
             self.myprint('Minimizing docked poses ....')                        #OMM new line
             from openMMmethods import ommTreatment                              #OMM new line
@@ -634,7 +643,7 @@ if __name__=='__main__':
 
     import argparse
     parser = argparse.ArgumentParser(description='AutoDock CrankPep', 
-                                  usage="usage: python %(prog)s -s GaRyMiChEL -t rec.trg -o output")
+                                  usage="usage: python %(prog)s -s GaRyMiChEL -T rec.trg -w WorkFolder -o output")
                                   # version="%prog 0.1")
     parser.add_argument('--version', action='version', version="1.1.0" )
     parser.add_argument("-s", "--sequence",dest="sequence",

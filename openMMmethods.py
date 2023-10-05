@@ -31,8 +31,8 @@ import prody
 from prody.measure.contacts import findNeighbors
 from prody import writePDB
 from MolKit2 import Read
-# from ADCP.utils import currently_loaded_ffxml_data, DEFAULTSYSTEMFFXMLS,  #, loaded_ffxml_names
-from utils import currently_loaded_ffxml_data, DEFAULTSYSTEMFFXMLS, myprint_handler #, loaded_ffxml_names
+from ADCP.utils import currently_loaded_ffxml_data, DEFAULTSYSTEMFFXMLS, myprint_handler  #, loaded_ffxml_names
+#from utils import currently_loaded_ffxml_data, DEFAULTSYSTEMFFXMLS, myprint_handler #, loaded_ffxml_names
 import openmm
 from openmm import CustomExternalForce
 from openmm.app import Modeller, PDBFile, ForceField, Simulation, HBonds
@@ -40,19 +40,6 @@ from openmm.unit import kilojoules_per_mole, nanometer
 from pdbfixer import PDBFixer
 import parmed
 
-
-'''
-Steps:
-  1: Identify receptor(s) and peptide chains.
-  2: Identify interface residues and,
-      Minimize peptide+ interacting receptor residues.
-      Estimate E_complex.
-  3: Split complex into receptor(s) and peptide and
-      Estimate single point energy values for receptor(s) and petide, i.e.
-      E_receptor and E_peptide
-  4: Calculate different E metrics. and sort best to worst. Combine respective
-      models in a single output file.
-'''
 
 # Global Variables
 ffxml_path = os.path.join(os.path.dirname(__file__), 'data','openMMff') # for NST ffxmls
@@ -125,11 +112,9 @@ def fix_my_pdb(pdb_in,out=None, NonstandardResidueTreatment=False, return_topolo
       -fnst: try to swap NSTs with similar amino acids, if cannot swap, mutate to ALA'''     
 
     if out==None:        
-        pdb_out = os.path.join(os.curdir,"fixed", os.path.split(pdb_in)[-1].split('.')[0]+'_fixed.pdb' )
-        
+        pdb_out = os.path.join(os.curdir,"fixed", os.path.split(pdb_in)[-1].split('.')[0]+'_fixed.pdb' )        
     else:
-        pdb_out = out
-        
+        pdb_out = out        
     if return_topology:
         pdb_out = os.path.join(os.curdir,'tmp.pdb')
 
@@ -167,8 +152,7 @@ def fix_my_pdb(pdb_in,out=None, NonstandardResidueTreatment=False, return_topolo
     # Cleaning in Prody done <<<<<
 
     # Cleaning in PDBFixer >>>>      
-    fixer = PDBFixer(filename=pdb_out)    
-    
+    fixer = PDBFixer(filename=pdb_out)        
     #    # adding required bond data for NSTs
     # fixer.topology.loadBondDefinitions(os.path.join(ffxml_path, 'swissaa_bond_def.xml')) ## default in Build6
     if not 'none' in kw['systemffxml'].split(":"):
@@ -195,8 +179,7 @@ def fix_my_pdb(pdb_in,out=None, NonstandardResidueTreatment=False, return_topolo
     # we need to run addMissngHydrogens here once as this calls addHydrogens from modeller which 
     # loads the default hydrogen definition files. If we do not perform this step here, then later runnning 
     # of addMissingHydrogens will override residues with similar names in NST hydrogen files.
-    fixer.addMissingHydrogens(7.4)  ## This adds hydrogens to standard amino acids.
-    
+    fixer.addMissingHydrogens(7.4)  ## This adds hydrogens to standard amino acids.    
     
     # IFhydrogen atoms on NSTs are present in system, modeller somehow ignores and adds duplicate hydrogens atoms
     # To solve this problem I am removing hyrogen atoms form NSTs before application of add hydrogen
@@ -371,7 +354,7 @@ def writePDBfile(topols, pos, outfile) :
 
   
 ## Interface identification and restrain     
-def identify_interface_residues(pdb_file, needs_b=0):
+def identify_interface_residues(pdb_file, needs_b=False):
     '''identifies interface residues between macromolecule(s) and peptide'''    
     mol_temp = Read(pdb_file)    
     rec = mol_temp._ag.select('not chid Z and not hydrogen')
@@ -379,7 +362,7 @@ def identify_interface_residues(pdb_file, needs_b=0):
 
     near_n = findNeighbors(rec, 5 , pep)
     interacting_chainA_res = []
-    if needs_b ==1:
+    if needs_b:
         interacting_chainZ_res = []
     intreacting_chainA_res_ids = []
     for a1,a2,d in near_n:
@@ -389,7 +372,7 @@ def identify_interface_residues(pdb_file, needs_b=0):
         if not res_array in intreacting_chainA_res_ids:  # to avoid set
             intreacting_chainA_res_ids.append(res_array )
         
-        if needs_b ==1:
+        if needs_b:
             interacting_chainZ_res.append(a2.getResindex())
     
     interacting_chainA_res = list(set(interacting_chainA_res))    
@@ -401,23 +384,12 @@ def identify_interface_residues(pdb_file, needs_b=0):
     for res_data in intreacting_chainA_res_ids:    
         sorting_facilator_array.append("%s%6d" % (res_data[2], res_data[1])) #6d as largest pdb(4pth)has 120000 residues including HOH
     sorting_facilator_array = np.array(sorting_facilator_array)
-    new_intreacting_chainA_res_ids = [intreacting_chainA_res_ids[idx] for idx in sorting_facilator_array.argsort()] # TADAA
-    
+    new_intreacting_chainA_res_ids = [intreacting_chainA_res_ids[idx] for idx in sorting_facilator_array.argsort()] # TADAA    
     intreacting_chainA_res_ids =[ "%4s_%s_%s_%d" % (sg,ch,rname,rnum)  for rname,rnum,ch,sg in  new_intreacting_chainA_res_ids] # name : segid_chain_resname_resnum
     
-
-    # res_list_prody=[]
-    # for i in interacting_chainA_res:
-        # res_list_prody.append(rec.select(' name CA and resindex %d' % i ).getResnames()[0])
-    # print("prody ignore:",res_list_prody)
-    
-    if needs_b ==1:
+    if needs_b:
         interacting_chainZ_res = list(set(interacting_chainZ_res))
         interacting_chainZ_res.sort()
-        # pep_list_prody=[]
-        # for i in interacting_chainZ_res:
-            # pep_list_prody.append(pep.select(' name CA and resindex %d' % i ).getResnames()[0])
-        # print("prody ignore(B):",pep_list_prody)
         return interacting_chainA_res,interacting_chainZ_res
    
     # interacting_chainA_res=np.array(interacting_chainA_res)
@@ -489,8 +461,8 @@ def cyclize_backbone_of_last_chain(topology, positions, myprint=print, display_i
      
     hasBond = False
     for b in residues[0].bonds():
-        if (b.atom1==nat and b.atom2==cat) or (b.atom1==cat and
-                                               b.atom2==nat):
+        if ((b.atom1==nat and b.atom2==cat) or 
+            (b.atom1==cat and b.atom2==nat)):
             hasBond = True
             break
 
@@ -530,7 +502,6 @@ def make_disulfide_between_cys_in_last_chain(top, pos, myprint=print, debug = Fa
           if (atom in b and b[0].name == 'SG' and
               b[1].name == 'SG'):
               return True
-
       return False
     
     modeller = Modeller(top, pos)
@@ -572,8 +543,7 @@ def make_disulfide_between_cys_in_last_chain(top, pos, myprint=print, debug = Fa
     if positions.unit.get_symbol() == 'nm':
         nm_cutoff = SS_bond_cutoff/10
     else:
-        nm_cutoff = SS_bond_cutoff
-        
+        nm_cutoff = SS_bond_cutoff        
     
     # identify nearby CYS pairs which can make disulfide.    
     del_HG = [] # list of HG to delete to make CYS -> CYX (required for SSbond)
@@ -641,8 +611,7 @@ def get_energy_on_modeller(modeller, mode='vacuum',loaded_ffxml_files=[],verbose
         msg = "Using in-vacuo environment for energy minimization"
 
     positions = modeller.positions
-    topology = modeller.topology
-    
+    topology = modeller.topology    
     residueTemplates = get_residue_templates_for_residues_with_same_graphs(topology)
     
     if verbose == 1:
@@ -677,14 +646,11 @@ def get_residue_templates_for_residues_with_same_graphs(topol):
         Cterm_res.append(res_in_chain[-1])    
 
     for r in residues:
-        if r.name in RESIDUES_WITH_SIMILAR_GRAPHS:
-            
+        if r.name in RESIDUES_WITH_SIMILAR_GRAPHS:            
             if r in Nterm_res:
-                residueTemplates[residues[r.index]] =  "N" + r.name
-            
+                residueTemplates[residues[r.index]] =  "N" + r.name            
             elif r in Cterm_res:
-                residueTemplates[residues[r.index]] =  "C" + r.name
-                
+                residueTemplates[residues[r.index]] =  "C" + r.name                
             else:
                 residueTemplates[residues[r.index]] =  r.name
     # print(residueTemplates)
@@ -885,7 +851,6 @@ def read_and_write_pdb_data_to_fid(fid, pdbfile):
     # print(data)
     fid.writelines(data)
     
-
 
 class ommTreatment:
     #a class to perform all required operations for openmm calculations
@@ -1099,11 +1064,12 @@ class ommTreatment:
         # works as function name says
         out_file = open(self.output_file,"w+")
         docking_data_index_after_mode = self.docking_header[2].find("+")+1
-        self.myprint("OMM Ranking:-------+------+------+------------+"+ self.docking_header[2][docking_data_index_after_mode:])
-        
-        self.myprint ("OMM Ranking: Model | Rank | Rank | E_Complex  |" + self.docking_header[0][docking_data_index_after_mode:])
-        self.myprint("OMM Ranking: #     |OpenMM| ADCP |-E_Receptor |"+ self.docking_header[1][docking_data_index_after_mode:])
-        self.myprint("OMM Ranking:-------+------+------+------------+"+ self.docking_header[2][docking_data_index_after_mode:])     
+        self.myprint("OMM Ranking:                     +<-OMMscore->+<-----------AutoDock CrankPep Scores"+
+                     "-"*(len(self.docking_header[2])-docking_data_index_after_mode-38)+">+")
+        self.myprint("OMM Ranking:-------+------+------+------------+" + self.docking_header[2][docking_data_index_after_mode:])        
+        self.myprint("OMM Ranking: Model | Rank | Rank | E_Complex  |" + self.docking_header[0][docking_data_index_after_mode:])
+        self.myprint("OMM Ranking: #     |OpenMM| ADCP |-E_Receptor |" + self.docking_header[1][docking_data_index_after_mode:])
+        self.myprint("OMM Ranking:-------+------+------+------------+" + self.docking_header[2][docking_data_index_after_mode:])     
         
         for model_num, arranged_line in enumerate(self.rearranged_data_as_per_asked):
             # file name and omm scores
@@ -1126,7 +1092,7 @@ class ommTreatment:
             docking_score_line = ""
             if self.docking_score:
                 docking_score_line = self.docking_score[model_num][docking_data_index_after_mode:]
-            self.myprint("OMM Ranking: %6d %6d %6d %10.1f" %(model_num+1 , omm_rank+1, adcp_rank+1, scores[4] ) + docking_score_line )            
+            self.myprint("OMM Ranking: %6d %6d %6d %10.1f   " %(model_num+1 , omm_rank+1, adcp_rank+1, scores[4] ) + docking_score_line )            
         out_file.close()
         self.myprint("OMM Ranking:-------+------+------+------------+"+ self.docking_header[2][docking_data_index_after_mode:])
         
@@ -1173,21 +1139,36 @@ class ommTreatment:
         return 'PASSED'
         
         
-          
-# In the next version, this class will be used, by either using tempfile for 
-# temprory file writing or, streamIO for keeping temp data in memory.
-        
-# class buffer_file_methods:
-#     def __init__(self):
-#         self.name = 'buffer_file_methods'
-        
-#     def writePDB_prody_to_buffer( self, atoms, csets=None, autoext=True, **kwargs):
-#         """Write *atoms* in PDB format to a file with name *filename* and return
-#         *filename*.  If *filename* ends with :file:`.gz`, a compressed file will
-#         be written."""
-#         output_buffer = io.StringIO()
-#         writePDBStream(output_buffer, atoms, csets, **kwargs)
-#         return output_buffer
-                
-#     def Read_buffer(self, buffer_name):
-     
+def openMMdryrunchecks(kw,myprint = print): 
+    'To evaluate openMM related possible errors'
+    # evaluate receptor
+    from utils import extract_target_file
+    import shutil
+    # if kw['postdockmin']:
+    #     from utils import evaluate_requirements_for_minimization
+    #     evaluate_requirements_for_minimization(kw,myprint)
+    
+    if extract_target_file(kw, kw['workingFolder'], kw['jobName']):  
+        if os.path.exists(kw['recpath']):      
+            
+            runner_omm = ommTreatment(kw['target'], kw['recpath'], kw['workingFolder'], kw['jobName'])          #OMM new line
+            runner_omm.myprint = myprint
+            runner_omm.kw = kw
+            runner_omm.read_settings_from_flags(kw)
+            runner_omm.loaded_ffxml_files = currently_loaded_ffxml_data(kw).ffxmlfiles
+            
+            out_parm_dirname = os.path.join(runner_omm.amber_parm_out_dir, (runner_omm.file_name_init + "_0"))            
+            out = runner_omm.load_pdb_file_to_openMM_engine(kw['recpath'], out_parm_dirname)
+            if out == 'FAILED':
+                myprint('ERROR: OpenMM is anable to load the receptor!')
+            else:
+                myprint('Receptor from target file is supported in OpenMM calculation.')
+            # runner_omm(**kw)                                                   #OMM new line
+            
+            shutil.rmtree(os.path.split(kw['recpath'])[0])
+        else:
+            myprint('ERROR: Receptor pdbqt not found in target file archive.')
+    else:
+        myprint('ERROR: target file not found.')
+
+

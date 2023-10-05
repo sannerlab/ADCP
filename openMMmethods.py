@@ -5,6 +5,10 @@ Created on Fri Sep 23 13:29:31 2022
 @author: Sudhanshu Shanker
 
 Collection of methods to perform openMM based calculation of ADCP docked poses.
+Build 14:
+    10/5/23
+    1: added pdb_to_modeller_object for code simplification
+    2: added RESUME MINIMIZATION scheme with defs get_pre_minimized_data and get_pre_minimized_data_v2(for future)
 
 
 Build 11:
@@ -592,7 +596,6 @@ def make_disulfide_between_cys_in_last_chain(top, pos, myprint=print, debug = Fa
     else:
         return modeller.topology, modeller.positions
 
- 
 def get_energy_on_modeller(modeller, mode='vacuum',loaded_ffxml_files=[],verbose = 0 ):
     ''' Rather than using temp pdb files this method 
     takes modeller object as input to calculates potential energy.    
@@ -616,6 +619,7 @@ def get_energy_on_modeller(modeller, mode='vacuum',loaded_ffxml_files=[],verbose
     
     if verbose == 1:
         print(msg)
+    ##>>> Most time taking steps:
     system = force_field.createSystem( topology, nonbondedCutoff=1*nanometer, constraints=HBonds, residueTemplates=residueTemplates)
     # restrain_(system, pdb_handle, 'All')
     integrator = openmm.LangevinIntegrator(0, 0.01, 0.0)
@@ -657,10 +661,9 @@ def get_residue_templates_for_residues_with_same_graphs(topol):
     return residueTemplates
 
 
-def openmm_minimize( pdb_str: str, env='implicit', verbose = 0, max_itr=5, 
-                    cyclize = False, SSbond=False, amberparminit=None, 
-                    loaded_ffxml_files =[],myprint=print):
-    '''Minimize a protein-peptide complex using openMM'''
+def pdb_to_modeller_object( pdb_str: str, cyclize = False, 
+                           SSbond=False, myprint=print):
+    '''Creates a Modeller object for the input pdb. '''
     #"""Minimize energy via openmm."""
     pdb = PDBFile(pdb_str)
     out_var = my_dot_variable()
@@ -675,11 +678,25 @@ def openmm_minimize( pdb_str: str, env='implicit', verbose = 0, max_itr=5,
     
     # for disulfide bridges
     if SSbond:
-        topology, positions = make_disulfide_between_cys_in_last_chain(topology, positions, myprint=myprint) 
+        topology, positions = make_disulfide_between_cys_in_last_chain(topology, positions, myprint=myprint)     
+    ignore_list, aa_without_restrains = identify_interface_residues(pdb_str)  
     
-    # for alo residues
-    residueTemplates = get_residue_templates_for_residues_with_same_graphs(topology)
-    
+    #Encapsulation of all required data in output    
+    out_var.pdb = pdb
+    out_var.topology = topology
+    out_var.positions = positions
+    out_var.aa_without_restrains = aa_without_restrains
+    out_var.ignore_list = ignore_list        
+    return out_var
+
+def openmm_minimize( pdb_str: str, env='implicit', verbose = 0, max_itr=5, 
+                    cyclize = False, SSbond=False, amberparminit=None, 
+                    loaded_ffxml_files =[],myprint=print):
+    '''Minimize a protein-peptide complex using openMM'''
+    #"""Minimize energy via openmm."""
+    data_var = pdb_to_modeller_object(pdb_str=pdb_str, cyclize=cyclize, 
+                                     SSbond=SSbond, myprint=myprint)
+
     # force field
     ffxml_files = [AMBERFFXMLFILE]
     for loaded_ff in loaded_ffxml_files:
@@ -698,17 +715,19 @@ def openmm_minimize( pdb_str: str, env='implicit', verbose = 0, max_itr=5,
         myprint(msg)
     # integrator = LangevinIntegrator(300*kelvin, 1/picosecond, 0.002*picoseconds)
     integrator = openmm.LangevinIntegrator(0, 0.01, 0.0)
-    # constraints = HBonds    
-    system = force_field.createSystem(  topology, nonbondedCutoff=1*nanometer, 
+    # constraints = HBonds    // Not using now
+    
+    # for same graph residues
+    residueTemplates = get_residue_templates_for_residues_with_same_graphs(data_var.topology)
+    # create system
+    system = force_field.createSystem( data_var.topology, nonbondedCutoff=1*nanometer, 
                                       residueTemplates=residueTemplates)
-                                      # constraints=constraints)    
-    ignore_list, aa_without_restrains = identify_interface_residues(pdb_str)  
-      
-    restrain_(system, pdb, ignore_list=ignore_list)    
+                                      # constraints=constraints)             
+    restrain_(system, data_var.pdb, ignore_list=data_var.ignore_list)    
     
     # platform = openmm.Platform.getPlatformByName("CUDA" if use_gpu else "CPU")
-    simulation = Simulation( topology, system, integrator)
-    simulation.context.setPositions(positions)      
+    simulation = Simulation( data_var.topology, system, integrator)
+    simulation.context.setPositions(data_var.positions)      
     return_energy = {}
     state = simulation.context.getState(getEnergy=True, getPositions=True)
     return_energy["einit"] = state.getPotentialEnergy()
@@ -718,43 +737,33 @@ def openmm_minimize( pdb_str: str, env='implicit', verbose = 0, max_itr=5,
     return_energy["efinal"] = state.getPotentialEnergy()
     # ret["pos"] = state.getPositions(asNumpy=True)
     positions = simulation.context.getState(getPositions=True).getPositions()
-    writePDBfile(topology, positions, open(pdb_str[:-4]+"_min.pdb", 'w'))
+    writePDBfile(data_var.topology, positions, open(pdb_str[:-4]+"_min.pdb", 'w'))
     # ret["min_pdb"] = _get_pdb_string(simulation.topology, state.getPositions())
     
-    out_var.minimized_energy = return_energy
-    out_var.system = system
-    out_var.topology = topology
-    out_var.positions = positions
-    out_var.env = env
-    out_var.aa_without_restrains = aa_without_restrains
+    data_var.env = env
+    data_var.minimized_energy = return_energy
+    data_var.system = system
+    data_var.positions = positions # update positios
     
     if not amberparminit == None:
-        structure = parmed.openmm.topsystem.load_topology( topology, system, positions)
+        structure = parmed.openmm.topsystem.load_topology( data_var.topology, system, data_var.positions)
         # print(pdb_str)
-        structure.save(amberparminit+'.parm7', overwrite=True)
+        # right now writning toplogy file for all models. Doing this because, if disulfide is different
+        # in two models, topology files need to be different.  This can be changed later for writing only
+        # one topology file for docking without -cys flag.
+        structure.save(amberparminit+'.parm7', overwrite=True) 
         structure.save(amberparminit+'.rst7' , format='rst7', overwrite=True)
         
-    return out_var
+    return data_var
 
 def openmm_create_system( pdb_str: str, env='implicit', verbose = 0, max_itr=5, 
                          cyclize = False, SSbond=False, amberparminit=None, 
                          loaded_ffxml_files =[],myprint=print):
     '''FOR DEBUGGING: This program loads parametes to openMM engine to check the compatability'''
     #"""Minimize energy via openmm."""
-    pdb = PDBFile(pdb_str)
-    # for cyclic peptides
-    if cyclize:
-        modeller = cyclize_backbone_of_last_chain(pdb.topology, pdb.positions, myprint=myprint, display_info=True)
-        topology = modeller.topology
-        positions = modeller.positions
-    else:
-        topology = pdb.topology
-        positions = pdb.positions
-    
-    # for disulfide bridges
-    if SSbond:
-        topology, positions = make_disulfide_between_cys_in_last_chain(topology, positions, myprint=myprint) 
-        
+    out_var = pdb_to_modeller_object(pdb_str=pdb_str, cyclize=cyclize, 
+                                     SSbond=SSbond, myprint=myprint)
+    topology = out_var.topology
     # force field
     ffxml_files = [AMBERFFXMLFILE]
     for loaded_ff in loaded_ffxml_files:
@@ -787,8 +796,7 @@ def return_comp_rec_pep_energies_from_omm_minimize_output(omm_min_in, loaded_ffx
     positions = omm_min_in.positions
     env = omm_min_in.env
     
-    chains = list(topology.chains())
-    
+    chains = list(topology.chains())    
     # complex single point energy
     modeller_comp = Modeller(topology, positions)
     comp_e = get_energy_on_modeller(modeller_comp, mode=env, loaded_ffxml_files=loaded_ffxml_files)        
@@ -863,7 +871,7 @@ class ommTreatment:
         self.target_file = target_file
         self.omm_temp_dir = os.path.join(workingFolder, jobName)
         self.omm_proj_dir = os.path.split(recPath)[0] #os.path.join(self.omm_temp_dir, target_file.split(".")[0])
-        self.amber_parm_out_dir = os.path.join("%s_omm_amber_parm" %(os.path.join(workingFolder, jobName)))
+        self.amber_parm_out_dir = "%s_omm_amber_parm" %(os.path.join(workingFolder, jobName))
         self.file_name_init = jobName
         self.pdb_and_score=[]
         self.delete_at_end =[]
@@ -891,13 +899,19 @@ class ommTreatment:
         # opening summary file
         summaryFilename = '%s_summary.dlg'%os.path.join(kw['workingFolder'], self.jobName)
         self.myprint = myprint_handler(summaryFilename)
-        self.myprint.intiated = True     # for not overwriting the previously created file
+        self.myprint.intiated = True     # for not overwriting the previously created file        
         self.docking_header, self.docking_score = self.myprint.getDockingData()
         
         # adding info about postdock minimization
         if self.PostDockMinCommands:
-            self.myprint(' ')                                                   
-            self.myprint('##### POST DOCKING MINIMIZATION #####')                                        
+            if not kw['resmin']:
+                self.myprint.clean_prev_min_data() # old datashould be cleaned if restarting the minimization
+                # self.myprint(' ')                                                  
+                self.myprint('##### POST DOCKING MINIMIZATION #####')  
+            else:
+                self.myprint.clean_prev_min_data() # currently cleaning but when get_pre_minimized_data_v2 will be used in future, this line should be removed
+                # self.myprint(' ')                                                  
+                self.myprint('##### POST DOCKING RESUMED MINIMIZATION #####')                                      
             self.myprint('Minimizing docked poses ....')
         
 
@@ -929,22 +943,42 @@ class ommTreatment:
         
         # combining peptides and receptor; and scoring   
         pep_pdb = Read( os.path.join(self.peptide_dir, self.combined_pep_file ))
-        num_mode_to_minimize = min(pep_pdb._ag.numCoordsets(), int(kw['minimize']))        
-        
+        num_mode_to_minimize = min(pep_pdb._ag.numCoordsets(), int(kw['minimize']))    
+            
         if not self.debug_openmm_load_mode: # DONT PRINT WHEN DEBUGGING
             self.myprint("From total %d models, minimizing top %d ..." %
                   (pep_pdb._ag.numCoordsets(), num_mode_to_minimize))
         
-        for f in range( num_mode_to_minimize ):
+        # get preminimized data for resumed minimization run
+        pre_min_data=None        
+        if kw['postdockmin'] and kw['resmin']:
+            pre_min_data = self.get_pre_minimized_data() 
+            if not pre_min_data:
+                print('No orphan data found! Calculation seems to be completed fine or never performed. -resumemin option cannot be used.')
+                return
+        
+        # iterate over peptide models to minimize
+        for f in range( num_mode_to_minimize ):  
+            out_complex_name = os.path.join( self.omm_proj_dir , (self.file_name_init + "_recNpep_%d.pdb" % (f)) ) 
+            
             if not self.debug_openmm_load_mode: # DONT PRINT WHEN DEBUGGING
                 self.myprint( "\nOMM Energy: Working on #%d of %d models" % (f+1, num_mode_to_minimize))
-                
-            #peptide data
+            
+            if pre_min_data:
+                # get data for already minimized files
+                model_number = f+1  # model numbers start from 1
+                if (model_number)<=pre_min_data.last_model_number:
+                    print("Model #%d already minimized" % (model_number))
+                    enzs = pre_min_data.model_data[model_number].enzs
+                    self.myprint( "OMM Energy: E_Complex = %9.2f; E_Receptor = %9.2f; E_Peptide  = %9.2f" % (enzs[0],enzs[1],enzs[2]))
+                    self.myprint("OMM Energy: dE_Interaction = %9.2f; dE_Complex-Receptor = %9.2f" % (enzs[3], enzs[4]))        
+                    self.make_post_calculation_file_lists(out_complex_name, enzs, pre_min_data.model_data[model_number].not_restrained_res)
+                    continue
+                          
             pep_pdb._ag.setACSIndex(f)  
             pep_pdb._ag.setChids([x for x in 'Z'*pep_pdb._ag.numAtoms()]) # setting peptide chid to 'B'
             
-            #making complex for current peptide and receptor
-            out_complex_name = os.path.join( self.omm_proj_dir , (self.file_name_init + "_recNpep_%d.pdb" % (f)) ) 
+            #making complex for current peptide and receptor            
             out_parm_dirname = os.path.join(self.amber_parm_out_dir, (self.file_name_init + "_%d" % f))
             combinedRecPep= rec + pep_pdb._ag
             writePDB(out_complex_name, combinedRecPep.select('not hydrogen'))            
@@ -955,11 +989,12 @@ class ommTreatment:
                 self.myprint.close()
                 return
 
-            # energy calculation    
+            # energy calculation   
+            
             enzs, not_restrained_res = self.estimate_energies_for_pdb( out_complex_name, out_parm_dirname)
             self.myprint( "OMM Energy: E_Complex = %9.2f; E_Receptor = %9.2f; E_Peptide  = %9.2f" % (enzs[0],enzs[1],enzs[2]))
             self.myprint("OMM Energy: dE_Interaction = %9.2f; dE_Complex-Receptor = %9.2f" % (enzs[3], enzs[4]))
-            
+            # self.myprint("OMM Energy: Calculation Finished for model #%d" % (f+1)) // use this in next versions for quick locate finished calculations
             # save required details
             self.make_post_calculation_file_lists(out_complex_name, enzs, not_restrained_res)        
         self.calculate_reranking_index()    
@@ -1095,7 +1130,122 @@ class ommTreatment:
             self.myprint("OMM Ranking: %6d %6d %6d %10.1f   " %(model_num+1 , omm_rank+1, adcp_rank+1, scores[4] ) + docking_score_line )            
         out_file.close()
         self.myprint("OMM Ranking:-------+------+------+------------+"+ self.docking_header[2][docking_data_index_after_mode:])
+    
+    def get_pre_minimized_data(self):        
+        # to get energy value and pdbfiles for incomplete minimizations
+        # slower that get_pre_minimized_data_v2 but supports all
+        self.myprint("Collecting incomplete run data to avoid re-minimization...")
+        out_data = my_dot_variable()
+        model_data = {}
+        if os.path.exists(self.omm_proj_dir):
+            for fl in os.listdir(self.omm_proj_dir):
+                if fl.startswith(self.file_name_init) and fl.endswith('fixed_min.pdb'):
+                    model_number = int(fl.split("_")[-3])+1 # starting from back as initials can changed   
+                    model_data[model_number]= my_dot_variable()
+                    model_data[model_number].pdb_file = os.path.join(self.omm_proj_dir, fl)            
+        out_data.last_model_number = max(model_data.keys())
         
+        pre_minimized_models = list (model_data.keys())
+        pre_minimized_models.sort()
+        ## calculate energy values for each pre_minimized file
+        for model_number in pre_minimized_models:
+            print("Calculating energy values for model #%d" % model_number)
+            minimized_pdb_file = model_data[model_number].pdb_file
+            data_var = pdb_to_modeller_object(pdb_str=minimized_pdb_file,cyclize=self.cyclize_by_backbone, 
+                                              SSbond=self.SSbond, myprint=self.myprint)
+            data_var.env = self.minimization_env
+            enzs = return_comp_rec_pep_energies_from_omm_minimize_output(data_var, self.loaded_ffxml_files)
+            enzs.append(enzs[0] - enzs[1] -enzs[2])   # interaction energy
+            enzs.append(enzs[0] - enzs[1])            # complex - protein energy
+            model_data[model_number].enzs = enzs
+            model_data[model_number].not_restrained_res = data_var.aa_without_restrains
+        out_data.model_data= model_data
+        print("All required data from previously minimized files all loaded.")
+        return out_data
+        
+
+    def get_pre_minimized_data_v2(self):
+        ## it will be used in the newer version as it does not need to re-calculate energy values for minimized pdb files.
+        ## It will be more than 100 times faster to get data for previously-incompleted minimization
+        # As previous version may not write all info in dlg file (as killed before writing from buffer).
+        # for previous run use get_pre_minimized_data.
+        # to get energy value and pdbfiles for incomplete minimizations
+        out_data = my_dot_variable()     
+        summary_data = self.myprint.preWriteData
+        
+        # go to the last minimization trial as multiple is possible with PDMIN flag
+        last_minimization_first_line_number = 0
+        last_completed_model_number=0        
+        for i in range(len(summary_data)):
+            if summary_data[i].startswith('OpenMM minimization settings: Environment'):
+                last_minimization_first_line_number=i # overwrite the last one   
+            if summary_data[i].startswith('##### POST DOCKING RESUMED MINIMIZATION #####'):
+                break
+                ## As RESUMED minimization will not have all top models as it 
+                ## is resumed after POSTDOCKING or directly FAILED minimization
+                ## so we need to take energy information before RESUMED MINIMIZATION block too.
+        
+       
+        # check if minimziation is already done properly
+        count_omm_ranking_dot_lines = 0
+        for line_num in range(last_minimization_first_line_number,len(summary_data)):
+            if summary_data[line_num].startswith('OMM Ranking:-'):
+                count_omm_ranking_dot_lines+=1
+        if count_omm_ranking_dot_lines> 2:
+            print("Minization step was completed properly. No need to use -resumemin option")
+            return None        
+        
+        model_data = {}        
+        for line_num in range(last_minimization_first_line_number,len(summary_data)):
+            line = summary_data[line_num]
+            # import pdb; pdb.set_trace()
+            if line.startswith('OMM Energy: Working on'):
+                # last_completed_model_number =  int(line.strip().split('#')[-1])    
+                last_completed_model_number = int(line.split("#")[1].split()[0]) -1
+                if last_completed_model_number > 0:
+                    model_variable = my_dot_variable()
+                    # line -3 has energy E_complex, E_rec and E_peptide
+                    if not summary_data[line_num-3].startswith('OMM Energy: E_Complex'):
+                        continue
+                        # As it is already restarted more than one times for model# > 1
+                        # So it will assume that required data is already read
+                    
+                    enzs = [ float(v) for v in summary_data[line_num-3].replace("="," ").replace(";","").split()[1:] if not v.startswith('E')]
+                    enzs.append(enzs[0]-(enzs[1]+enzs[2])) # de Interaction
+                    enzs.append(enzs[0]-enzs[1]) # DE Comp-Receptor
+                    model_variable.enzs = enzs                
+                    model_data[last_completed_model_number] = model_variable
+        if last_completed_model_number == 0:
+            print("No minimization is performed earlier. No need to use -resumemin option")
+            return None
+                    
+        out_data.last_model_number = last_completed_model_number        
+        #now collect energy data from last minimization first line number    
+        # incase temp dir is present, this is a resumed run 
+        # or if omm rescored file present tis is an extended run
+        # for continued run we need to read energy from the dlg file and identify restrained residues again        
+        # for extended we will get all required data from rescored file
+        
+        # RESUMED RUN
+        # --- restrained AA information
+        list_of_prev_minimized_files = {}
+        if os.path.exists(self.omm_proj_dir):
+            for fl in os.listdir(self.omm_proj_dir):
+                if fl.startswith(self.file_name_init) and fl.endswith('fixed_min.pdb'):
+                    model_number = int(fl.split("_")[-3])+1 # starting from back as initials can changed   
+                    if model_number <= last_completed_model_number: # to avoid other data from non-relevent tempfiles                    
+                        model_data[model_number].not_restrained_res = identify_interface_residues(os.path.join(self.omm_proj_dir, fl))[1]# ignore_list, aa_without_restrains = 
+                    
+        else:            
+                # EXTENDEDRUN CAN BE ADDED HERE ; NOT IMPLEMENTED YET   
+            return None
+                    
+                    
+        out_data.model_data= model_data 
+        return out_data
+    
+                
+    
     def estimate_energies_for_pdb(self,pdb_fl, amber_parm_init, verbose=0):
         # works as function name says
         #read_data_from_dlg_file(self.kw, myprint=self.myprint)

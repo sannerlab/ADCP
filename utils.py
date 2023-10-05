@@ -12,7 +12,17 @@ support options given for adcp docking.
 * Parser flags for openMM parameters.
 
 
-Last Update build 11
+Last Update build 14
+Build 12:
+    10/4/23
+    1: Resume incomplete Minimization steps. using -resumemin option. (required flags -pdmin and remove -O )
+        -resumemin cannot be used for new calculations. It is only meant to be used to avoid rerunning minimization
+        of complexes that is already performed.
+    2: If -pdmin is used (without -resumemin), it will clean all previus minimization data from the dlg file.
+    3: my_print does not keep buffer data now. which is required for faster resume of a killed minimization run
+    4: BUG for calcFolder is solved. Which was making different directory for -pdmin minimization.
+    
+
 Build 11:
     9/5/23
     1: myprint is separated in runADCP and openMM calculations.
@@ -86,7 +96,7 @@ import xml.etree.ElementTree as ET
 # update it if more ffxml files added as default potentials 
 #
 DEFAULTSYSTEMFFXMLS = [ 'sannerlab', 'swiss', 'sannerlabPLUSswiss'] 
-BUILD_VERSION = 11 
+BUILD_VERSION = 14
 ###
 
 replace_msg = ("""This flag is used to specify the handling of non-standard \
@@ -131,13 +141,33 @@ acids.(from build 9)
 class myprint_handler():
     '''This program reads and write summary file and displays the outputs on 
     screen, based on the myprint written my MS in runADCP.py,
-    It also provides docking records from the summary file'''
+    It also provides docking records and cleans the summary file'''
     def __init__(self,summaryFileName):
         self.summaryFileName = summaryFileName
         self.summaryFileObject = None
         self.intiated = False # for append mode
         self.preWriteData=[] # keeping all data in case we need more details later
-        
+        self.preCleanData=[] # keeping all data in case we need more details later
+    def clean_prev_min_data(self):
+        # to remove previous openMM minimizationd details
+        if not self.summaryFileObject: 
+            if self.intiated:
+                fid = open(self.summaryFileName,'r')                
+                self.preCleanData = fid.readlines()
+                fid.close()                
+                fid = open(self.summaryFileName,'w')
+                for line in self.preCleanData:
+                    if line.startswith('Minimizing docked poses'):
+                        break
+                    if line.startswith('##### POST DOCKING MINIMIZATION #####'):
+                        break
+                    #> remove this part in next update with energy read from DLG file
+                    if line.startswith('##### POST DOCKING RESUMED MINIMIZATION #####'):
+                        break
+                    #<                    
+                    fid.write(line)
+                fid.close()
+    
     def getDockingData(self): #
     # if summary output file is opened, data will not be read.
     # So, it should be run before the first __call__
@@ -180,10 +210,14 @@ class myprint_handler():
             else:
                 self.summaryFileObject = open(self.summaryFileName,'w+')
                 self.intiated = 1
+        elif self.summaryFileObject.closed:
+            self.summaryFileObject = open(self.summaryFileName,'a')        
         
         self.summaryFileObject.write(txt)
         if newline:
-            self.summaryFileObject.write('\n')
+            self.summaryFileObject.write('\n')        
+        self.close() # to write each line without using buffer; required for resume minimization
+        
         
         sys.stdout.write(txt)
         if newline:
@@ -191,6 +225,7 @@ class myprint_handler():
     def close(self):
         if self.summaryFileObject:
             self.summaryFileObject.close()
+
         
 
 class rotamerfile:
@@ -658,83 +693,94 @@ def support_validator(kw,myprint=print):
             proteinResidues,dnaResidues, rnaResidues)
         from MolKit2 import Read
         import numpy as np        
-    
-        rec = Read(kw['recpath'])
-        residues_in_pdb = rec._ag.select('name CA').getResnames()
-        uniq_residues = np.unique(residues_in_pdb) # for faster calculation
-        keep = set(proteinResidues).union(dnaResidues).union(rnaResidues).union(['N','UNK','HOH'])
-        list_of_identified_non_standard_residues = [i for i in uniq_residues if not i in keep]
-        # import pdb; pdb.set_trace()
-        if len(list_of_identified_non_standard_residues) > 0:            
-            receptor_n_terminal_residues=[] 
-            receptor_c_terminal_residues=[] 
-            for chid in set(rec._ag.getChids()):
-                res_in_chain = rec._ag.select('name CA and chid %s' % chid).getResnames()
-                receptor_c_terminal_residues.append(res_in_chain[-1])
-                receptor_n_terminal_residues.append(res_in_chain[0])
-            
-            for rec_nst in list_of_identified_non_standard_residues:
-                myprint("Non standard residue(s) %s detected in receptor." % rec_nst)
-                res_type ='i'
-                NSTlist.append([rec_nst,'v','','r']) # v is random it will never be used; we always need internal
-                if rec_nst in receptor_c_terminal_residues:
-                    NSTlist.append([rec_nst,'v','C','r'])
-                    
-                if rec_nst in receptor_n_terminal_residues:
-                    NSTlist.append([rec_nst,'v','N','r'])
-                
-        # receptor NSt check done                     
-        if len(NSTlist)>0:  
-            # print (NSTlist)     
+        
+        if kw['resmin']:
+            if not os.path.exists(kw['recpath']):
+                detected_problems.append("Receptor cannot be found. It means either previous minimization completed or never performed. -resumemin flag cannot be used ")
+                if all_flags_allowed:
+                    all_flags_allowed = False
             if not kw['postdockmin']:
-                if not 'all_possible_rotamers' in locals():                
-                    all_possible_rotamers = all_available_rotamers(kw,myprint)
-                    loaded_rotamers = currently_loaded_rotamer_data(kw,myprint)
-                    
-                # checking NSTs
-                for nst in NSTlist:     
-                    
-                    if nst[3] == 'r':  # we do not need rotamers for receptor
-                        continue                   
-                    
-                    if not nst[0] in all_possible_rotamers.residues:
-                        detected_problems.append('Undefined rotamers for NST: "%s" is not available from any default rotamer library files.' % nst[0])
-                        detected_problems.append('To run ADCP for peptide with NST "%s", please provide an user-defined rotamer library using "-l" option.'
-                                                 % nst[0] )                
-                        if all_flags_allowed:
-                            all_flags_allowed = False
+                detected_problems.append('-resumemin flag cannot be used without postdocking minimization "-pdmin"')
+                if all_flags_allowed:
+                    all_flags_allowed = False
                             
+        else:
+            rec = Read(kw['recpath'])
+            residues_in_pdb = rec._ag.select('name CA').getResnames()
+            uniq_residues = np.unique(residues_in_pdb) # for faster calculation
+            keep = set(proteinResidues).union(dnaResidues).union(rnaResidues).union(['N','UNK','HOH'])
+            list_of_identified_non_standard_residues = [i for i in uniq_residues if not i in keep]
+            # import pdb; pdb.set_trace()
+            if len(list_of_identified_non_standard_residues) > 0:            
+                receptor_n_terminal_residues=[] 
+                receptor_c_terminal_residues=[] 
+                for chid in set(rec._ag.getChids()):
+                    res_in_chain = rec._ag.select('name CA and chid %s' % chid).getResnames()
+                    receptor_c_terminal_residues.append(res_in_chain[-1])
+                    receptor_n_terminal_residues.append(res_in_chain[0])
+                
+                for rec_nst in list_of_identified_non_standard_residues:
+                    myprint("Non standard residue(s) %s detected in receptor." % rec_nst)
+                    res_type ='i'
+                    NSTlist.append([rec_nst,'v','','r']) # v is random it will never be used; we always need internal
+                    if rec_nst in receptor_c_terminal_residues:
+                        NSTlist.append([rec_nst,'v','C','r'])
+                        
+                    if rec_nst in receptor_n_terminal_residues:
+                        NSTlist.append([rec_nst,'v','N','r'])
+                    
+            # receptor NSt check done                     
+            if len(NSTlist)>0:  
+                # print (NSTlist)     
+                if not kw['postdockmin']:
+                    if not 'all_possible_rotamers' in locals():                
+                        all_possible_rotamers = all_available_rotamers(kw,myprint)
+                        loaded_rotamers = currently_loaded_rotamer_data(kw,myprint)
+                        
+                    # checking NSTs
+                    for nst in NSTlist:     
+                        
+                        if nst[3] == 'r':  # we do not need rotamers for receptor
+                            continue                   
+                        
                         if not nst[0] in all_possible_rotamers.residues:
-                            possible_case_insentive_names,possible_lib_names = all_possible_rotamers.get_case_insensitive_residues(nst[0])
-                            if not possible_case_insentive_names == None:
-                                detected_problems.append("Possible residue(s) with similar name:")
-                                for p_res,p_lib in zip(possible_case_insentive_names,possible_lib_names):
-                                    detected_problems.append(' "%s" from rotamer library "%s"'   %(p_res,p_lib))                    
-                            
-                    else:
-                        if not nst[0] in loaded_rotamers.residues:
-                            name_of_required_rotamer_file = all_possible_rotamers.get_rotamerfile_name_for_residue(nst[0])                                        
-                            detected_problems.append('Undefined rotamers for NST "%s". Rotamer library(ies) "%s" support(s) "%s" and '
-                                                     % (nst[0], '", "'.join(name_of_required_rotamer_file), nst[0]) + 
-                                                        'can be used with "-L" option.')                                             
+                            detected_problems.append('Undefined rotamers for NST: "%s" is not available from any default rotamer library files.' % nst[0])
+                            detected_problems.append('To run ADCP for peptide with NST "%s", please provide an user-defined rotamer library using "-l" option.'
+                                                     % nst[0] )                
                             if all_flags_allowed:
                                 all_flags_allowed = False
                                 
+                            if not nst[0] in all_possible_rotamers.residues:
+                                possible_case_insentive_names,possible_lib_names = all_possible_rotamers.get_case_insensitive_residues(nst[0])
+                                if not possible_case_insentive_names == None:
+                                    detected_problems.append("Possible residue(s) with similar name:")
+                                    for p_res,p_lib in zip(possible_case_insentive_names,possible_lib_names):
+                                        detected_problems.append(' "%s" from rotamer library "%s"'   %(p_res,p_lib))                    
+                                
                         else:
-                            if not loaded_rotamers.if_residue_and_course_combination_possible(nst[0], nst[1]):
-                                if nst[1] in['o','O']:                            
-                                    rotamer_libs_providing_this_aa_params = loaded_rotamers.get_rotamerfile_name_for_residue(nst[0])
+                            if not nst[0] in loaded_rotamers.residues:
+                                name_of_required_rotamer_file = all_possible_rotamers.get_rotamerfile_name_for_residue(nst[0])                                        
+                                detected_problems.append('Undefined rotamers for NST "%s". Rotamer library(ies) "%s" support(s) "%s" and '
+                                                         % (nst[0], '", "'.join(name_of_required_rotamer_file), nst[0]) + 
+                                                            'can be used with "-L" option.')                                             
+                                if all_flags_allowed:
+                                    all_flags_allowed = False
                                     
-                                    detected_problems.append('NST: "%s" defined in library: "%s" does not provide a default coarse potential.' %(nst[0], ','.join(rotamer_libs_providing_this_aa_params)))
-                                    detected_problems.append('Do not use o<%s> instead replace "o" by a valid coarse potential.' %(nst[0]))
-                                    if all_flags_allowed:
-                                        all_flags_allowed = False                
+                            else:
+                                if not loaded_rotamers.if_residue_and_course_combination_possible(nst[0], nst[1]):
+                                    if nst[1] in['o','O']:                            
+                                        rotamer_libs_providing_this_aa_params = loaded_rotamers.get_rotamerfile_name_for_residue(nst[0])
+                                        
+                                        detected_problems.append('NST: "%s" defined in library: "%s" does not provide a default coarse potential.' %(nst[0], ','.join(rotamer_libs_providing_this_aa_params)))
+                                        detected_problems.append('Do not use o<%s> instead replace "o" by a valid coarse potential.' %(nst[0]))
+                                        if all_flags_allowed:
+                                            all_flags_allowed = False                
     
         if not kw['minimize']:  # no need to check further if no minimization   
             if not all_flags_allowed: # print error messages and exit
                 myprint("Please resolve following issues:")
                 for msg in detected_problems:
-                    myprint("* "+ msg)    
+                    print("* "+ msg)    
         
             return all_flags_allowed,''    
     
@@ -816,11 +862,21 @@ def support_validator(kw,myprint=print):
                     detected_problems.append('ERROR: Could not find user defined %s file %s' % (ftype,file))
                     if all_flags_allowed:
                         all_flags_allowed = False        
-       
+    ## resume previously killed run
+    if  kw['resmin']:
+        if not kw['postdockmin']:
+            detected_problems.append('-resumemin can only be used with the -pdmin flag. Also overwrite "-O" option must be omitted.')
+            if all_flags_allowed:
+                all_flags_allowed = False  
+        elif kw['overwriteFiles']:
+            detected_problems.append('overwrite "-O" option can not be used with resume minimization "-resumemin" option.')
+            if all_flags_allowed:
+                all_flags_allowed = False  
+
     if not all_flags_allowed:
-        myprint("Please resolve following issues to use openMM based ranking:")
+        print("Please resolve following issues to use openMM based ranking:")
         for msg in detected_problems:
-            myprint("* "+ msg) 
+            print("* "+ msg) 
         #print("Exiting now")        
     return all_flags_allowed, rec #returning receptor to speed up calculation
 
@@ -845,9 +901,11 @@ def evaluate_requirements_for_minimization(kw,myprint=print):
     
     # DO NOT WRITE OVER previously minimized file without -O flag, 
     if os.path.exists(omm_out_file) and not kw['overwriteFiles']:
-        print("ERROR: openMM minimization output file %s exist! please use -O to force overwritting output files" % omm_out_file)
-        return False                 
-    
+        if not kw['resmin']:
+            print("ERROR: openMM minimization output file %s exist! please use -O to force overwritting output files" % omm_out_file)
+            return False    
+                     
+
     # Look for required pdb and log file for output
     docked_file = os.path.join(workingFolder, '%s_out.pdb'% jobName)
     if os.path.exists(docked_file):
@@ -896,7 +954,7 @@ def extract_target_file(kw, workingFolder, jobName,myprint=print):
     
     targetFile = kw['target']
     #workingFolder = kw['jobName']
-    
+    calcFolder = os.path.join(workingFolder, kw['jobName'])
     if os.path.isdir(targetFile):
         target_folder = targetFile
         
@@ -909,9 +967,10 @@ def extract_target_file(kw, workingFolder, jobName,myprint=print):
             # so we first find out the name of the folder in which the maps are
             filenames = zip_ref.namelist()
             folder = filenames[0].split(os.sep)[0]
-            zip_ref.extract(os.path.join(folder, 'rigidReceptor.pdbqt' ),
-                            workingFolder) # we only need rigidReceptor for docking
-        target_folder = os.path.join(workingFolder, folder)
+            if not kw['resmin']: # you do not need to extract file for resumed minimziation
+                zip_ref.extract(os.path.join(folder, 'rigidReceptor.pdbqt' ),
+                                calcFolder) # we only need rigidReceptor for docking
+        target_folder = os.path.join(calcFolder, folder)
             
     kw['recpath'] = os.path.join(target_folder, 'rigidReceptor.pdbqt')  
     return True
@@ -971,7 +1030,12 @@ def add_open_mm_flags(parser):
                         and activates openMM minimization of poses from \
                         already docked output file. If using this option, use target file (-T),\
                         jobName (-o), and sequence (-s) descriptions same as used for docking."))
-                  
+                        
+    
+    parser.add_argument("-resumemin", "--ResumeMinimize",dest="resmin",                         
+                        action="store_true", default=False,
+                        help=("To resume incomplete openMM minimization and reranking step.\
+                              This option can be used only in the postDock Minimization (-pdmin) and NOT overwriting (-O) mode."))   
                       
                         
     return parser

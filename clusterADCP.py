@@ -342,8 +342,15 @@ class clusterADCP:
                     moldelAtomsDQ.setACSIndex(cl[0])
                     result = dockq.Fnat(rec._ag, moldelAtomsDQ, rec._ag, refAtomsMapDQ, 5.0)
                     nbPoseResPairsNat5, nbPoseResPairsNonNat5, nbNatResPairs5, interface5 = result
-                    fnat = nbPoseResPairsNat5/float(nbNatResPairs5)
-                    fnonnat = nbPoseResPairsNonNat5 / float(nbPoseResPairsNat5+nbPoseResPairsNonNat5)
+                    if not nbNatResPairs5 == 0:
+                        fnat = nbPoseResPairsNat5/float(nbNatResPairs5)
+                    else:
+                        fnat =0
+                    
+                    if not nbPoseResPairsNonNat5==0:                        
+                        fnonnat = nbPoseResPairsNonNat5 / float(nbPoseResPairsNat5+nbPoseResPairsNonNat5)
+                    else:
+                        fnonnat = 0
 
                     result = dockq.Fnat(rec._ag, moldelAtomsDQ, rec._ag, refAtomsMapDQ, 10.0)
                     nbPoseResPairsNat10, nbPoseResPairsNonNat10, nbNatResPairs10, interface10 = result

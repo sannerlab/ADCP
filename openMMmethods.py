@@ -1146,11 +1146,12 @@ class ommTreatment:
     
     def get_pre_minimized_data(self):        
         # to get energy value and pdbfiles for incomplete minimizations
-        # slower that get_pre_minimized_data_v2 but supports all     
+        # slower for old generated temp data    
         
         ##### FOR RESUMING 
         self.myprint("Collecting incomplete run data to avoid re-minimization...")        
         temp_enz_out_data = self.read_omm_enz_temp_file()
+        dlg_enz_out_data = self.get_omm_enz_from_dlg()
         
         out_data = my_dot_variable()            
         model_data = {}
@@ -1171,6 +1172,14 @@ class ommTreatment:
                     model_data[model_number].enzs = temp_enz_out_data.model_data[model_number].enzs
                     model_data[model_number].not_restrained_res = temp_enz_out_data.model_data[model_number].not_restrained_res
                     continue
+            if dlg_enz_out_data:
+                if model_number in dlg_enz_out_data.model_data.keys():
+                    print("Reading energy values for model #%d" % model_number)
+                    model_data[model_number].enzs = dlg_enz_out_data.model_data[model_number].enzs
+                    model_data[model_number].not_restrained_res = dlg_enz_out_data.model_data[model_number].not_restrained_res
+                    self.write_omm_enz_temp_file( model_number,model_data[model_number].enzs, model_data[model_number].not_restrained_res)
+                    continue
+            
             print("Calculating energy values for model #%d" % model_number)
             minimized_pdb_file = model_data[model_number].pdb_file
             data_var = pdb_to_modeller_object(pdb_str=minimized_pdb_file,cyclize=self.cyclize_by_backbone, 
@@ -1194,87 +1203,6 @@ class ommTreatment:
             
         out_data.model_data= model_data
         print("All required data from previously minimized files all loaded.")
-        return out_data
-        
-
-    def get_pre_minimized_data_v2(self):
-        ## it will be used in the newer version as it does not need to re-calculate energy values for minimized pdb files.
-        ## It will be more than 100 times faster to get data for previously-incompleted minimization
-        # As previous version may not write all info in dlg file (as killed before writing from buffer).
-        # for previous run use get_pre_minimized_data.
-        # to get energy value and pdbfiles for incomplete minimizations
-        out_data = my_dot_variable()     
-        summary_data = self.myprint.preWriteData
-        
-        # go to the last minimization trial as multiple is possible with PDMIN flag
-        last_minimization_first_line_number = 0
-        last_completed_model_number=0        
-        for i in range(len(summary_data)):
-            if summary_data[i].startswith('OpenMM minimization settings: Environment'):
-                last_minimization_first_line_number=i # overwrite the last one   
-            if summary_data[i].startswith('##### POST DOCKING RESUMED MINIMIZATION #####'):
-                break
-                ## As RESUMED minimization will not have all top models as it 
-                ## is resumed after POSTDOCKING or directly FAILED minimization
-                ## so we need to take energy information before RESUMED MINIMIZATION block too.
-        
-       
-        # check if minimziation is already done properly
-        count_omm_ranking_dot_lines = 0
-        for line_num in range(last_minimization_first_line_number,len(summary_data)):
-            if summary_data[line_num].startswith('OMM Ranking:-'):
-                count_omm_ranking_dot_lines+=1
-        if count_omm_ranking_dot_lines> 2:
-            print("Minization step was completed properly. No need to use -resumemin option")
-            return None        
-        
-        model_data = {}        
-        for line_num in range(last_minimization_first_line_number,len(summary_data)):
-            line = summary_data[line_num]
-            # import pdb; pdb.set_trace()
-            if line.startswith('OMM Energy: Working on'):
-                # last_completed_model_number =  int(line.strip().split('#')[-1])    
-                last_completed_model_number = int(line.split("#")[1].split()[0]) -1
-                if last_completed_model_number > 0:
-                    model_variable = my_dot_variable()
-                    # line -3 has energy E_complex, E_rec and E_peptide
-                    if not summary_data[line_num-3].startswith('OMM Energy: E_Complex'):
-                        continue
-                        # As it is already restarted more than one times for model# > 1
-                        # So it will assume that required data is already read
-                    
-                    enzs = [ float(v) for v in summary_data[line_num-3].replace("="," ").replace(";","").split()[1:] if not v.startswith('E')]
-                    enzs.append(enzs[0]-(enzs[1]+enzs[2])) # de Interaction
-                    enzs.append(enzs[0]-enzs[1]) # DE Comp-Receptor
-                    model_variable.enzs = enzs                
-                    model_data[last_completed_model_number] = model_variable
-        if last_completed_model_number == 0:
-            print("No minimization is performed earlier. No need to use -resumemin option")
-            return None
-                    
-        out_data.last_model_number = last_completed_model_number        
-        #now collect energy data from last minimization first line number    
-        # incase temp dir is present, this is a resumed run 
-        # or if omm rescored file present tis is an extended run
-        # for continued run we need to read energy from the dlg file and identify restrained residues again        
-        # for extended we will get all required data from rescored file
-        
-        # RESUMED RUN
-        # --- restrained AA information
-        list_of_prev_minimized_files = {}
-        if os.path.exists(self.omm_proj_dir):
-            for fl in os.listdir(self.omm_proj_dir):
-                if fl.startswith(self.file_name_init) and fl.endswith('fixed_min.pdb'):
-                    model_number = int(fl.split("_")[-3])+1 # starting from back as initials can changed   
-                    if model_number <= last_completed_model_number: # to avoid other data from non-relevent tempfiles                    
-                        model_data[model_number].not_restrained_res = identify_interface_residues(os.path.join(self.omm_proj_dir, fl))[1]# ignore_list, aa_without_restrains = 
-                    
-        else:            
-                # EXTENDEDRUN CAN BE ADDED HERE ; NOT IMPLEMENTED YET   
-            return None
-                    
-                    
-        out_data.model_data= model_data 
         return out_data
     
     def write_omm_enz_temp_file(self,model_num,enz, not_restrained_res):
@@ -1313,6 +1241,68 @@ class ommTreatment:
         out_data.last_model_number = model_num
         return out_data
         
+    def get_omm_enz_from_dlg(self):        
+        # for previous run use get_pre_minimized_data from dlg file (not required for newer runs).
+        # to get energy value and pdbfiles for incomplete minimizations
+        out_data = my_dot_variable()     
+        summary_data = self.myprint.preWriteData
+        
+        # go to the last minimization trial as multiple is possible with PDMIN flag
+        last_minimization_first_line_number = 0
+        last_completed_model_number=0        
+        for i in range(len(summary_data)):
+            if summary_data[i].startswith('OpenMM minimization settings: Environment'):
+                last_minimization_first_line_number=i # overwrite the last one   
+            if summary_data[i].startswith('##### POST DOCKING RESUMED MINIMIZATION #####'):
+                break
+                ## As RESUMED minimization will not have all top models as it 
+                ## is resumed after POSTDOCKING or directly FAILED minimization
+                ## so we need to take energy information before RESUMED MINIMIZATION block too.
+
+        model_data = {}        
+        for line_num in range(last_minimization_first_line_number,len(summary_data)):
+            line = summary_data[line_num]
+            # import pdb; pdb.set_trace()
+            if line.startswith('OMM Energy: Working on'):
+                # last_completed_model_number =  int(line.strip().split('#')[-1])    
+                last_completed_model_number = int(line.split("#")[1].split()[0]) -1
+                if last_completed_model_number > 0:
+                    model_variable = my_dot_variable()
+                    # line -3 has energy E_complex, E_rec and E_peptide
+                    if not summary_data[line_num-3].startswith('OMM Energy: E_Complex'):
+                        continue
+                        # As it is already restarted more than one times for model# > 1
+                        # So it will assume that required data is already read
+                    
+                    enzs = [ float(v) for v in summary_data[line_num-3].replace("="," ").replace(";","").split()[1:] if not v.startswith('E')]
+                    enzs.append(enzs[0]-(enzs[1]+enzs[2])) # de Interaction
+                    enzs.append(enzs[0]-enzs[1]) # DE Comp-Receptor
+                    model_variable.enzs = enzs                
+                    model_data[last_completed_model_number] = model_variable
+        if last_completed_model_number == 0:
+            return None
+                    
+        out_data.last_model_number = last_completed_model_number        
+        # now collect energy data from last minimization first line number    
+        # incase temp dir is present, this is a resumed run 
+        # or if omm rescored file present tis is an extended run
+        # for continued run we need to read energy from the dlg file and identify restrained residues again        
+        # for extended we will get all required data from rescored file
+        
+        # RESUMED RUN
+        # --- restrained AA information
+        list_of_prev_minimized_files = {}
+        if os.path.exists(self.omm_proj_dir):
+            for fl in os.listdir(self.omm_proj_dir):
+                if fl.startswith(self.file_name_init) and fl.endswith('fixed_min.pdb'):
+                    model_number = int(fl.split("_")[-3])+1 # starting from back as initials can changed   
+                    if model_number <= last_completed_model_number: # to avoid other data from non-relevent tempfiles                    
+                        model_data[model_number].not_restrained_res = identify_interface_residues(os.path.join(self.omm_proj_dir, fl))[1]# ignore_list, aa_without_restrains = 
+                    
+        else:                           
+            return None                    
+        out_data.model_data= model_data 
+        return out_data
    
     def estimate_energies_for_pdb(self,pdb_fl, amber_parm_init, verbose=0):
         # works as function name says

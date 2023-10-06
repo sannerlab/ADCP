@@ -956,6 +956,8 @@ class ommTreatment:
             if not pre_min_data:
                 print('No orphan data found! Calculation seems to be completed fine or never performed. -resumemin option cannot be used.')
                 return
+        else:
+            self.clean_old_minimization_data()
         
         # iterate over peptide models to minimize
         for f in range( num_mode_to_minimize ):  
@@ -1094,6 +1096,17 @@ class ommTreatment:
             shutil.rmtree(self.omm_proj_dir)
         if os.path.isdir(self.omm_temp_dir):
             shutil.rmtree(self.omm_temp_dir)
+    
+    def clean_old_minimization_data(self):
+        # works as function name says
+        if os.path.exists(self.omm_proj_dir):
+            for fl in os.listdir(self.omm_proj_dir):
+                if fl.startswith(self.file_name_init) and fl.endswith('.pdb') and '_recNpep_' in fl:
+                    os.remove(os.path.join(self.omm_proj_dir,fl))
+        
+        temp_enz_file = os.path.join( self.omm_proj_dir , (self.file_name_init + "_min_enz.tmp"  )) 
+        if os.path.isfile(temp_enz_file):
+            os.remove(temp_enz_file)
         
     def read_pdb_files_and_combine_using_given_index(self):
         # works as function name says
@@ -1133,22 +1146,31 @@ class ommTreatment:
     
     def get_pre_minimized_data(self):        
         # to get energy value and pdbfiles for incomplete minimizations
-        # slower that get_pre_minimized_data_v2 but supports all
-        self.myprint("Collecting incomplete run data to avoid re-minimization...")
-        out_data = my_dot_variable()
+        # slower that get_pre_minimized_data_v2 but supports all     
+        
+        ##### FOR RESUMING 
+        self.myprint("Collecting incomplete run data to avoid re-minimization...")        
+        temp_enz_out_data = self.read_omm_enz_temp_file()
+        
+        out_data = my_dot_variable()            
         model_data = {}
         if os.path.exists(self.omm_proj_dir):
             for fl in os.listdir(self.omm_proj_dir):
                 if fl.startswith(self.file_name_init) and fl.endswith('fixed_min.pdb'):
-                    model_number = int(fl.split("_")[-3])+1 # starting from back as initials can changed   
+                    model_number = int(fl.split("_")[-3])+1 # starting from back as initials can changed 
                     model_data[model_number]= my_dot_variable()
                     model_data[model_number].pdb_file = os.path.join(self.omm_proj_dir, fl)            
-        out_data.last_model_number = max(model_data.keys())
-        
+        out_data.last_model_number = max(model_data.keys())        
         pre_minimized_models = list (model_data.keys())
         pre_minimized_models.sort()
         ## calculate energy values for each pre_minimized file
         for model_number in pre_minimized_models:
+            if temp_enz_out_data: # it will be None if temp file does not exist
+                if model_number in temp_enz_out_data.model_data.keys():
+                    print("Reading energy values for model #%d" % model_number)
+                    model_data[model_number].enzs = temp_enz_out_data.model_data[model_number].enzs
+                    model_data[model_number].not_restrained_res = temp_enz_out_data.model_data[model_number].not_restrained_res
+                    continue
             print("Calculating energy values for model #%d" % model_number)
             minimized_pdb_file = model_data[model_number].pdb_file
             data_var = pdb_to_modeller_object(pdb_str=minimized_pdb_file,cyclize=self.cyclize_by_backbone, 
@@ -1159,6 +1181,17 @@ class ommTreatment:
             enzs.append(enzs[0] - enzs[1])            # complex - protein energy
             model_data[model_number].enzs = enzs
             model_data[model_number].not_restrained_res = data_var.aa_without_restrains
+            
+            # writing to a temp file for fast recovery if doing this AGAIN and AGAIN and AGAIN
+            # in previous ADCP runs this will be helpful, but in newer version, code will never reach here
+            self.write_omm_enz_temp_file( model_number,enzs, data_var.aa_without_restrains)
+            
+        #### FOR CONTINUING THE PREVIOUSLY COMPLETED RUN READ DATA FROM omm_rescored_out.pdb headers; EASY PEASY
+        # Template : 
+        # out_data = read_minimized_data_from_output_header_file() # out_data will be similar my_dot_variable;
+        # return out_data
+        ##  LIMITED TIME LEFT FOR ME HERE TO IMPLEMENT THIS
+            
         out_data.model_data= model_data
         print("All required data from previously minimized files all loaded.")
         return out_data
@@ -1244,8 +1277,43 @@ class ommTreatment:
         out_data.model_data= model_data 
         return out_data
     
-                
-    
+    def write_omm_enz_temp_file(self,model_num,enz, not_restrained_res):
+        "For quicked resume of minimization"
+        temp_enz_file = os.path.join( self.omm_proj_dir , (self.file_name_init + "_min_enz.tmp"  )) 
+        if os.path.exists(temp_enz_file):
+            fid = open(temp_enz_file,'a')
+        else:
+            fid = open(temp_enz_file,'w+')        
+        fid.write("%d;%.5f %.5f %.5f %.5f %.5f;%s;\n" % tuple([model_num]+enz+["|".join(not_restrained_res)]))
+        fid.close()
+            
+    def read_omm_enz_temp_file(self):
+        "For quicked resume of minimization"
+        temp_enz_file = os.path.join( self.omm_proj_dir , (self.file_name_init + "_min_enz.tmp"  )) 
+        if not os.path.exists(temp_enz_file):
+            return None
+        fid = open(temp_enz_file,'r')     
+        data = fid.readlines()
+        fid.close()
+        
+        out_data = my_dot_variable()
+        model_data = {}    
+        for line in data:
+            lsplit = line.split(";")
+            model_num = int(lsplit[0])
+            enzs = [float(e)  for e in lsplit[1].split()]
+            not_restrained_res = lsplit[2].split("|")
+            
+            model_data[model_num] = my_dot_variable()            
+            model_data[model_num].enzs = enzs
+            # model_data[model_num].pdb_file = os.path.join(self.omm_proj_dir,(self.file_name_init + "_recNpep_%d.pdb" % (model_num)))
+            model_data[model_num].not_restrained_res = not_restrained_res
+            
+        out_data.model_data = model_data        
+        out_data.last_model_number = model_num
+        return out_data
+        
+   
     def estimate_energies_for_pdb(self,pdb_fl, amber_parm_init, verbose=0):
         # works as function name says
         #read_data_from_dlg_file(self.kw, myprint=self.myprint)
@@ -1253,6 +1321,7 @@ class ommTreatment:
         if verbose == 1:
             self.myprint('Working on:',pdb_fl.split(os.sep)[-1])
         fixed_pdb = fix_my_pdb(pdb_fl, pdb_fl[:-4] +"_fixed.pdb",NonstandardResidueTreatment=self.NonstandardResidueTreatment,kw=self.kw)
+        model_number = int(pdb_fl.split("_")[-1].split(".")[0])+1 # starting from back as initials can changed
         if verbose == 1:
             self.myprint("Minimizing ...")
         omm_min_list = openmm_minimize(fixed_pdb,env, max_itr=self.minimization_steps, 
@@ -1260,10 +1329,11 @@ class ommTreatment:
                            loaded_ffxml_files=self.loaded_ffxml_files, myprint=self.myprint)        
         enzs = return_comp_rec_pep_energies_from_omm_minimize_output(omm_min_list,self.loaded_ffxml_files)        
         enzs.append(enzs[0] - enzs[1] -enzs[2])   # interaction energy
-        enzs.append(enzs[0] - enzs[1])            # complex - protein energy
-        
+        enzs.append(enzs[0] - enzs[1])            # complex - protein energy        
         not_restrained_residues = omm_min_list.aa_without_restrains
         
+        # writing to a temp file for fast recovery
+        self.write_omm_enz_temp_file( model_number,enzs, not_restrained_residues)
         
         e_str=''
         for i in enzs:

@@ -485,13 +485,13 @@ def cyclize_backbone_of_last_chain(topology, positions, myprint=print, display_i
         if display_info:
             n_detail = nat.residue.name + nat.residue.id + "@" + nat.name #+"." +nat.residue.chain.id
             c_detail = cat.residue.name + cat.residue.id+ "@" + cat.name#+"." +cat.residue.chain.id
-            myprint("Cyclizing peptide (last chain) by adding a bond between %s and %s."%(n_detail, c_detail))
+            print("Cyclizing peptide (last chain) by adding a bond between %s and %s."%(n_detail, c_detail))
         modeller.topology.addBond(nat, cat, 'single')
         # print ('deleting', todelete)
         modeller.delete(todelete)
     else:
         if display_info:
-            myprint("cyclization bond was already present")
+            print("cyclization bond was already present")
     
     return modeller
 
@@ -1057,7 +1057,7 @@ class ommTreatment:
         self.NonstandardResidueTreatment = kw['omm_nst']
         self.cyclize_by_backbone = kw['cyclic']
         self.SSbond = kw['cystein']
-        self.rerank_by_Eint = kw['raeint']
+        self.rerank_by_Eint = kw['reint']
         
         
         self.myprint('OpenMM minimization settings: Environment="%s"; Max_itr=%d'

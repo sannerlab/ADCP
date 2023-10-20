@@ -1116,7 +1116,7 @@ def add_open_mm_flags(parser):
                         help=("To resume incomplete openMM minimization and reranking step.\
                               This option can be used only in the postDock Minimization (-pdmin) and NOT overwriting (-O) mode."))   
                              
-    parser.add_argument("-raeint", "--rerankByEinteraction",dest="raeint",                         
+    parser.add_argument("-reint", "--rerankByEinteraction",dest="reint",                         
                         action="store_true", default=False,
                         help=("To rank poses by openMM interaction energy (Ecomplex -Ereceptor -Epeptide). \
                               By default pose ranking will be performed by Ecomplex -Ereceptor."))                             

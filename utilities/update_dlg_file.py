@@ -80,7 +80,7 @@ def get_omm_data_from_dlgdata(summary_data, rerank_by_Eint=False, rearrangeposes
                 
 def update_dlg(**kw):  
     dlgfilein = kw['dlgfile']
-    rerank_by_Eint = kw['raeint']
+    rerank_by_Eint = kw['reint']
     rearrangeposes = kw['dockingRanking']
     
     docking_header, docking_score, all_dlg_data = get_docking_data_from_dlg(dlgfilein)    
@@ -155,7 +155,7 @@ if __name__=='__main__':
                        and report the minimized solutions based on docking score\
                        ordered from best to worse. Default is False.'))                            
                              
-    parser.add_argument("-raeint", "--rerankByEinteraction",dest="raeint",                         
+    parser.add_argument("-reint", "--rerankByEinteraction",dest="reint",                         
                         action="store_true", default=False,
                         help=("To rank poses by openMM interaction energy (Ecomplex -Ereceptor -Epeptide). \
                               By default pose ranking will be performed by Ecomplex -Ereceptor."))  

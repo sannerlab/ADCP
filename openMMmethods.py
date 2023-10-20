@@ -5,11 +5,20 @@ Created on Fri Sep 23 13:29:31 2022
 @author: Sudhanshu Shanker
 
 Collection of methods to perform openMM based calculation of ADCP docked poses.
+Build 15:
+    10/19/23
+    1: Optimized resume Minimization using seperate openMM temp directory
+    2: faster single point energy calculation without using 1 step minimization.
+    3: Create backup of dlg file in case resumemin fails.
+    
 Build 14:
+    10/6/23        
+    1: added writing of a temp energy file for super-quick RESUME MINIMIZATION.
+    2: combined get_pre_minimized_data + temp energy file + get_pre_minimized_data_v2 in one for using all informations for faster resume.
+
     10/5/23
     1: added pdb_to_modeller_object for code simplification
     2: added RESUME MINIMIZATION scheme with defs get_pre_minimized_data and get_pre_minimized_data_v2(for future)
-
 
 Build 11:
     9/5/23
@@ -35,7 +44,7 @@ import prody
 from prody.measure.contacts import findNeighbors
 from prody import writePDB
 from MolKit2 import Read
-from ADCP.utils import currently_loaded_ffxml_data, DEFAULTSYSTEMFFXMLS, myprint_handler  #, loaded_ffxml_names
+from ADCP.utils import currently_loaded_ffxml_data, DEFAULTSYSTEMFFXMLS, summaryfile_handler  #, loaded_ffxml_names
 #from utils import currently_loaded_ffxml_data, DEFAULTSYSTEMFFXMLS, myprint_handler #, loaded_ffxml_names
 import openmm
 from openmm import CustomExternalForce
@@ -622,10 +631,11 @@ def get_energy_on_modeller(modeller, mode='vacuum',loaded_ffxml_files=[],verbose
     ##>>> Most time taking steps:
     system = force_field.createSystem( topology, nonbondedCutoff=1*nanometer, constraints=HBonds, residueTemplates=residueTemplates)
     # restrain_(system, pdb_handle, 'All')
+    ## try this context.getState(getEnergy=True, groups={my_group})
     integrator = openmm.LangevinIntegrator(0, 0.01, 0.0)
     simulation = Simulation( topology, system, integrator)
     simulation.context.setPositions(positions)
-    simulation.minimizeEnergy(maxIterations=1)
+    # simulation.minimizeEnergy(maxIterations=1)
     state = simulation.context.getState(getEnergy=True)
     # import pdb; pdb.set_trace()        
     return( state.getPotentialEnergy()._value*0.239006) # for kcal/mol
@@ -867,10 +877,11 @@ class ommTreatment:
         self.minimization_env = 'in-vacuo'
         self.minimization_steps = 100
         self.find_neighbor_cutoff = 5        
+        self.rerank_by_Eint =  True# False: reranking by complex-receptor energy(Ecomp - Erec); True: interaction energy (Ecomp -Erec -Epep)
         #other settings
         self.target_file = target_file
-        self.omm_temp_dir = os.path.join(workingFolder, jobName)
-        self.omm_proj_dir = os.path.split(recPath)[0] #os.path.join(self.omm_temp_dir, target_file.split(".")[0])
+        self.omm_temp_dir = os.path.join(workingFolder, jobName+"_omm_temp") ## DO NOT CHANGE THIS , If changing change this is utils.py too
+        self.adcp_temp_dir = os.path.join(workingFolder, jobName)#os.path.split(recPath)[0] #os.path.join(self.omm_temp_dir, target_file.split(".")[0])
         self.amber_parm_out_dir = "%s_omm_amber_parm" %(os.path.join(workingFolder, jobName))
         self.file_name_init = jobName
         self.pdb_and_score=[]
@@ -886,11 +897,13 @@ class ommTreatment:
         self.loaded_ffxml_name = ''
         self.workingFolder = workingFolder
         self.jobName = jobName
+        self.temp_enz_file = os.path.join( self.omm_temp_dir , self.file_name_init + "_min_enz.tmp" )
         # Options For code debugging        
         self.CLEAN_AT_END = True # for debugging only ; False to keep all intermediate files
         self.peptide_dir = workingFolder
         self.debug_openmm_load_mode = False # for debugging; minimization will be off; only loading of parameters without any errors will be checked
         self.PostDockMinCommands = PostDockMinCommands
+        
      
     def __call__(self, **kw):       
         # reading all flags
@@ -898,17 +911,18 @@ class ommTreatment:
         
         # opening summary file
         summaryFilename = '%s_summary.dlg'%os.path.join(kw['workingFolder'], self.jobName)
-        self.myprint = myprint_handler(summaryFilename)
+        self.myprint = summaryfile_handler(summaryFilename)
         self.myprint.intiated = True     # for not overwriting the previously created file        
         self.docking_header, self.docking_score = self.myprint.getDockingData()
         
         # adding info about postdock minimization
         if self.PostDockMinCommands:
             if not kw['resmin']:
-                self.myprint.clean_prev_min_data() # old datashould be cleaned if restarting the minimization
+                self.myprint.clean_prev_min_data() # old datashould be cleaned if restarting the minimization                
                 # self.myprint(' ')                                                  
                 self.myprint('##### POST DOCKING MINIMIZATION #####')  
             else:
+                self.myprint.create_backup_of_dlg()
                 self.myprint.clean_prev_min_data() # currently cleaning but when get_pre_minimized_data_v2 will be used in future, this line should be removed
                 # self.myprint(' ')                                                  
                 self.myprint('##### POST DOCKING RESUMED MINIMIZATION #####')                                      
@@ -955,13 +969,15 @@ class ommTreatment:
             pre_min_data = self.get_pre_minimized_data() 
             if not pre_min_data:
                 print('No orphan data found! Calculation seems to be completed fine or never performed. -resumemin option cannot be used.')
+                self.myprint.restore_dlg_from_last_backup()
+                self.myprint.delete_last_backup()
                 return
         else:
             self.clean_old_minimization_data()
         
         # iterate over peptide models to minimize
         for f in range( num_mode_to_minimize ):  
-            out_complex_name = os.path.join( self.omm_proj_dir , (self.file_name_init + "_recNpep_%d.pdb" % (f)) ) 
+            out_complex_name = os.path.join( self.omm_temp_dir , (self.file_name_init + "_recNpep_%d.pdb" % (f)) ) 
             
             if not self.debug_openmm_load_mode: # DONT PRINT WHEN DEBUGGING
                 self.myprint( "\nOMM Energy: Working on #%d of %d models" % (f+1, num_mode_to_minimize))
@@ -970,7 +986,7 @@ class ommTreatment:
                 # get data for already minimized files
                 model_number = f+1  # model numbers start from 1
                 if (model_number)<=pre_min_data.last_model_number:
-                    print("Model #%d already minimized" % (model_number))
+                    sys.stdout.write("Model #%d already minimized\n" % (model_number))
                     enzs = pre_min_data.model_data[model_number].enzs
                     self.myprint( "OMM Energy: E_Complex = %9.2f; E_Receptor = %9.2f; E_Peptide  = %9.2f" % (enzs[0],enzs[1],enzs[2]))
                     self.myprint("OMM Energy: dE_Interaction = %9.2f; dE_Complex-Receptor = %9.2f" % (enzs[3], enzs[4]))        
@@ -1017,7 +1033,7 @@ class ommTreatment:
         self.delete_at_end.append(flnm[:-4] + "_fixed.pdb")
         self.delete_at_end.append(flnm[:-4] + "_fixed_min_A.pdb")
         self.delete_at_end.append(flnm[:-4] + "_fixed_min_Z.pdb")
-        self.delete_at_end.append(flnm[:-4] + "_fixed_min.pdb")
+        self.delete_at_end.append(flnm[:-4] + "_fixed_min.pdb")        
         # combining for final output
         if len(self.pdb_and_score)<1:
             self.pdb_and_score.append([0,flnm[:-4]+"_fixed_min.pdb", enzs, not_restrained_res])
@@ -1034,13 +1050,16 @@ class ommTreatment:
         self.combined_pep_file = self.file_name_init + "_out.pdb"
         # self.output_file = self.file_name_init + "_" + kw['sequence'] + "_omm_rescored_out.pdb"
         
-        self.output_file = os.path.join(self.workingFolder, "%s_omm_rescored_out.pdb"%self.jobName)
+        self.output_file = os.path.join(self.workingFolder, "%s_omm_rescored_out.pdb"%self.jobName)     
         
         self.minimization_env = 'implicit'  if kw['omm_environment'] == 'implicit' else  'in-vacuo'
         self.minimization_steps = kw['omm_max_itr']
         self.NonstandardResidueTreatment = kw['omm_nst']
         self.cyclize_by_backbone = kw['cyclic']
         self.SSbond = kw['cystein']
+        self.rerank_by_Eint = kw['raeint']
+        
+        
         self.myprint('OpenMM minimization settings: Environment="%s"; Max_itr=%d'
               % (self.minimization_env, self.minimization_steps))        
         if self.cyclize_by_backbone:
@@ -1048,40 +1067,10 @@ class ommTreatment:
         if self.SSbond:
             self.myprint('OpenMM minimization settings: Making Disulfide bonds if applicable')
             
-        
-    def calculate_reranking_index(self):  
-        #for rearraging poses
-        '''Rearraging BUG removed'''
-        metric_comp_minus_rec = []  
-        ommrank_adcprank_data = []
-        for i in self.pdb_and_score:
-            metric_comp_minus_rec.append(i[2][-1])          
-        reaarange_for_omm_ranking = np.argsort(metric_comp_minus_rec)        
-        for current_v, rearrage_idx in enumerate(reaarange_for_omm_ranking):
-            ommrank_adcprank_data.append([current_v, self.pdb_and_score[rearrage_idx][0],
-                                          self.pdb_and_score[rearrage_idx][1],
-                                          self.pdb_and_score[rearrage_idx][2],
-                                          self.pdb_and_score[rearrage_idx][3]
-                                          ])
-        #ommrank_adcprank_data = np.array(ommrank_adcprank_data)
-        adcp_ranks = np.array([ i[1] for i in ommrank_adcprank_data])            
-        # print(self.omm_ranking,metric_comp_minus_rec)
-        if self.rearrangeposes == True:            
-            self.myprint("\nOMM Ranking:REARRANGING output poses using OpenMM energy")          
-            self.rearranged_data_as_per_asked = ommrank_adcprank_data       
-            if self.docking_score:
-                self.docking_score = [self.docking_score[i] for i in adcp_ranks]
-        else:
-            self.myprint("\nOMM Ranking:NOT REARRANGING output poses using OpenMM energy")
-            self.rearranged_data_as_per_asked = [ ommrank_adcprank_data[i] for i in adcp_ranks.argsort()]
-            
-         
     def create_omm_dirs(self):   
         # create required output directories
         if not os.path.exists(self.omm_temp_dir):
             os.mkdir(self.omm_temp_dir)            
-        if not os.path.exists(self.omm_proj_dir):
-            os.mkdir(self.omm_proj_dir)
         #for AMBER parameters
         if not os.path.exists(self.amber_parm_out_dir):
             os.makedirs(self.amber_parm_out_dir, exist_ok=True)
@@ -1092,32 +1081,68 @@ class ommTreatment:
         for fl in self.delete_at_end:
             if os.path.isfile(fl):
                 os.remove(fl)
-        if os.path.isdir(self.omm_proj_dir):
-            shutil.rmtree(self.omm_proj_dir)
         if os.path.isdir(self.omm_temp_dir):
             shutil.rmtree(self.omm_temp_dir)
+            
+        if self.kw['postdockmin']:
+            if os.path.isdir(self.adcp_temp_dir):
+                shutil.rmtree(self.adcp_temp_dir)
+                
+            if self.kw['resmin']:
+                self.myprint.delete_last_backup()
+                
     
     def clean_old_minimization_data(self):
         # works as function name says
-        if os.path.exists(self.omm_proj_dir):
-            for fl in os.listdir(self.omm_proj_dir):
+        if os.path.exists(self.omm_temp_dir):
+            for fl in os.listdir(self.omm_temp_dir):
                 if fl.startswith(self.file_name_init) and fl.endswith('.pdb') and '_recNpep_' in fl:
-                    os.remove(os.path.join(self.omm_proj_dir,fl))
-        
-        temp_enz_file = os.path.join( self.omm_proj_dir , (self.file_name_init + "_min_enz.tmp"  )) 
-        if os.path.isfile(temp_enz_file):
-            os.remove(temp_enz_file)
+                    os.remove(os.path.join(self.omm_temp_dir,fl))
+        if os.path.isfile(self.temp_enz_file):
+            os.remove(self.temp_enz_file)    
+            
+    def calculate_reranking_index(self):  
+        #for rearraging poses
+        rerank_metric = []  
+        ommrank_adcprank_data = []
+        rerank_method =""
+        for i in self.pdb_and_score:
+            if self.rerank_by_Eint: # Ecomp-Erec-Epep
+                rerank_metric.append(i[2][-2])    
+                rerank_method = "Ecomplex -Ereceptor -Epeptide"         
+            else:
+                rerank_metric.append(i[2][-1])      
+                rerank_method = "Ecomplex -Ereceptor"
+                
+        reaarange_for_omm_ranking = np.argsort(rerank_metric)        
+        for current_v, rearrage_idx in enumerate(reaarange_for_omm_ranking):
+            ommrank_adcprank_data.append([current_v, self.pdb_and_score[rearrage_idx][0],
+                                          self.pdb_and_score[rearrage_idx][1],
+                                          self.pdb_and_score[rearrage_idx][2],
+                                          self.pdb_and_score[rearrage_idx][3]
+                                          ])
+        #ommrank_adcprank_data = np.array(ommrank_adcprank_data)
+        adcp_ranks = np.array([ i[1] for i in ommrank_adcprank_data])            
+        # print(self.omm_ranking,rerank_metric)
+        if self.rearrangeposes == True:            
+            self.myprint("\nOMM Ranking:REARRANGING output poses using OpenMM (%s) energy" % rerank_method)          
+            self.rearranged_data_as_per_asked = ommrank_adcprank_data       
+            if self.docking_score:
+                self.docking_score = [self.docking_score[i] for i in adcp_ranks]
+        else:
+            self.myprint("\nOMM Ranking:NOT REARRANGING output poses using OpenMM (%s) energy" % rerank_method)
+            self.rearranged_data_as_per_asked = [ ommrank_adcprank_data[i] for i in adcp_ranks.argsort()]
         
     def read_pdb_files_and_combine_using_given_index(self):
         # works as function name says
         out_file = open(self.output_file,"w+")
         docking_data_index_after_mode = self.docking_header[2].find("+")+1
-        self.myprint("OMM Ranking:                     +<-OMMscore->+<-----------AutoDock CrankPep Scores"+
+        self.myprint("OMM Ranking:                     +<-------OMMscore-------->+<-----------AutoDock CrankPep Scores"+
                      "-"*(len(self.docking_header[2])-docking_data_index_after_mode-38)+">+")
-        self.myprint("OMM Ranking:-------+------+------+------------+" + self.docking_header[2][docking_data_index_after_mode:])        
-        self.myprint("OMM Ranking: Model | Rank | Rank | E_Complex  |" + self.docking_header[0][docking_data_index_after_mode:])
-        self.myprint("OMM Ranking: #     |OpenMM| ADCP |-E_Receptor |" + self.docking_header[1][docking_data_index_after_mode:])
-        self.myprint("OMM Ranking:-------+------+------+------------+" + self.docking_header[2][docking_data_index_after_mode:])     
+        self.myprint("OMM Ranking:-------+------+------+------------+------------+" + self.docking_header[2][docking_data_index_after_mode:])        
+        self.myprint("OMM Ranking: Model | Rank | Rank | E_Complex  |  E_Complex |" + self.docking_header[0][docking_data_index_after_mode:])
+        self.myprint("OMM Ranking: #     |OpenMM| ADCP |-E_Receptor |-E_rec-E_pep|" + self.docking_header[1][docking_data_index_after_mode:])
+        self.myprint("OMM Ranking:-------+------+------+------------+------------+" + self.docking_header[2][docking_data_index_after_mode:])     
         
         for model_num, arranged_line in enumerate(self.rearranged_data_as_per_asked):
             # file name and omm scores
@@ -1140,9 +1165,9 @@ class ommTreatment:
             docking_score_line = ""
             if self.docking_score:
                 docking_score_line = self.docking_score[model_num][docking_data_index_after_mode:]
-            self.myprint("OMM Ranking: %6d %6d %6d %10.1f   " %(model_num+1 , omm_rank+1, adcp_rank+1, scores[4] ) + docking_score_line )            
+            self.myprint("OMM Ranking: %6d %6d %6d %10.1f   %10.1f   " %(model_num+1 , omm_rank+1, adcp_rank+1, scores[4], scores[3] ) + docking_score_line )            
         out_file.close()
-        self.myprint("OMM Ranking:-------+------+------+------------+"+ self.docking_header[2][docking_data_index_after_mode:])
+        self.myprint("OMM Ranking:-------+------+------+------------+------------+"+ self.docking_header[2][docking_data_index_after_mode:])
     
     def get_pre_minimized_data(self):        
         # to get energy value and pdbfiles for incomplete minimizations
@@ -1153,34 +1178,38 @@ class ommTreatment:
         temp_enz_out_data = self.read_omm_enz_temp_file()
         dlg_enz_out_data = self.get_omm_enz_from_dlg()
         
-        out_data = my_dot_variable()            
+        out_data = my_dot_variable()    
+        out_data.last_model_number=-1
         model_data = {}
-        if os.path.exists(self.omm_proj_dir):
-            for fl in os.listdir(self.omm_proj_dir):
+        if os.path.exists(self.omm_temp_dir):
+            for fl in os.listdir(self.omm_temp_dir):
                 if fl.startswith(self.file_name_init) and fl.endswith('fixed_min.pdb'):
                     model_number = int(fl.split("_")[-3])+1 # starting from back as initials can changed 
                     model_data[model_number]= my_dot_variable()
-                    model_data[model_number].pdb_file = os.path.join(self.omm_proj_dir, fl)            
-        out_data.last_model_number = max(model_data.keys())        
-        pre_minimized_models = list (model_data.keys())
-        pre_minimized_models.sort()
+                    model_data[model_number].pdb_file = os.path.join(self.omm_temp_dir, fl)  
+        if len(model_data.keys()):
+            out_data.last_model_number = max(model_data.keys())        
+            pre_minimized_models = list(model_data.keys())
+            pre_minimized_models.sort()
+        else:
+            return
         ## calculate energy values for each pre_minimized file
         for model_number in pre_minimized_models:
             if temp_enz_out_data: # it will be None if temp file does not exist
                 if model_number in temp_enz_out_data.model_data.keys():
-                    print("Reading energy values for model #%d" % model_number)
+                    sys.stdout.write("Reading energy values for model #%d\n" % model_number)
                     model_data[model_number].enzs = temp_enz_out_data.model_data[model_number].enzs
                     model_data[model_number].not_restrained_res = temp_enz_out_data.model_data[model_number].not_restrained_res
                     continue
             if dlg_enz_out_data:
                 if model_number in dlg_enz_out_data.model_data.keys():
-                    print("Reading energy values for model #%d" % model_number)
+                    sys.stdout.write("Reading energy values for model #%d\n" % model_number)
                     model_data[model_number].enzs = dlg_enz_out_data.model_data[model_number].enzs
                     model_data[model_number].not_restrained_res = dlg_enz_out_data.model_data[model_number].not_restrained_res
                     self.write_omm_enz_temp_file( model_number,model_data[model_number].enzs, model_data[model_number].not_restrained_res)
                     continue
             
-            print("Calculating energy values for model #%d" % model_number)
+            sys.stdout.write("Calculating energy values for model #%d\n" % model_number)
             minimized_pdb_file = model_data[model_number].pdb_file
             data_var = pdb_to_modeller_object(pdb_str=minimized_pdb_file,cyclize=self.cyclize_by_backbone, 
                                               SSbond=self.SSbond, myprint=self.myprint)
@@ -1202,25 +1231,23 @@ class ommTreatment:
         ##  LIMITED TIME LEFT FOR ME HERE TO IMPLEMENT THIS
             
         out_data.model_data= model_data
-        print("All required data from previously minimized files all loaded.")
+        sys.stdout.write("All required data from previously minimized files are loaded.\n")
         return out_data
     
     def write_omm_enz_temp_file(self,model_num,enz, not_restrained_res):
         "For quicked resume of minimization"
-        temp_enz_file = os.path.join( self.omm_proj_dir , (self.file_name_init + "_min_enz.tmp"  )) 
-        if os.path.exists(temp_enz_file):
-            fid = open(temp_enz_file,'a')
+        if os.path.exists(self.temp_enz_file):
+            fid = open(self.temp_enz_file,'a')
         else:
-            fid = open(temp_enz_file,'w+')        
+            fid = open(self.temp_enz_file,'w+')        
         fid.write("%d;%.5f %.5f %.5f %.5f %.5f;%s;\n" % tuple([model_num]+enz+["|".join(not_restrained_res)]))
         fid.close()
             
     def read_omm_enz_temp_file(self):
-        "For quicked resume of minimization"
-        temp_enz_file = os.path.join( self.omm_proj_dir , (self.file_name_init + "_min_enz.tmp"  )) 
-        if not os.path.exists(temp_enz_file):
+        "For quicked resume of minimization" 
+        if not os.path.exists(self.temp_enz_file):
             return None
-        fid = open(temp_enz_file,'r')     
+        fid = open(self.temp_enz_file,'r')     
         data = fid.readlines()
         fid.close()
         
@@ -1245,7 +1272,7 @@ class ommTreatment:
         # for previous run use get_pre_minimized_data from dlg file (not required for newer runs).
         # to get energy value and pdbfiles for incomplete minimizations
         out_data = my_dot_variable()     
-        summary_data = self.myprint.preWriteData
+        summary_data = self.myprint.PreUseData
         
         # go to the last minimization trial as multiple is possible with PDMIN flag
         last_minimization_first_line_number = 0
@@ -1292,12 +1319,12 @@ class ommTreatment:
         # RESUMED RUN
         # --- restrained AA information
         list_of_prev_minimized_files = {}
-        if os.path.exists(self.omm_proj_dir):
-            for fl in os.listdir(self.omm_proj_dir):
+        if os.path.exists(self.omm_temp_dir):
+            for fl in os.listdir(self.omm_temp_dir):
                 if fl.startswith(self.file_name_init) and fl.endswith('fixed_min.pdb'):
                     model_number = int(fl.split("_")[-3])+1 # starting from back as initials can changed   
                     if model_number <= last_completed_model_number: # to avoid other data from non-relevent tempfiles                    
-                        model_data[model_number].not_restrained_res = identify_interface_residues(os.path.join(self.omm_proj_dir, fl))[1]# ignore_list, aa_without_restrains = 
+                        model_data[model_number].not_restrained_res = identify_interface_residues(os.path.join(self.omm_temp_dir, fl))[1]# ignore_list, aa_without_restrains = 
                     
         else:                           
             return None                    

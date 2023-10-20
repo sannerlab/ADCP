@@ -1,0 +1,49 @@
+#!/bin/sh
+
+# @author: Sudhanshu Shanker
+# --- TSRI, Michel Sanner Copyright 2019 ---
+#
+ADS_ROOT="`python -Sc "print(__import__('os').path.realpath(r'$0' '/../..'))"`"
+export ADS_ROOT
+
+export PYTHONNOUSERSITE="disable"
+
+if [ -n "$PYTHONPATH" ]; then
+        unset PYTHONPATH
+fi 
+
+if test $# -lt 1; then
+    echo "ADCP file convertion, and analysis tool sets. \nAvailable tools:"
+    echo "1) pdbtoamber: convert receptor pdb and peptide pdb to amber coordinate and topology files."
+    echo "usase:\n      adcptools pdbtoamber <options>"
+    echo "2) combineRecNpep: combines receptor from pdbqt file and peptide pdb models to generate complexes."
+    echo "usase:\n      adcptools combineRecNpep <options>"
+    echo "3) updatedlgfile: to update info in an old dlg file for the latest version of ADCP"
+    echo "usase:\n	adcptools updatedlgfile <dlgfile>"
+
+elif test $# -eq 1; then
+    if [ $1 = "pdbtoamber" ]; then
+		exec python $ADS_ROOT/lib/python*/site-packages/ADCP/utilities/file_conversions.py
+    elif [ $1 = "combineRecNpep" ]; then
+		exec python $ADS_ROOT/lib/python*/site-packages/ADCP/utilities/combine_rec_and_pep.py
+    elif [ $1 = "updatedlgfile" ]; then     
+                exec python $ADS_ROOT/lib/python*/site-packages/ADCP/utilities/update_dlg_file.py
+    else
+		echo "Unknown method: ${1}"
+    fi
+else
+	if [ $1 = "pdbtoamber" ]; then
+		shift
+		exec python $ADS_ROOT/lib/python*/site-packages/ADCP/utilities/file_conversions.py $@
+	elif [ $1 = "combineRecNpep" ]; then
+		shift
+		exec python $ADS_ROOT/lib/python*/site-packages/ADCP/utilities/combine_rec_and_pep.py $@
+	elif [ $1 = "updatedlgfile" ]; then	
+		shift
+		exec python $ADS_ROOT/lib/python*/site-packages/ADCP/utilities/update_dlg_file.py $@	
+	
+else
+		echo "Unknown method: ${1}"
+	fi
+fi
+    

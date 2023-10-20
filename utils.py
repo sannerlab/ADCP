@@ -12,7 +12,13 @@ support options given for adcp docking.
 * Parser flags for openMM parameters.
 
 
-Last Update build 14
+Last Update build 15
+Build 15:
+    10/19/23
+    1: Resume minimization looks for omm_temp diectory, to faster reading of already calculated data.
+    2: summaryfile_handler (myprint) has new functions like create_backup, delete_backup, check if minimization performed etc.
+    3: some bug fixes and rerank by interaction energy option added
+
 Build 12:
     10/4/23
     1: Resume incomplete Minimization steps. using -resumemin option. (required flags -pdmin and remove -O )
@@ -87,7 +93,7 @@ Build 6:
 """
 
 import importlib
-import os, sys
+import os, sys, shutil
 import xml.etree.ElementTree as ET
 #from colorama import Fore, Style
 
@@ -96,7 +102,7 @@ import xml.etree.ElementTree as ET
 # update it if more ffxml files added as default potentials 
 #
 DEFAULTSYSTEMFFXMLS = [ 'sannerlab', 'swiss', 'sannerlabPLUSswiss'] 
-BUILD_VERSION = 14
+BUILD_VERSION = 15
 ###
 
 replace_msg = ("""This flag is used to specify the handling of non-standard \
@@ -138,7 +144,7 @@ acids.(from build 9)
 
     return procede_after_flag_check
 
-class myprint_handler():
+class summaryfile_handler():
     '''This program reads and write summary file and displays the outputs on 
     screen, based on the myprint written my MS in runADCP.py,
     It also provides docking records and cleans the summary file'''
@@ -146,17 +152,83 @@ class myprint_handler():
         self.summaryFileName = summaryFileName
         self.summaryFileObject = None
         self.intiated = False # for append mode
-        self.preWriteData=[] # keeping all data in case we need more details later
-        self.preCleanData=[] # keeping all data in case we need more details later
+        self.PreUseData = [] # keeping all data in case we need more details later
+        self.currentData = [] 
+        self.multipleBackups = False
+    def read_summary_file(self):
+        if not os.path.exists(self.summaryFileName):
+            return None  
+        fid = open(self.summaryFileName,'r')        
+        self.currentData = fid.readlines()
+        fid.close()
+        self.intiated = True
+        if not self.PreUseData:# read first time only                    
+            self.PreUseData = self.currentData.copy()        
+        return self.currentData
+    
+    def create_backup_of_dlg(self):        
+        bkup_counter = 0
+        while 1:
+            bkp_file_name = self.summaryFileName + "_bkp%d" % bkup_counter
+           
+            # keep only single backup is so can be read again and again from the backup file in case of an error
+            if not self.multipleBackups: 
+                if os.path.isfile(bkp_file_name):
+                    return  
+            # in multiple backup allowed check
+            if not os.path.isfile(bkp_file_name):
+                break
+            bkup_counter+=1
+        shutil.copyfile(self.summaryFileName, bkp_file_name)
+        
+    def restore_dlg_from_last_backup(self):
+        bkup_counter = 0
+        while 1:
+            bkp_file_name = self.summaryFileName + "_bkp%d" % bkup_counter
+            if not os.path.exists(bkp_file_name):
+                bkp_file_name = self.summaryFileName + "_bkp%d" % (bkup_counter-1)
+                break
+            bkup_counter+=1            
+        shutil.copyfile(bkp_file_name, self.summaryFileName)   
+        
+    def delete_last_backup(self):
+        bkup_counter = 0
+        while 1:
+            bkp_file_name = self.summaryFileName + "_bkp%d" % bkup_counter
+            if not os.path.exists(bkp_file_name):
+                bkp_file_name = self.summaryFileName + "_bkp%d" % (bkup_counter-1)
+                break
+            bkup_counter+=1      
+        if os.path.isfile(bkp_file_name):
+            os.remove(bkp_file_name)
+    
+    def delete_all_backup(self):
+        summary_dir, summary_file = os.path.split(self.summaryFileName)
+        bkup_init = "%s_bkp" % summary_file
+        for fl in os.listdir(summary_dir):            
+            if fl.startswith(bkup_init):
+                expected_number = fl.replace(bkup_init,"")
+                if expected_number.isnumeric():
+                    os.remove(os.path.join(summary_dir,fl))                       
+    
+    def if_has_minimization_data(self):
+        if not self.PreUseData: 
+            self.read_summary_file()
+        # summaryFilename = '%s_summary.dlg'%os.path.join(kw['workingFolder'], kw['jobName'])
+        endline = self.PreUseData[-1]        
+        if endline.startswith('OMM Energy: Working on'):
+            return True    
+        return False    
+    
     def clean_prev_min_data(self):
         # to remove previous openMM minimizationd details
         if not self.summaryFileObject: 
-            if self.intiated:
-                fid = open(self.summaryFileName,'r')                
-                self.preCleanData = fid.readlines()
-                fid.close()                
+            if self.intiated:                
+                if not self.PreUseData:
+                    _=self.read_summary_file()
+               
                 fid = open(self.summaryFileName,'w')
-                for line in self.preCleanData:
+                for line in self.PreUseData:
                     if line.startswith('Minimizing docked poses'):
                         break
                     if line.startswith('##### POST DOCKING MINIMIZATION #####'):
@@ -173,15 +245,14 @@ class myprint_handler():
     # So, it should be run before the first __call__
         if not self.summaryFileObject: 
             if self.intiated:
-                fid = open(self.summaryFileName,'r')                
-                self.preWriteData = fid.readlines()
-                fid.close()
+                if not self.PreUseData:
+                    _=self.read_summary_file()
                 
                 line_read = False
                 ignore_lines = 3
                 header_lines = []
                 score_lines =[]
-                for l in self.preWriteData:
+                for l in self.PreUseData:
                     if 'mode |  affinity' in l:
                         line_read = True
                     if line_read:
@@ -206,6 +277,8 @@ class myprint_handler():
     def __call__( self, txt, newline=True):
         if not self.summaryFileObject:
             if self.intiated:
+                if not self.PreUseData:
+                    _ = self.read_summary_file()
                 self.summaryFileObject = open(self.summaryFileName,'a')
             else:
                 self.summaryFileObject = open(self.summaryFileName,'w+')
@@ -217,15 +290,16 @@ class myprint_handler():
         if newline:
             self.summaryFileObject.write('\n')        
         self.close() # to write each line without using buffer; required for resume minimization
-        
-        
+
         sys.stdout.write(txt)
         if newline:
             sys.stdout.write('\n')
     def close(self):
         if self.summaryFileObject:
             self.summaryFileObject.close()
-
+    
+    def __del__(self):
+        return
         
 
 class rotamerfile:
@@ -487,11 +561,6 @@ class ffxmldata:
         return ffxmlfile_names
     
     
-## FOR FFXML CURRENTLY ONLY BY DEFAULT SWISS_FF.XML IS LOADED
-## USER CAN NOT PROVIDE A NEW FFXML FILE, BUT CAN USE -FNST FLAG TO
-## RUN ADCP CALCULATIONS FOR FIXING UNKNOWN RSIDUES USING PDBFIXER
-
-
 def currently_loaded_ffxml_data(kw,myprint=print):
     '''Provide rotamerdata object for currently loaded ffxml files'''  
     '''By default it loads sannerlab rotamers (primary) and swiss (as secondary)
@@ -518,7 +587,7 @@ def currently_loaded_ffxml_data(kw,myprint=print):
             loaded_ffxmls.readffxmlfile(UFFxmllibPath)            
     return loaded_ffxmls
 
-# currently not accepts openmm ff from users
+
 def all_available_ffxml_data(kw,myprint=print):
     '''Provide rotamerdata object for currently loaded rotamer files and all other
     system available rotamer files'''  
@@ -694,16 +763,14 @@ def support_validator(kw,myprint=print):
         from MolKit2 import Read
         import numpy as np        
         
-        if kw['resmin']:
-            if not os.path.exists(kw['recpath']):
-                detected_problems.append("Receptor cannot be found. It means either previous minimization completed or never performed. -resumemin flag cannot be used ")
+        if kw['resmin']:            
+            decision, msg = is_resume_minimization_possible(**kw)            
+            if not decision:
+                detected_problems.append(msg)
                 if all_flags_allowed:
                     all_flags_allowed = False
-            if not kw['postdockmin']:
-                detected_problems.append('-resumemin flag cannot be used without postdocking minimization "-pdmin"')
-                if all_flags_allowed:
-                    all_flags_allowed = False
-                            
+            else:
+                print(msg)
         else:
             rec = Read(kw['recpath'])
             residues_in_pdb = rec._ag.select('name CA').getResnames()
@@ -900,11 +967,10 @@ def evaluate_requirements_for_minimization(kw,myprint=print):
     omm_out_file = os.path.join(workingFolder, jobName + "_omm_rescored_out.pdb")
     
     # DO NOT WRITE OVER previously minimized file without -O flag, 
-    if os.path.exists(omm_out_file) and not kw['overwriteFiles']:
+    if os.path.exists(omm_out_file) and not kw['overwriteFiles']:        
         if not kw['resmin']:
             print("ERROR: openMM minimization output file %s exist! please use -O to force overwritting output files" % omm_out_file)
             return False    
-                     
 
     # Look for required pdb and log file for output
     docked_file = os.path.join(workingFolder, '%s_out.pdb'% jobName)
@@ -945,7 +1011,44 @@ def evaluate_requirements_for_minimization(kw,myprint=print):
         return_val = False
     return return_val
 
-
+def is_resume_minimization_possible(**kw): 
+    "As the name says. We have to check this more than one time so written as a function"
+    return_msg =""
+    true_or_false= True
+    
+    omm_temp_dir = os.path.join(kw['workingFolder'],  "%s_omm_temp" % kw['jobName'])
+    omm_temp_data_file = os.path.join(omm_temp_dir, "%s_min_enz.tmp" % kw['jobName']) ## DO NOT CHANGE THIS
+ 
+    if not kw['postdockmin']:
+        return_msg = '-resumemin flag cannot be used without postdocking minimization "-pdmin"'
+        true_or_false = False            
+    
+    elif os.path.isdir(omm_temp_dir):    
+        # check if temp data file exist
+        if not os.path.isfile(omm_temp_data_file): 
+            # check if minimized solutions exist:
+            files = os.listdir(omm_temp_dir)
+            min_file_found = False
+            for fl in files:
+                if fl.endswith("fixed_min.pdb"): # even if single file present
+                    min_file_found = True
+                    break
+            
+            if not min_file_found:                            
+                return_msg = "Neither minimized complexes nor temporary file with failed openMM data found. It means either previous minimization completed gracefully or it never performed. -resumemin flag cannot be used "
+                true_or_false = False
+            else:
+                return_msg = "Preminimized complexes located!"
+        else:
+            return_msg = "Data from previous minimization found!"
+        
+    else:
+        return_msg = "Temporary openMM failed calculation data not found. It means either previous minimization completed gracefully or it never performed. -resumemin flag cannot be used "
+        true_or_false = False
+    
+    return true_or_false, return_msg
+                    
+           
 def extract_target_file(kw, workingFolder, jobName,myprint=print):    
     '''Extract rec from target file for openmm minimization'''
     if not os.path.exists(kw['target']):
@@ -967,12 +1070,12 @@ def extract_target_file(kw, workingFolder, jobName,myprint=print):
             # so we first find out the name of the folder in which the maps are
             filenames = zip_ref.namelist()
             folder = filenames[0].split(os.sep)[0]
-            if not kw['resmin']: # you do not need to extract file for resumed minimziation
+            target_folder = os.path.join(calcFolder, folder)
+            kw['recpath'] = os.path.join(target_folder, 'rigidReceptor.pdbqt') 
+            if not os.path.isfile(kw['recpath']):# you do not need to extract file for resumed minimziation
                 zip_ref.extract(os.path.join(folder, 'rigidReceptor.pdbqt' ),
-                                calcFolder) # we only need rigidReceptor for docking
-        target_folder = os.path.join(calcFolder, folder)
-            
-    kw['recpath'] = os.path.join(target_folder, 'rigidReceptor.pdbqt')  
+                       calcFolder) # we only need rigidReceptor for docking
+
     return True
  
 
@@ -1000,6 +1103,24 @@ def add_open_mm_flags(parser):
     parser.add_argument("-fnst", "--fix_nst", action="store_true",
                        dest="omm_nst", help=replace_msg)
     
+    parser.add_argument("-pdmin", "--postDockMinimize",dest="postdockmin",                         
+                        action="store_true", default=False,
+                        help=("To use openMM minimization on already docked\
+                        poses. This option will stop ADCP to perform re-docking \
+                        and activates openMM minimization of poses from \
+                        already docked output file. If using this option, use target file (-T),\
+                        jobName (-o), and sequence (-s) descriptions same as used for docking."))                        
+    
+    parser.add_argument("-resumemin", "--ResumeMinimize",dest="resmin",                         
+                        action="store_true", default=False,
+                        help=("To resume incomplete openMM minimization and reranking step.\
+                              This option can be used only in the postDock Minimization (-pdmin) and NOT overwriting (-O) mode."))   
+                             
+    parser.add_argument("-raeint", "--rerankByEinteraction",dest="raeint",                         
+                        action="store_true", default=False,
+                        help=("To rank poses by openMM interaction energy (Ecomplex -Ereceptor -Epeptide). \
+                              By default pose ranking will be performed by Ecomplex -Ereceptor."))                             
+    
     parser.add_argument("-F", "--ffxmlset",dest="systemffxml", default= "sannerlabPLUSswiss",
                         help=("To specify the use of openmm parameter sets (swiss, sannerlab, or none) \
                         from 'ADCP/data/openMMff' directory. \
@@ -1021,22 +1142,6 @@ def add_open_mm_flags(parser):
                         : '-f ./XXXX_ff.xml', the program will expect force-field file(./XXXX_ff.xml), \
                         bond definition file(./XXXX_residues.xml), and hydrogen definition file (./XXXX_hydrogen_def.xml) \
                         all three in the same directory."))
-                        
-                        
-    parser.add_argument("-pdmin", "--postDockMinimize",dest="postdockmin",                         
-                        action="store_true", default=False,
-                        help=("To use openMM minimization on already docked\
-                        poses. This option will stop ADCP to perform re-docking \
-                        and activates openMM minimization of poses from \
-                        already docked output file. If using this option, use target file (-T),\
-                        jobName (-o), and sequence (-s) descriptions same as used for docking."))
-                        
-    
-    parser.add_argument("-resumemin", "--ResumeMinimize",dest="resmin",                         
-                        action="store_true", default=False,
-                        help=("To resume incomplete openMM minimization and reranking step.\
-                              This option can be used only in the postDock Minimization (-pdmin) and NOT overwriting (-O) mode."))   
-                      
                         
     return parser
 

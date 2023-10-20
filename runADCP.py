@@ -31,7 +31,7 @@ import os, sys, numpy, shutil, random
 from glob import glob
 from time import time, sleep
 from MolKit2 import Read
-from utils import openmm_validator, add_open_mm_flags, support_validator        #OMM new line
+from utils import openmm_validator, add_open_mm_flags, support_validator,  BUILD_VERSION #OMM new line
 #import os, sys, numpy, platform, datetime, tempfile, shutil, random, tarfile, pickle
 # from glob import glob
 
@@ -640,12 +640,11 @@ if __name__=='__main__':
 
     #from ADFR.utils.runADFR import runADFR
     #from ADFR.utils.optParser import ArgParser
-
     import argparse
-    parser = argparse.ArgumentParser(description='AutoDock CrankPep', 
+    parser = argparse.ArgumentParser(description='AutoDock CrankPep V1.1.%d' % BUILD_VERSION, 
                                   usage="usage: python %(prog)s -s GaRyMiChEL -T rec.trg -w WorkFolder -o output")
                                   # version="%prog 0.1")
-    parser.add_argument('--version', action='version', version="1.1.0" )
+    parser.add_argument('--version', action='version', version="1.1.%d" % BUILD_VERSION )
     parser.add_argument("-s", "--sequence",dest="sequence",
                         help="initialize peptide from sequence, lower case for coil and UPPER case for helix")
     parser.add_argument("-p", "--partition",dest="partition",type=int,

@@ -18,8 +18,19 @@ if test $# -lt 1; then
     echo "usase:\n      adcptools pdbtoamber <options>"
     echo "2) combineRecNpep: combines receptor from pdbqt file and peptide pdb models to generate complexes."
     echo "usase:\n      adcptools combineRecNpep <options>"
-    echo "3) updatedlgfile: to update info in an old dlg file for the latest version of ADCP"
-    echo "usase:\n	adcptools updatedlgfile <dlgfile>"
+    echo "3) updatedlgfile: to update info in an old dlg file as per the latest version of ADCP for comparative analysis."
+    echo "usase:\n      adcptools updatedlgfile <dlgfile>"
+    echo ""
+    echo "Miscelleneous Info: "
+    echo -n "ADCP version: "
+    adcp --version
+    echo -n "ADCP root path: "
+    echo $ADS_ROOT/lib/python*/site-packages/ADCP
+    echo -n "Libfile maker path: "
+    echo $ADS_ROOT/lib/python*/site-packages/ADCP/utilities/libFileMaker
+    echo -n "List of supported swisssidechain NSTs in openMM minimization: "
+    echo $ADS_ROOT/lib/python*/site-packages/ADCP/data/openMMff/AVAILABLE_PARAMETER.dat
+
 
 elif test $# -eq 1; then
     if [ $1 = "pdbtoamber" ]; then

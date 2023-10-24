@@ -4,36 +4,7 @@
 Created on Fri Sep 23 13:29:31 2022
 @author: Sudhanshu Shanker
 
-Collection of methods to perform openMM based calculation of ADCP docked poses.
-Build 15:
-    10/19/23
-    1: Optimized resume Minimization using seperate openMM temp directory
-    2: faster single point energy calculation without using 1 step minimization.
-    3: Create backup of dlg file in case resumemin fails.
-    
-Build 14:
-    10/6/23        
-    1: added writing of a temp energy file for super-quick RESUME MINIMIZATION.
-    2: combined get_pre_minimized_data + temp energy file + get_pre_minimized_data_v2 in one for using all informations for faster resume.
-
-    10/5/23
-    1: added pdb_to_modeller_object for code simplification
-    2: added RESUME MINIMIZATION scheme with defs get_pre_minimized_data and get_pre_minimized_data_v2(for future)
-
-Build 11:
-    9/5/23
-    1: myprint is separated in runADCP and openMM calculations.
-    2: Omm raking line also provides score data from docking step.
-    3: fix_my_pdb is modified to work with protein-peptide complex and hydrogen added NSTs.
-    4: As we are printing ADCP score and OpenMM score together, openMM score unit is changed to kcal/mol.
-
-7/26/23 build 6
-Build 6:
-    1: fix_my_pdb loads openMM parameters (bond definition and hydrogen definition)
-    (currently only swiss) to support NSTs.
-    2: fix_my_pdb returns topology and positions (also) rather than writing a pdb file for faster calculation.
-    3: -fnst flag only mutates NSTs that is not present in loaded ffxml file (currently only swiss).
-    4: 
+Collection of methods to perform openMM based calculation on ADCP docked poses.
 """
 import os, sys, shutil
 

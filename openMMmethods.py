@@ -7,23 +7,19 @@ Created on Fri Sep 23 13:29:31 2022
 Collection of methods to perform openMM based calculation on ADCP docked poses.
 """
 import os, sys, shutil
-
 import numpy as np
-#from colorama import Fore, Style
-
 import prody
-from prody.measure.contacts import findNeighbors
 from prody import writePDB
+from prody.measure.contacts import findNeighbors
 from MolKit2 import Read
-from ADCP.utils import currently_loaded_ffxml_data, DEFAULTSYSTEMFFXMLS, summaryfile_handler  #, loaded_ffxml_names
-#from utils import currently_loaded_ffxml_data, DEFAULTSYSTEMFFXMLS, myprint_handler #, loaded_ffxml_names
 import openmm
 from openmm import CustomExternalForce
 from openmm.app import Modeller, PDBFile, ForceField, Simulation, HBonds
 from openmm.unit import kilojoules_per_mole, nanometer
 from pdbfixer import PDBFixer
 import parmed
-
+from ADCP.utils import currently_loaded_ffxml_data, DEFAULTSYSTEMFFXMLS, summaryfile_handler  #, loaded_ffxml_names
+#from utils import currently_loaded_ffxml_data, DEFAULTSYSTEMFFXMLS, myprint_handler #, loaded_ffxml_names
 
 # Global Variables
 ffxml_path = os.path.join(os.path.dirname(__file__), 'data','openMMff') # for NST ffxmls

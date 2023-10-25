@@ -19,7 +19,7 @@ import xml.etree.ElementTree as ET
 # update it if more ffxml files added as default potentials 
 #
 DEFAULTSYSTEMFFXMLS = [ 'sannerlab', 'swiss', 'sannerlabPLUSswiss'] 
-BUILD_VERSION = 16
+BUILD_VERSION = 17
 ###
 
 replace_msg = ("""This flag is used to specify the handling of non-standard \

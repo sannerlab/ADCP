@@ -231,9 +231,14 @@ class rotamerfile:
         self.__read__()
         self.myprint = myprint
         self.get_all_residues()
+        # self.AA_dict ={}
         
     def __read__(self):
         '''Reads rotamer file and collects required details'''
+        self.AA_dict ={}
+        if not os.path.isfile(self.rotamerfile_):
+            print("ERROR: Rotamer file %s could not be found." % self.rotamerfile_)
+            return
         fid = open(self.rotamerfile_,'r')
         data = fid.readlines()
         fid.close()
@@ -248,7 +253,7 @@ class rotamerfile:
     def get_all_residues(self):
         '''returns names of all residues provided by the file'''
         if len(self.residues) > 0:
-            return self.residues        
+            return self.residues       
         self.residues = list(self.AA_dict.keys())
         self.residues.sort()
         return self.residues
@@ -670,7 +675,7 @@ def support_validator(kw,myprint=print):
                 detected_problems.append('Peptide sequence should be longer than 4 amino acids.')  
                 all_flags_allowed = False
             
-
+   
     # check errors and possible sources for NSTs
     rec=''
     if not bracket_error:
@@ -717,6 +722,25 @@ def support_validator(kw,myprint=print):
             if len(NSTlist)>0:  
                 # print (NSTlist)     
                 if not kw['postdockmin']:
+                    # Check if input rotamer file exists
+                    if kw['rotlibs']:
+                        sys_rotamer_dir = os.path.join( os.path.dirname(__file__), 'data','rotamers')
+                        system_rot_libs = kw['rotlibs'].split(":")
+                        for srlf in system_rot_libs:
+                            if not os.path.isfile(os.path.join(sys_rotamer_dir, srlf + ".lib")):
+                                detected_problems.append('System rotamer file "%s" could not be find.' % srlf)
+                                if all_flags_allowed:
+                                    all_flags_allowed = False
+                    
+                    if kw['userrotlibs']:
+                        user_rot_libs = kw['userrotlibs'].split(":")
+                        for urlf in user_rot_libs:
+                            if not os.path.isfile(urlf ):
+                                detected_problems.append('User-defined rotamer file "%s" could not be find.' % urlf)
+                                if all_flags_allowed:
+                                    all_flags_allowed = False
+                    
+                    
                     if not 'all_possible_rotamers' in locals():                
                         all_possible_rotamers = all_available_rotamers(kw,myprint)
                         loaded_rotamers = currently_loaded_rotamer_data(kw,myprint)

@@ -1,0 +1,24 @@
+#!/bin/sh
+
+#
+# --- TSRI, Michel Sanner Copyright 2019 ---
+#
+# get absolute path to the installation directory
+ADS_ROOT="`python -Sc "print(__import__('os').path.realpath(r'$0' '/../..'))"`"
+
+export ADS_ROOT
+
+
+export PYTHONNOUSERSITE="disable"
+
+if [ -n "$PYTHONPATH" ]; then
+        unset PYTHONPATH
+fi 
+
+if test $# -gt 0
+then
+    exec python $ADS_ROOT/lib/python*/site-packages/ADCP/utilities/libFileMaker/makeLibFile.py $@
+else
+    exec python $ADS_ROOT/lib/python*/site-packages/ADCP/utilities/libFileMaker/makeLibFile.py
+fi
+    

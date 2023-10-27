@@ -6,7 +6,7 @@ Created on Tue Oct 24 11:13:05 2023
 Build 17:
     10/25/23
     1: BUG related to upper/lower case base amino-acid letter in Crankite resolved. (MS). 
-
+    2: Rotamer file name validation is added.
 Build 16:
     10/24/23
     1: adcptools bash command to provide details and other supports.

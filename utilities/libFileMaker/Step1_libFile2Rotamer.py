@@ -22,7 +22,7 @@ format of files:
        D/ 
            <D-AANAME>.pdb
            
-   data in pdb_and_dihedraks.dat file:
+   data in sample_dihedral_definition.dat file:
     #AAName Base DTypeName DIHEDRALS
     004 F D004 N-CA-CB-CG1
     0A1 F D0A1 N-CA-CB-CG CA-CB-CG-CD1 CE1-CZ-OH-CH
@@ -73,7 +73,7 @@ def read_independent_lib_file(libfile):
     prob_set = np.array(prob_set)[sort_arg]
     dihedral_sets = np.array(dihedral_sets)[sort_arg,:]        
     return dihedral_sets.tolist(), prob_set.tolist()
-    
+
 
 def getAAnameAndDihedralInfo(dihDefFile):    
     "Get information of dihedrals to rotate and AA name from a manually created file"
@@ -87,7 +87,9 @@ def getAAnameAndDihedralInfo(dihDefFile):
     dihedral_info = {}    
     for line in data:
         if line.startswith("#"):
-            continue   
+            continue  
+        if len(line.strip()) < 1:
+            continue
         line_before_comment = line.split("#")[0].split("//")[0]  # to igone comments in the same line
         line_spl = line_before_comment.split()        
         dihedral_list = [d.split("-") for d in line_spl[3:]]
@@ -102,20 +104,38 @@ def getAAnameAndDihedralInfo(dihDefFile):
              
     return dihedral_info
 
-def run_me(**kw):    
-    data_dir = kw['data_dir']
-    AAdihedralInfoFile = kw['AAdihedralInfoFile']
+def run_extractRotamers(**kw):    
+    AAdihedralInfoFile = kw['rotamerdetails']
+    libfileDir = kw['libfileDir']
+    pdbfileDir = kw['pdbfileDir']
     libfile_name_init = kw['libfile_name_init']
-    input_lib_file_type = kw['libfileStereomer']
-    outputfile = kw['outputFileName']    
-    temp_dir = kw["tempdir"]
-    outfile_with_path = os.path.join(temp_dir, outputfile)
+    input_lib_file_type = kw['libfileStereomer'] # We use L
+    outfile_with_path = kw['tempOutputFileName']    
     
-    finalOutputDataCollector = getAAnameAndDihedralInfo( os.path.join(data_dir,AAdihedralInfoFile))
+    if not outfile_with_path.endswith('.py'):
+        outfile_with_path += ".py"
+    
+    temp_dir = os.path.split(outfile_with_path)[0]
+    if 'nextfilename' in kw.keys():
+        nextfilename = kw['nextfilename']
+    else:
+        nextfilename = 'Step2_ADCPlibGen.py'
+    
+    # outfile_with_path = os.path.join(temp_dir, outputfile)
+    
+    finalOutputDataCollector = getAAnameAndDihedralInfo( AAdihedralInfoFile)
     AAnames = list(finalOutputDataCollector.keys())
+        
+    if not (os.path.isdir(libfileDir) and 
+            os.path.isdir(pdbfileDir)):
+        print ('Required rotamer data not found! Please run "python Step0_getDataFromSwisssidechain.py" to \
+               download it before running this step.')
+        return
+        
+    
     
     for aa in AAnames:  ## it always should be L type name, D will be genearted by adding D infront    
-        lib_file = os.path.join(data_dir,"libfiles", libfile_name_init % aa)
+        lib_file = os.path.join(libfileDir, libfile_name_init % aa)
         dihedral_angles, probs = read_independent_lib_file(lib_file)
         
         
@@ -128,12 +148,13 @@ def run_me(**kw):
         finalOutputDataCollector[aa].probs = probs
     
     # # writing rotamer data
-    if not os.path.exists(temp_dir):
-        os.mkdir(temp_dir)
-    else:
-        if not os.path.isdir(temp_dir):
-            print ("A file with the name %d exist. Please change the tempdir name.")
-            return
+    if temp_dir:
+        if not os.path.exists(temp_dir):
+            os.makedirs(temp_dir)
+        else:
+            if not os.path.isdir(temp_dir):
+                print ("A file with the name %d exist. Please change the tempdir name.")
+                return
     
     fout_id = open(outfile_with_path,"w+")   
     fout_id.write("#Data for L amino acids\n")    # it will be always for L type
@@ -170,15 +191,15 @@ def run_me(**kw):
     fout_id.write("}\n")
     
     fout_id.close()
-    print("file '%s' is created successfully. Run 'Step2_ADCPlibGen.py' to generate lib file." % outfile_with_path)
-    
+    print("file '%s' is created successfully. Run '%s' to generate lib file." % (outfile_with_path, nextfilename))
     
 if __name__ == "__main__":
     "Simple input type, modify it to use argument parser if needed"
     from settings import kw
-    run_me(**kw)
+    run_extractRotamers(**kw)
     
     
+
     
     
     

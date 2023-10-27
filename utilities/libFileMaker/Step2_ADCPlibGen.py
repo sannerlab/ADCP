@@ -18,7 +18,7 @@ import numpy as np
 from math import sqrt, pi
 from MolKit2 import Read
 from prody.measure import calcDihedral
-import os
+import os,sys
 from datetime import datetime
 from mglutil.math.rotax import rotax
 import openbabel
@@ -162,7 +162,9 @@ def name_of_D_aa_for_given_L(datfile ):
     pdb_name_data = {}
     for i in data:
         if i.startswith("#"):
-            continue        
+            continue   
+        if len(i.strip()) < 1:
+            continue
         i_spl = i.split()
         # dihedral_list = [d.split("-") for d in i_spl[3:]]
         # base_aa = i_spl[1]
@@ -173,10 +175,8 @@ def name_of_D_aa_for_given_L(datfile ):
 
 
 def get_atom_types_for_pdb_file(molf, temp_dir):  
-    'to get Atom types for writing lib file'    
-    if not os.path.exists(temp_dir):
-        os.mkdir(temp_dir)
-    else:
+    'to get Atom types for writing lib file' 
+    if temp_dir:
         if not os.path.isdir(temp_dir):
             os.mkdir(temp_dir)
     
@@ -392,31 +392,47 @@ def write_rotamer_lib_file(out_lib_file_obj, rotaDescr,  Dname = None):
         out_lib_file_obj.write("\n")
 
 
-def run_me2(**kw):
-    data_dir = kw['data_dir']
-    AAdihedralInfoFile = kw['AAdihedralInfoFile']
-    outputfile = kw['outputFileName']
-    out_dir = kw['outdir']
+def run_libGen(**kw):
+    AAdihedralInfoFile = kw['rotamerdetails']
+    rotamer_py_file_name = kw['tempOutputFileName']
+    pdbfileDir = kw['pdbfileDir']
     temp_dir = kw["tempdir"]
-    rotamer_py_file_name = os.path.join(temp_dir, outputfile)
-    out_lib_file_name =  os.path.join(out_dir , 'rotamer_swiss_nst.lib')
-    aa_and_dihedral_def = name_of_D_aa_for_given_L(os.path.join(data_dir,AAdihedralInfoFile))
-    
+    # rotamer_py_file_name = os.path.join(temp_dir, outputfile)
+    out_lib_file_name = kw['outputLibFileName']
+    aa_and_dihedral_def = name_of_D_aa_for_given_L(AAdihedralInfoFile)
+    prev_file_name = "Step1_libFile2Rotamer.py"
+    if 'prevfilename' in kw.keys():
+        prev_file_name = kw['prevfilename' ]
+            
     if not os.path.exists(rotamer_py_file_name):
-        print("Run %s to generate required rotamer intermediate file" % "Step1_libFile2Rotamer.py")
+        print("Extracted rotamer file %s not found" % rotamer_py_file_name)
+        print("Run %s to generate required rotamer intermediate file" % prev_file_name)
         return
     
-    rotamer_data = importlib.import_module(rotamer_py_file_name.replace(os.sep,".")[:-3])
+    out_dir= os.path.split(out_lib_file_name)[0]
+    
+    if temp_dir:
+        if not os.path.exists(temp_dir):
+            os.makedirs(temp_dir)
+        else:
+            if not os.path.isdir(temp_dir):
+                print ("A file with the name %d exist. Please change the tempdir name.")
+                return
+    
+    sys.path.append(os.path.split(rotamer_py_file_name)[0])
+    rotamer_data = importlib.import_module(os.path.split(rotamer_py_file_name)[1][:-3])
     rotamer_out_dir = os.path.join(temp_dir, 'rotamers')
     
     if not os.path.exists(rotamer_out_dir): # for rotamers
         os.mkdir(rotamer_out_dir)
-        
-    if not os.path.exists(out_dir): # for libfile
-        os.mkdir(out_dir)
-     
+       
+    if out_dir:
+        if not os.path.exists(out_dir): # for libfile
+            os.makedirs(out_dir)
+    
+    print('Using residue list from "%s" for lib file generation!' % AAdihedralInfoFile)
     ## First do it for L
-    names = list(rotamer_data.chiAnglesDef.keys())[:3] # you can change here to run for specific AAs. we took all   
+    names = list(rotamer_data.chiAnglesDef.keys())#[:3] # you can change here to run for specific AAs. we took all   
     out_lib_file_obj = open(out_lib_file_name, 'w+')        
     time_now = datetime.now().strftime("%B %d %Y, %H:%M:%S" )
     out_lib_file_obj.writelines(header_for_out_file(time_now, "L"))
@@ -424,7 +440,7 @@ def run_me2(**kw):
     for name in names:
         l_name = name
         print("Working on AA: %s"%( name))
-        respective_pdb_file = os.path.join(data_dir, 'pdbfiles', 'L' ,'%s.pdb'% (name))
+        respective_pdb_file = os.path.join(pdbfileDir, 'L' ,'%s.pdb'% (name))
         rotaDescr = createRotamersForPDBfile(respective_pdb_file, l_name, temp_dir, rotamer_data,out_name=l_name)
         out_lib_file_obj = open(out_lib_file_name, 'a') 
         write_rotamer_lib_file(out_lib_file_obj, rotaDescr)
@@ -439,19 +455,16 @@ def run_me2(**kw):
         l_name = name
         d_name = aa_and_dihedral_def[l_name]
         print("Working on AA: %s"%( d_name))
-        respective_pdb_file = os.path.join(data_dir, 'pdbfiles', 'D', '%s.pdb'% (d_name))
+        respective_pdb_file = os.path.join(pdbfileDir, 'D', '%s.pdb'% (d_name))
         rotaDescr = createRotamersForPDBfile(respective_pdb_file, l_name, temp_dir, rotamer_data, swap_sign=True,out_name=d_name)
         out_lib_file_obj = open(out_lib_file_name, 'a') 
         write_rotamer_lib_file(out_lib_file_obj, rotaDescr,Dname=d_name)
         out_lib_file_obj.close()
     print("ADCP acceptable lib file: '%s' generated successfully" % out_lib_file_name )
-            
+          
+    
 if __name__ == "__main__":
     "Simple input type, modify it to use argument parser if needed"
     from settings import kw
-    run_me2(**kw)
-    
-
-
-
-
+    run_libGen(**kw)
+   

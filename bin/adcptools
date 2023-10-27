@@ -1,8 +1,9 @@
 #!/bin/sh
 
-# @author: Sudhanshu Shanker
+#
 # --- TSRI, Michel Sanner Copyright 2019 ---
 #
+# get absolute path to the installation directory
 ADS_ROOT="`python -Sc "print(__import__('os').path.realpath(r'$0' '/../..'))"`"
 export ADS_ROOT
 
@@ -10,7 +11,7 @@ export PYTHONNOUSERSITE="disable"
 
 if [ -n "$PYTHONPATH" ]; then
         unset PYTHONPATH
-fi 
+fi
 
 if test $# -lt 1; then
     echo "ADCP file convertion, and analysis tool sets. \nAvailable tools:"
@@ -18,8 +19,12 @@ if test $# -lt 1; then
     echo "usase:\n      adcptools pdbtoamber <options>"
     echo "2) combineRecNpep: combines receptor from pdbqt file and peptide pdb models to generate complexes."
     echo "usase:\n      adcptools combineRecNpep <options>"
-    echo "3) updatedlgfile: to update info in an old dlg file as per the latest version of ADCP for comparative analysis."
-    echo "usase:\n      adcptools updatedlgfile <dlgfile>"
+    echo "3) updatedlgfile: to update info in an old dlg file for the latest version of ADCP"
+    echo "usase:\n	adcptools updatedlgfile <dlgfile>"
+    echo "4a) extractRotamerInfo: To extract rotameric informations from Dunbrack like rotamer files."
+    echo "usase:\n	adcptools extractRotamerInfo <options>"
+    echo "4a) makeLibFile: generate ADCP acceptable rotamer lib file  using the extracted rotameric informations in 4a step."
+    echo "usase:\n	adcptools makeLibFile <options>"
     echo ""
     echo "Miscelleneous Info: "
     echo -n "ADCP version: "
@@ -37,8 +42,13 @@ elif test $# -eq 1; then
 		exec python $ADS_ROOT/lib/python*/site-packages/ADCP/utilities/file_conversions.py
     elif [ $1 = "combineRecNpep" ]; then
 		exec python $ADS_ROOT/lib/python*/site-packages/ADCP/utilities/combine_rec_and_pep.py
-    elif [ $1 = "updatedlgfile" ]; then     
-                exec python $ADS_ROOT/lib/python*/site-packages/ADCP/utilities/update_dlg_file.py
+    elif [ $1 = "updatedlgfile" ]; then
+        exec python $ADS_ROOT/lib/python*/site-packages/ADCP/utilities/update_dlg_file.py
+    elif [ $1 = "extractRotamerInfo" ]; then
+        exec python $ADS_ROOT/lib/python*/site-packages/ADCP/utilities/libFileMaker/extractRotamerInfo.py
+    elif [ $1 = "makeLibFile" ]; then
+        exec python $ADS_ROOT/lib/python*/site-packages/ADCP/utilities/libFileMaker/makeLibFile.py
+
     else
 		echo "Unknown method: ${1}"
     fi
@@ -49,12 +59,18 @@ else
 	elif [ $1 = "combineRecNpep" ]; then
 		shift
 		exec python $ADS_ROOT/lib/python*/site-packages/ADCP/utilities/combine_rec_and_pep.py $@
-	elif [ $1 = "updatedlgfile" ]; then	
+	elif [ $1 = "updatedlgfile" ]; then
 		shift
-		exec python $ADS_ROOT/lib/python*/site-packages/ADCP/utilities/update_dlg_file.py $@	
-	
+		exec python $ADS_ROOT/lib/python*/site-packages/ADCP/utilities/update_dlg_file.py $@
+    elif [ $1 = "extractRotamerInfo" ]; then
+        shift
+        exec python $ADS_ROOT/lib/python*/site-packages/ADCP/utilities/libFileMaker/extractRotamerInfo.py $@
+    elif [ $1 = "makeLibFile" ]; then
+        shift
+        exec python $ADS_ROOT/lib/python*/site-packages/ADCP/utilities/libFileMaker/makeLibFile.py $@
+
 else
 		echo "Unknown method: ${1}"
 	fi
 fi
-    
+

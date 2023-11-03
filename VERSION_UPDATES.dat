@@ -3,6 +3,12 @@ Created on Tue Oct 24 11:13:05 2023
 
 @author: sshanker
 """
+Build 19:
+    11/3/23
+    1: increased bufferzise for rlfullnames in Carnkite_AD (MS).
+Build 18:
+    10/24/23
+    1: Added new commands to generate ADCP lib files. 
 Build 17:
     10/25/23
     1: BUG related to upper/lower case base amino-acid letter in Crankite resolved. (MS). 

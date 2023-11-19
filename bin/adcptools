@@ -73,4 +73,3 @@ else
 		echo "Unknown method: ${1}"
 	fi
 fi
-

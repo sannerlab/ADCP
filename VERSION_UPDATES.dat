@@ -3,6 +3,13 @@ Created on Tue Oct 24 11:13:05 2023
 
 @author: sshanker
 """
+Build 20:
+    19/11/23
+    -updated files to reflect files in pip package by MS
+    1/10/24
+    updated pyproject.toml information and LD_LIBRARY_PATH in bin scripts
+    reset Crankite to Build 19.
+    
 Build 19:
     11/3/23
     1: increased bufferzise for rlfullnames in Carnkite_AD (MS).

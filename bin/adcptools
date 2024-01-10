@@ -8,10 +8,11 @@ ADS_ROOT="`python -Sc "print(__import__('os').path.realpath(r'$0' '/../..'))"`"
 export ADS_ROOT
 
 export PYTHONNOUSERSITE="disable"
+export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$ADS_ROOT/lib"
 
 if [ -n "$PYTHONPATH" ]; then
         unset PYTHONPATH
-fi
+fi 
 
 if test $# -lt 1; then
     echo "ADCP file convertion, and analysis tool sets. \nAvailable tools:"
@@ -42,7 +43,7 @@ elif test $# -eq 1; then
 		exec python $ADS_ROOT/lib/python*/site-packages/ADCP/utilities/file_conversions.py
     elif [ $1 = "combineRecNpep" ]; then
 		exec python $ADS_ROOT/lib/python*/site-packages/ADCP/utilities/combine_rec_and_pep.py
-    elif [ $1 = "updatedlgfile" ]; then
+    elif [ $1 = "updatedlgfile" ]; then     
         exec python $ADS_ROOT/lib/python*/site-packages/ADCP/utilities/update_dlg_file.py
     elif [ $1 = "extractRotamerInfo" ]; then
         exec python $ADS_ROOT/lib/python*/site-packages/ADCP/utilities/libFileMaker/extractRotamerInfo.py
@@ -59,17 +60,18 @@ else
 	elif [ $1 = "combineRecNpep" ]; then
 		shift
 		exec python $ADS_ROOT/lib/python*/site-packages/ADCP/utilities/combine_rec_and_pep.py $@
-	elif [ $1 = "updatedlgfile" ]; then
+	elif [ $1 = "updatedlgfile" ]; then	
 		shift
-		exec python $ADS_ROOT/lib/python*/site-packages/ADCP/utilities/update_dlg_file.py $@
+		exec python $ADS_ROOT/lib/python*/site-packages/ADCP/utilities/update_dlg_file.py $@	
     elif [ $1 = "extractRotamerInfo" ]; then
         shift
         exec python $ADS_ROOT/lib/python*/site-packages/ADCP/utilities/libFileMaker/extractRotamerInfo.py $@
     elif [ $1 = "makeLibFile" ]; then
         shift
         exec python $ADS_ROOT/lib/python*/site-packages/ADCP/utilities/libFileMaker/makeLibFile.py $@
-
+	
 else
 		echo "Unknown method: ${1}"
 	fi
 fi
+    

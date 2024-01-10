@@ -10,6 +10,7 @@ export ADS_ROOT
 
 
 export PYTHONNOUSERSITE="disable"
+export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$ADS_ROOT/lib"
 
 if [ -n "$PYTHONPATH" ]; then
         unset PYTHONPATH

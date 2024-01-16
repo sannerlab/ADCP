@@ -3,12 +3,18 @@ Created on Tue Oct 24 11:13:05 2023
 
 @author: sshanker
 """
+Build 21:
+    1/16/24
+    1: default NST parameters are set to gaff type.
+    2: added gaff type parameter and gaff-amber bridge parameter.
+    3: resolved errors when wrong ffxmls file names are provided using -F or -f options.
+
 Build 20:
     19/11/23
-    -updated files to reflect files in pip package by MS
+    1: updated files to reflect files in pip package by MS
     1/10/24
-    updated pyproject.toml information and LD_LIBRARY_PATH in bin scripts
-    reset Crankite to Build 19.
+    2: updated pyproject.toml information and LD_LIBRARY_PATH in bin scripts
+    3: reset Crankite to Build 19.
     
 Build 19:
     11/3/23

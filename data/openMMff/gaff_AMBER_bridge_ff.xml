@@ -1,0 +1,74 @@
+<!--CT = c3 ## CA
+C = c
+N =n4
+O = o
+H5 = h5
+H = Hn-->
+
+
+<ForceField>
+  <Info Details="Bridge parameters between Gaff and AMBER. All parameters are taken from AMBER99SB"/> 
+  <AtomTypes>
+  </AtomTypes>
+  <HarmonicBondForce>
+    <Bond class1="c" class2="N" length="0.1335" k="410032.0"/>
+    <Bond class1="C" class2="n4" length="0.1335" k="410032.0"/>
+    <Bond class1="c" class2="n4" length="0.1335" k="410032.0"/>
+  </HarmonicBondForce>
+  <HarmonicAngleForce>
+    <Angle class1="CT" class2="C" class3="n4" angle="2.03505390783" k="585.76"/>  
+    <Angle class1="c3" class2="c" class3="N" angle="2.03505390783" k="585.76"/>
+    <Angle class1="c3" class2="c" class3="n4" angle="2.03505390783" k="585.76"/>
+    
+    <Angle class1="N" class2="c" class3="o" angle="2.1450096507" k="669.44"/>
+    <Angle class1="n4" class2="C" class3="O" angle="2.1450096507" k="669.44"/>
+    <Angle class1="n4" class2="c" class3="o" angle="2.1450096507" k="669.44"/>
+    
+    <Angle class1="H5" class2="C" class3="n4" angle="2.09439510239" k="418.4"/>
+    <Angle class1="h5" class2="c" class3="N" angle="2.09439510239" k="418.4"/>
+    <Angle class1="h5" class2="c" class3="n4" angle="2.09439510239" k="418.4"/>
+    
+    <Angle class1="c" class2="N" class3="CT" angle="2.12755635818" k="418.4"/>
+    <Angle class1="C" class2="n4" class3="c3" angle="2.12755635818" k="418.4"/>
+    <Angle class1="c" class2="n4" class3="c3" angle="2.12755635818" k="418.4"/>
+    
+    <Angle class1="c" class2="N" class3="H" angle="2.09439510239" k="418.4"/>
+    <Angle class1="C" class2="n4" class3="hn" angle="2.09439510239" k="418.4"/>
+    <Angle class1="c" class2="n4" class3="hn" angle="2.09439510239" k="418.4"/>     
+  </HarmonicAngleForce>
+  <PeriodicTorsionForce>      
+    <Proper class1="CT" class2="CT" class3="C" class4="n4" periodicity1="4" phase1="0.0" k1="0.0" periodicity2="3" phase2="0.0" k2="1.6736" periodicity3="2" phase3="0.0" k3="0.8368" periodicity4="1" phase4="0.0" k4="0.8368"/>
+    <Proper class1="c3" class2="c3" class3="c" class4="N" periodicity1="4" phase1="0.0" k1="0.0" periodicity2="3" phase2="0.0" k2="1.6736" periodicity3="2" phase3="0.0" k3="0.8368" periodicity4="1" phase4="0.0" k4="0.8368"/>
+    
+    
+    <Proper class1="CT" class2="CT" class3="N" class4="c" periodicity1="4" phase1="0.0" k1="0.0" periodicity2="3" phase2="0.0" k2="1.6736" periodicity3="2" phase3="0.0" k3="8.368" periodicity4="1" phase4="0.0" k4="8.368"/>
+    <Proper class1="c3" class2="c3" class3="n4" class4="C" periodicity1="4" phase1="0.0" k1="0.0" periodicity2="3" phase2="0.0" k2="1.6736" periodicity3="2" phase3="0.0" k3="8.368" periodicity4="1" phase4="0.0" k4="8.368"/>
+    
+    <Proper class1="N" class2="CT" class3="C" class4="n4" periodicity1="4" phase1="0.0" k1="0.0" periodicity2="3" phase2="3.14159265359" k2="2.3012" periodicity3="2" phase3="3.14159265359" k3="6.61072" periodicity4="1" phase4="3.14159265359" k4="1.8828"/>
+    <Proper class1="n4" class2="c3" class3="c" class4="N" periodicity1="4" phase1="0.0" k1="0.0" periodicity2="3" phase2="3.14159265359" k2="2.3012" periodicity3="2" phase3="3.14159265359" k3="6.61072" periodicity4="1" phase4="3.14159265359" k4="1.8828"/>  
+    <Proper class1="n4" class2="c3" class3="c" class4="n4" periodicity1="4" phase1="0.0" k1="0.0" periodicity2="3" phase2="3.14159265359" k2="2.3012" periodicity3="2" phase3="3.14159265359" k3="6.61072" periodicity4="1" phase4="3.14159265359" k4="1.8828"/> 
+    
+    <Proper class1="c" class2="N" class3="CT" class4="C" periodicity1="4" phase1="0.0" k1="0.0" periodicity2="3" phase2="0.0" k2="1.75728" periodicity3="2" phase3="0.0" k3="1.12968" periodicity4="1" phase4="0.0" k4="0.0"/>
+    <Proper class1="C" class2="n4" class3="c3" class4="c" periodicity1="4" phase1="0.0" k1="0.0" periodicity2="3" phase2="0.0" k2="1.75728" periodicity3="2" phase3="0.0" k3="1.12968" periodicity4="1" phase4="0.0" k4="0.0"/>
+    <Proper class1="c" class2="n4" class3="c3" class4="c" periodicity1="4" phase1="0.0" k1="0.0" periodicity2="3" phase2="0.0" k2="1.75728" periodicity3="2" phase3="0.0" k3="1.12968" periodicity4="1" phase4="0.0" k4="0.0"/>
+        
+    <Proper class1="H" class2="N" class3="c" class4="o" periodicity1="2" phase1="3.14159265359" k1="10.46" periodicity2="1" phase2="0.0" k2="8.368"/>
+    <Proper class1="nh" class2="n4" class3="C" class4="O" periodicity1="2" phase1="3.14159265359" k1="10.46" periodicity2="1" phase2="0.0" k2="8.368"/>
+    <Proper class1="nh" class2="n4" class3="c" class4="o" periodicity1="2" phase1="3.14159265359" k1="10.46" periodicity2="1" phase2="0.0" k2="8.368"/>
+  
+    <Proper class1="" class2="c" class3="N" class4="" periodicity1="2" phase1="3.14159265359" k1="10.46"/>
+    <Proper class1="" class2="C" class3="n4" class4="" periodicity1="2" phase1="3.14159265359" k1="10.46"/>
+    <Proper class1="" class2="c" class3="n4" class4="" periodicity1="2" phase1="3.14159265359" k1="10.46"/>
+    
+    <Improper class1="n4" class2="C" class3="CT" class4="O" periodicity1="2" phase1="3.14159265359" k1="4.6024"/>
+    <Improper class1="N" class2="c" class3="c3" class4="o" periodicity1="2" phase1="3.14159265359" k1="4.6024"/>
+    <Improper class1="n4" class2="c" class3="c3" class4="o" periodicity1="2" phase1="3.14159265359" k1="4.6024"/>
+    
+    <Improper class1="n4" class2="C" class3="CT" class4="hn" periodicity1="2" phase1="3.14159265359" k1="4.6024"/>    
+    <Improper class1="N" class2="c" class3="c3" class4="H" periodicity1="2" phase1="3.14159265359" k1="4.6024"/>    
+    <Improper class1="n4" class2="c" class3="c3" class4="hn" periodicity1="2" phase1="3.14159265359" k1="4.6024"/>
+  </PeriodicTorsionForce>
+</ForceField>
+
+
+

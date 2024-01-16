@@ -18,8 +18,9 @@ import xml.etree.ElementTree as ET
 # Default system ffxml files, it can be extended for new parameter sets
 # update it if more ffxml files added as default potentials 
 #
-DEFAULTSYSTEMFFXMLS = [ 'sannerlab', 'swiss', 'sannerlabPLUSswiss'] 
-BUILD_VERSION = 20
+DEFAULTSYSTEMFFXMLS = [ 'sannerlab', 'swiss', 'sannerlab_amber'] # for nst openmm parameters
+BRIDGEFFXMLS = ['gaff_AMBER_bridge']
+BUILD_VERSION = 21
 ###
 
 replace_msg = ("""This flag is used to specify the handling of non-standard \
@@ -421,10 +422,11 @@ class ffxmlfile:
         '''Reading of file and required details'''
         tree = ET.parse(self.ffxmlFile)    
         root = tree.getroot()
-        all_res = root.find('Residues').findall('Residue')
-        for res in all_res:
-            self.residues.append(res.get('name'))               
-        self.residues.sort()
+        if root.find('Residues'):
+            all_res = root.find('Residues').findall('Residue')
+            for res in all_res:
+                self.residues.append(res.get('name'))               
+            self.residues.sort()
         self.name = os.path.split(self.ffxmlFile)[1][:-4]
         
     def get_all_residues(self):
@@ -493,20 +495,25 @@ def currently_loaded_ffxml_data(kw,myprint=print):
     ## from system
 
     system_ffxml_libs= kw['systemffxml'].split(":")
+    ## load gaff-amber bridge
+    for bpffxml in BRIDGEFFXMLS:
+        system_ffxml_libs.append(bpffxml)
     
     if not 'none' in system_ffxml_libs :  ## none overrides everything
         sys_ffxml_dir = os.path.join( os.path.dirname(__file__), 'data/openMMff')            
         for filenm in system_ffxml_libs:
             # print(filenm)
             ffxml_file = os.path.join(sys_ffxml_dir, filenm+"_ff.xml")
-            loaded_ffxmls.readffxmlfile(ffxml_file)
+            if os.path.isfile(ffxml_file):
+                loaded_ffxmls.readffxmlfile(ffxml_file)
 
     # user defined
     if not kw['userffxml'] == None:
         UserFFxmlLibFiles = kw['userffxml'].split(":")
         for UFFxmllibFile in UserFFxmlLibFiles:
             UFFxmllibPath = os.path.abspath(UFFxmllibFile)
-            loaded_ffxmls.readffxmlfile(UFFxmllibPath)            
+            if os.path.isfile(UFFxmllibPath):
+                loaded_ffxmls.readffxmlfile(UFFxmllibPath)            
     return loaded_ffxmls
 
 
@@ -853,7 +860,7 @@ def support_validator(kw,myprint=print):
     system_ffxml_set = kw['systemffxml']         
     for sysffxml in system_ffxml_set.split(":"):
         if not sysffxml in ['all_available','none']+DEFAULTSYSTEMFFXMLS: 
-            detected_problems.append('Unknown ffxmlset "%s". "-ffxmlset" should be "swiss", "sannerlab" or "none".' % system_ffxml_set)
+            detected_problems.append('Unknown ffxmlset "%s". "-ffxmlset" should be "swiss", "sannerlab", "sannerlab_amber" or "none".' % system_ffxml_set)
             if all_flags_allowed:
                 all_flags_allowed = False
         
@@ -1062,12 +1069,11 @@ def add_open_mm_flags(parser):
                         help=("To rank poses by openMM interaction energy (Ecomplex -Ereceptor -Epeptide). \
                               By default pose ranking will be performed by Ecomplex -Ereceptor."))                             
     
-    parser.add_argument("-F", "--ffxmlset",dest="systemffxml", default= "sannerlabPLUSswiss",
+    parser.add_argument("-F", "--ffxmlset",dest="systemffxml", default= "sannerlab",
                         help=("To specify the use of openmm parameter sets (swiss, sannerlab, or none) \
                         from 'ADCP/data/openMMff' directory. \
-                        By default, 'sannerlab' is used as primary source of parameters. \
-                        Parameter for only NSTs that are not identified by 'sannerlab' will be taken from \
-                        'swiss'.'swiss' supports only non-terminal NST residues.\
+                        By default, 'sannerlab' (gaff type) is used as the source of parameters. \
+                        'swiss' parameters obtained from the swisssidechain.ch supports only non-terminal NST residues.\
                         option 'none' can be used to restrict use of any system default parameter sets. \
                         List of supported NSTs from both libraries is given in\
                         'AVAILABLE_PARAMETER.dat' file in 'ADCP/data/openMMff' \

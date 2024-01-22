@@ -191,7 +191,7 @@ class clusterADCP:
         ## palindrom =  isPalindrom(seq)
 
         if kw['rec']:
-            rec = Read(os.path.join(kw['targetFolder'], kw['rec']))
+            rec = Read(os.path.join(kw['targetFolder'].replace("\\\\\\","\\"),kw['rec']))
             
         ## set cutoff used for clustering based on contacts (default)
         ## or rmsd is specified
@@ -204,7 +204,7 @@ class clusterADCP:
             else:                
                 natContact = True
                 rmsd = False
-                receptor = Read(os.path.join(kw['targetFolder'],kw['rec']))
+                receptor = Read(os.path.join(kw['targetFolder'].replace("\\\\\\","\\").replace("\\\\","\\"),kw['rec']))
                 clusterCutoff = 0.8
 
         moldelAtoms = models._ag.select('name C N CA')

@@ -330,6 +330,7 @@ class runADCP:
             seeds = [] # save seeds for runs to save in summary file
             # build cmdline args for adcp binary
             argv = ['cd %s; %s -t 2'%(calcFolder, binary)]
+            argv[0] = argv[0].replace("\\","\\\\\\")
 
             if kw['sequence'] is None:
                 if kw['input'] is None or kw['input'][-3:] != 'pdb':
@@ -364,7 +365,7 @@ class runADCP:
                 # argv.append('-l %s'%os.path.abspath(kw['userrotlibs']))
                 # for word in kw['userrotlibs'].split(':'):
                 #     self.myprint( 'using user rotamer library %s'%word)
-
+            target_folder = target_folder.replace("\\", "\\\\\\")
             argv.append('-T %s'%os.path.abspath(target_folder))
 
             # set up the length for each run, 25M as default

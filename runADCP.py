@@ -601,13 +601,13 @@ class runADCP:
                 break
     
         if validLowestE==-Elow:
-            self.myprint("no run obtained a reasonable low energy solution.\n Stopping calculation without removing calcualtion folder %s"%calcFolder)
+            self.myprint("no run obtained a reasonable low energy solution.\n Stopping calculation without removing calculation folder %s"%calcFolder)
             sys.exit(1)
 
         nbFail = len([x[0] for x in runStatus if x[0]=='Error'])
         #import pdb; pdb.set_trace()
         if nbFail == nbRuns:
-            self.myprint("all runs failed.\n Stopping calculation without removing calcualtion folder %s"%calcFolder)
+            self.myprint("all runs failed.\n Stopping calculation without removing calculation folder %s"%calcFolder)
             sys.exit(1)
   
         self.myprint('bestEnergies %s '%(str(runEnergies)))
@@ -726,7 +726,7 @@ if __name__=='__main__':
     parser.add_argument("-w", "--workingFolder", default=None,
                        dest="workingFolder", help='folder in which the target file is expanded and the MC runs happen. Will be deleted after the run finished unless -k is specified')
     parser.add_argument("-r", "--reclusterOnly", default=False,  dest="reclusterOnly",
-                        action="store_true", help="only perform reclustering, assuming the calcualtion folder still exists")
+                        action="store_true", help="only perform reclustering, assuming the calculation folder still exists")
 
     # openMM flag support
     parser = add_open_mm_flags(parser)                                          #OMM new line

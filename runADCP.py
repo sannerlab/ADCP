@@ -101,6 +101,16 @@ class runADCP:
         self.workingFolder = None
         self.calcFolder = None
 
+    def getErrors(self, filename):
+        f = open(filename)
+        lines = f.readlines()
+        f.close()
+        err = []
+        for line in lines:
+            if 'error' in line or 'ERROR' in line:
+                err.append(line)
+        return err
+    
     def __call__(self, **kw):
         #
         # run ADFR GAs using the list of command line arguments from the sysargv list
@@ -397,6 +407,7 @@ class runADCP:
             # outfiles = {}
             processes = [None]*(nbRuns)
             outfiles = [None]*(nbRuns)
+            errfiles = [None]*(nbRuns)
 
             nbStart = 0 # number of started runs
             nbDone = 0 # number of completed runs
@@ -453,10 +464,11 @@ class runADCP:
                     command = ' '.join(argv)
 
                 outfile =  open(os.path.join(calcFolder, 'run_%d.out'%(jobNum)), 'w')
+                errfile =  open(os.path.join(calcFolder, 'run_%d.err'%(jobNum)), 'w')
 
                 process = subprocess.Popen(' '.join(argv),
                                            stdout=outfile,#subprocess.PIPE , 
-                                           stderr=outfile, #subprocess.PIPE, 
+                                           stderr=errfile, #subprocess.PIPE, 
                                            bufsize = 1, shell=self.shell ,  cwd=os.getcwd())
 
                 #procToRun[process] = jobNum-1
@@ -464,6 +476,7 @@ class runADCP:
                 #outfiles[jobNum] = outfile # process.stdout returns None. So save the file handle in the dictionary, so that we can close the file after the job finishes
                 processes[jobNum-1]= process
                 outfiles[jobNum-1] = outfile
+                errfiles[jobNum-1] = errfile
                 nbStart += 1
                 #print("%3d %s %s"%(jobNum-1, process, outfile))
 
@@ -481,7 +494,8 @@ class runADCP:
                             runStatus[jnum] = ('Error', '%s%04d'%(jobName, jnum+1))
                             error = '\n'.join(runStatus[jnum][1])
                             status = 'FAILED'
-                            self.myprint( '%d ENDED WITH ERROR'%(jnum,))
+                            errormsg = self.getErrors(errfiles[jobNum-1].name)
+                            self.myprint( '%d ENDED WITH ERROR: %s'%(jnum,'\n'.join(errormsg)))
                             print ('%d err'%jnum)
                         else:
                             #print('FAFA2', proc, jnum, proc.returncode)
@@ -523,6 +537,7 @@ class runADCP:
                             argv[-2] = 'run_%d.pdb'%(jobNum)
                             #argv[-1] = '> %s_%d.out 2>&1'%(jobName,jobNum)
                             outfileName =  os.path.join(calcFolder, 'run_%d.out'%(jobNum))
+                            errfileName =  os.path.join(calcFolder, 'run_%d.err'%(jobNum))
                             # remove output file in case it exists
                             #try:
                             #    os.remove(argv[-1])
@@ -534,6 +549,13 @@ class runADCP:
                                     f.close()
                                 os.remove(outfileName)
                             outfile = open(outfileName, "w")
+
+                            if os.path.exists(errfileName):
+                                f = errfiles[jobNum-1]
+                                if f and not f.closed:
+                                    f.close()
+                                os.remove(errfileName)
+                            errfile = open(errfileName, "w")
 
                             # overwrite the sequence if parition is found
                             if partition > 0 and partition < 100 and kw['sequence'] is not None:
@@ -549,12 +571,13 @@ class runADCP:
                             #                           bufsize = 1, shell=self.shell, cwd=os.getcwd())
                             process = subprocess.Popen(' '.join(argv),
                                                        stdout=outfile, #subprocess.PIPE , 
-                                                       stderr=outfile, #subprocess.PIPE, 
+                                                       stderr=errfile, #subprocess.PIPE, 
                                                        bufsize = 1, shell=self.shell, cwd=os.getcwd())
                             # print(process)
                             #procToRun[process] = jobNum-1
                             processes[jobNum-1]= process
                             outfiles[jobNum-1] = outfile
+                            errfiles[jobNum-1] = errfile
                             #print('FUFU2', process, jobNum-1)
                             #outfiles[jobNum] = outfile
                             nbStart += 1
@@ -578,9 +601,15 @@ class runADCP:
                 break
     
         if validLowestE==-Elow:
-            self.myprint("no run obtained a reasonable low energy solution.\n Stopping calculation without removing calcualtion folder %d"%calcFolder)
+            self.myprint("no run obtained a reasonable low energy solution.\n Stopping calculation without removing calcualtion folder %s"%calcFolder)
             sys.exit(1)
 
+        nbFail = len([x[0] for x in runStatus if x[0]=='Error'])
+        #import pdb; pdb.set_trace()
+        if nbFail == nbRuns:
+            self.myprint("all runs failed.\n Stopping calculation without removing calcualtion folder %s"%calcFolder)
+            sys.exit(1)
+  
         self.myprint('bestEnergies %s '%(str(runEnergies)))
         self.myprint('bestEnergy in run %d %f (%d)'%(sort_index[nn]+1, validLowestE, nn))
 

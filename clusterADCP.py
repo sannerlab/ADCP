@@ -42,13 +42,12 @@ def getEnergy(filename):
             continue
         enes=l.split()
         if enes[2] == 'totalE':
-            if float(enes[3]) < -1000000 or float(enes[3]) > 1000000:
-                return totalE,locE,extE,rotamers
-            totalE.append(float(enes[3]))
-            locE.append(float(enes[6]))
-            #extE.append(float(enes[8]))
-
-            extE.append(0.25*float(enes[3])+0.75*float(enes[8]))
+            if float(enes[3]) > -1000000 and float(enes[3]) < 1000000:
+                #return totalE,locE,extE,rotamers
+                totalE.append(float(enes[3]))
+                locE.append(float(enes[6]))
+                #extE.append(float(enes[8]))
+                extE.append(0.25*float(enes[3])+0.75*float(enes[8]))
         else:
             totalE.append(float(enes[2]))
             locE.append(float(enes[4]))
@@ -279,7 +278,9 @@ class clusterADCP:
 
         # establish order of docked poses
         totE, locE, extE, allrotamers = getEnergy(syst)        
-
+        if len(extE)==0:
+            print("no solution with resonnable exnergy found.")
+            sys.exit(1)
         order=[]
         scores=[]
         bestE = min(extE)

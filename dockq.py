@@ -71,19 +71,18 @@ def Fnat(receptor, ligand, receptorRef, ligandRef, cutoff):
     return len(poseResPairsNat), len(poseResPairsNonNat), len(natResPairs), interface
 
 def capri_class_DockQ(DockQ):
-    # function implemented by Bjorn Wallner see
-    # https://github.com/bjornwallner/DockQ
-    (c1,c2,c3)=(0.23,0.49,0.80)
-    if(DockQ < c1):
-        return 'Incorrect'
-    elif(DockQ >= c1 and DockQ < c2):
-        return 'Acceptable'
-    elif(DockQ >= c2 and DockQ < c3):
-        return 'Medium'
-    elif(DockQ >= c3):
+    # CAPRI quality class of a DockQ score, with the thresholds published with DockQ:
+    # Basu, S.; Wallner, B. DockQ: a quality measure for protein-protein docking models.
+    # PLoS One 2016, 11 (8), e0161879. (A score that is not a number is 'Undef'.)
+    if DockQ >= 0.80:
         return 'High'
-    else:
-        return 'Undef'
+    if DockQ >= 0.49:
+        return 'Medium'
+    if DockQ >= 0.23:
+        return 'Acceptable'
+    if DockQ < 0.23:
+        return 'Incorrect'
+    return 'Undef'
 
 def calcDockQ(ligD, ligC, fnat, inter):
     # ligand interface backbone atoms in reference
